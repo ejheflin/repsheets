@@ -23,49 +23,69 @@ interface ExerciseRowProps {
   onToggleExercise: () => void
   onToggleSet: (setIdx: number) => void
   onUpdateSet: (setIdx: number, field: 'reps' | 'value', val: number | null) => void
+  onUpdateAllSets: (field: 'reps' | 'value', val: number | null) => void
   onAddSet: () => void
-}
-
-function summarizeSets(exercise: WorkoutExercise): string {
-  const sets = exercise.sets
-  if (sets.length === 0) return ''
-  const firstReps = sets[0].reps
-  const firstValue = sets[0].value
-  const unit = sets[0].unit
-  const allSame = sets.every((s) => s.reps === firstReps && s.value === firstValue)
-  if (allSame && firstReps !== null) {
-    const valStr = firstValue !== null ? ` @ ${firstValue} ${unit}` : ''
-    return `${sets.length}×${firstReps}${valStr}`
-  }
-  return `${sets.length} sets`
 }
 
 export function ExerciseRow({
   exercise,
-  onToggleExpand, onToggleExercise, onToggleSet, onUpdateSet, onAddSet,
+  onToggleExpand, onToggleExercise, onToggleSet, onUpdateSet, onUpdateAllSets, onAddSet,
 }: ExerciseRowProps) {
   const allCompleted = exercise.sets.every((s) => s.completed)
-  const summary = summarizeSets(exercise)
   const unit = exercise.sets[0]?.unit ?? ''
+
+  // Collapsed view values: use first set's values as the "summary" value
+  const summaryReps = exercise.sets[0]?.reps ?? null
+  const summaryValue = exercise.sets[0]?.value ?? null
+
+  // Check if any set differs from the summary
+  const repsHasMismatch = exercise.sets.some((s) => s.reps !== summaryReps)
+  const valueHasMismatch = exercise.sets.some((s) => s.value !== summaryValue)
 
   if (!exercise.isExpanded) {
     return (
-      <div className="bg-[#2a2a4a] rounded-[10px] mb-1.5 px-3 py-2.5 flex items-center">
-        <button onClick={onToggleExpand} className="mr-1.5 self-stretch flex items-center"><ChevronRight /></button>
-        <button onClick={onToggleExpand} className="flex-1 text-left">
-          <div className="font-semibold text-sm">{exercise.exercise}</div>
-          <div className="text-xs text-gray-500 mt-0.5">{summary}</div>
-          {exercise.notes && (
-            <div className="text-[10px] text-yellow-400 mt-0.5">💡 {exercise.notes}</div>
-          )}
-        </button>
-        <button onClick={onToggleExercise}>
-          {allCompleted ? (
-            <div className="w-[22px] h-[22px] bg-[#6c63ff] rounded-md flex items-center justify-center text-xs">✓</div>
-          ) : (
-            <div className="w-[22px] h-[22px] border-2 border-[#444] rounded-md" />
-          )}
-        </button>
+      <div className="bg-[#2a2a4a] rounded-[10px] mb-1.5 px-3 py-2.5">
+        <div className="flex items-center">
+          <button onClick={onToggleExpand} className="mr-1.5 self-stretch flex items-center"><ChevronRight /></button>
+          <button onClick={onToggleExpand} className="flex-1 text-left min-w-0">
+            <div className="font-semibold text-sm truncate">{exercise.exercise}</div>
+            {exercise.notes && (
+              <div className="text-[10px] text-yellow-400 mt-0.5 truncate">💡 {exercise.notes}</div>
+            )}
+          </button>
+          <button onClick={onToggleExercise} className="ml-2">
+            {allCompleted ? (
+              <div className="w-[22px] h-[22px] bg-[#6c63ff] rounded-md flex items-center justify-center text-xs">✓</div>
+            ) : (
+              <div className="w-[22px] h-[22px] border-2 border-[#444] rounded-md" />
+            )}
+          </button>
+        </div>
+        <div className="flex items-center mt-1.5 ml-[14px]">
+          <span className="text-[11px] text-gray-500 mr-2 w-8 flex-shrink-0">{exercise.sets.length}×</span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => onUpdateAllSets('reps', Math.max(0, (summaryReps ?? 0) - 1))}
+              className="w-5 h-5 rounded bg-[#1a1a2e] text-gray-400 text-xs flex items-center justify-center active:bg-[#3a3a5a]"
+            >−</button>
+            <input type="text" inputMode="numeric" value={summaryReps ?? ''}
+              onChange={(e) => onUpdateAllSets('reps', e.target.value ? Number(e.target.value) : null)}
+              onFocus={(e) => e.target.select()}
+              className={`w-9 bg-[#1a1a2e] rounded text-center text-xs font-semibold py-0.5 outline-none ${repsHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
+              placeholder="—" />
+            <button
+              onClick={() => onUpdateAllSets('reps', (summaryReps ?? 0) + 1)}
+              className="w-5 h-5 rounded bg-[#1a1a2e] text-gray-400 text-xs flex items-center justify-center active:bg-[#3a3a5a]"
+            >+</button>
+          </div>
+          <span className="text-[11px] text-gray-500 mx-2">@</span>
+          <input type="text" inputMode="decimal" value={summaryValue ?? ''}
+            onChange={(e) => onUpdateAllSets('value', e.target.value ? Number(e.target.value) : null)}
+            onFocus={(e) => e.target.select()}
+            className={`w-14 bg-[#1a1a2e] rounded text-center text-xs font-semibold py-0.5 outline-none ${valueHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
+            placeholder="—" />
+          <span className="text-[11px] text-gray-500 ml-1">{unit}</span>
+        </div>
       </div>
     )
   }
