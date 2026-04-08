@@ -40,16 +40,27 @@ describe('resolveSetValues', () => {
     expect(result.value).toBe(230)
   })
 
-  it('returns most recent log entry when multiple exist', () => {
+  it('returns last matching log entry (append-order = most recent)', () => {
     const set = makeSet()
     const logs = [
       makeLog({ date: '2026-04-05', reps: 4, value: 215 }),
-      makeLog({ date: '2026-04-07', reps: 6, value: 230 }),
       makeLog({ date: '2026-04-06', reps: 5, value: 220 }),
+      makeLog({ date: '2026-04-07', reps: 6, value: 230 }),
     ]
     const result = resolveSetValues(set, logs, 'Test', 'Day1')
     expect(result.reps).toBe(6)
     expect(result.value).toBe(230)
+  })
+
+  it('handles multiple workouts on the same date (last entry wins)', () => {
+    const set = makeSet()
+    const logs = [
+      makeLog({ date: '2026-04-07', reps: 5, value: 225 }),
+      makeLog({ date: '2026-04-07', reps: 4, value: 225 }),
+    ]
+    const result = resolveSetValues(set, logs, 'Test', 'Day1')
+    expect(result.reps).toBe(4)
+    expect(result.value).toBe(225)
   })
 
   it('falls back to routine config when no log history', () => {
