@@ -8,12 +8,39 @@ const CHART_COLORS = ['#6c63ff', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4', '#e
 interface ExerciseProgressChartProps {
   exerciseHistory: (name: string, limit?: number) => ExerciseHistoryPoint[]
   uniqueExercises: string[]
+  programs: string[]
+  programExercises: Map<string, string[]>
 }
 
-export function ExerciseProgressChart({ exerciseHistory, uniqueExercises }: ExerciseProgressChartProps) {
+export function ExerciseProgressChart({ exerciseHistory, uniqueExercises, programs, programExercises }: ExerciseProgressChartProps) {
+  const [selectedProgram, setSelectedProgram] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(() => {
     return new Set(uniqueExercises.slice(0, 1))
   })
+
+  // Filter exercises by selected program
+  const filteredExercises = useMemo(() => {
+    if (!selectedProgram) return uniqueExercises
+    const programExs = programExercises.get(selectedProgram) ?? []
+    return uniqueExercises.filter((ex) => programExs.includes(ex))
+  }, [selectedProgram, uniqueExercises, programExercises])
+
+  const toggleProgram = (program: string) => {
+    if (selectedProgram === program) {
+      setSelectedProgram(null)
+    } else {
+      setSelectedProgram(program)
+      // Clear exercise selections that aren't in the new program
+      const programExs = programExercises.get(program) ?? []
+      setSelected((prev) => {
+        const next = new Set<string>()
+        for (const ex of prev) {
+          if (programExs.includes(ex)) next.add(ex)
+        }
+        return next
+      })
+    }
+  }
 
   const toggle = (ex: string) => {
     setSelected((prev) => {
@@ -49,7 +76,24 @@ export function ExerciseProgressChart({ exerciseHistory, uniqueExercises }: Exer
   return (
     <div className="bg-[#2a2a4a] rounded-[10px] p-3">
       <span className="text-sm font-semibold block mb-2">Progress</span>
-      <ExerciseChipFilter exercises={uniqueExercises} selected={selected} onToggle={toggle} />
+
+      {programs.length > 1 && (
+        <div className="flex gap-1.5 overflow-x-auto pb-1.5 -mx-3 px-3 scrollbar-hide">
+          {programs.map((p) => (
+            <button key={p} onClick={() => toggleProgram(p)}
+              className={`flex-shrink-0 px-3 py-1 rounded-full text-[11px] font-medium transition border ${
+                selectedProgram === p
+                  ? 'border-[#6c63ff] text-[#6c63ff] bg-[#6c63ff]/10'
+                  : 'border-[#3a3a5a] text-gray-500'
+              }`}>
+              {p}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <ExerciseChipFilter exercises={filteredExercises} selected={selected} onToggle={toggle} />
+
       {activeExercises.length > 0 && data.length > 0 ? (
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={data} margin={{ top: 10, right: 5, bottom: 0, left: -15 }}>
