@@ -1,0 +1,89 @@
+{
+  "planPath": "docs/superpowers/plans/2026-04-08-core-app.md",
+  "tasks": [
+    {
+      "id": 10,
+      "subject": "Task 1: Project Scaffolding",
+      "status": "pending",
+      "description": "**Goal:** Initialize Vite + React + TypeScript project with Tailwind CSS v4, Vitest.\n\n**Verify:** `npm run build && npm test -- --run`\n\n```json:metadata\n{\"files\": [\"package.json\", \"vite.config.ts\", \"vitest.config.ts\", \"src/main.tsx\", \"src/App.tsx\", \"src/main.css\", \"src/config.ts\", \"public/manifest.json\", \".gitignore\"], \"verifyCommand\": \"npm run build && npm test -- --run\", \"acceptanceCriteria\": [\"npm run dev starts\", \"npm run build succeeds\", \"Vitest runs clean\", \"Tailwind CSS working\", \"PWA manifest present\"]}\n```"
+    },
+    {
+      "id": 11,
+      "subject": "Task 2: Core Types",
+      "status": "pending",
+      "blockedBy": [10],
+      "description": "**Goal:** Define TypeScript types for all data models.\n\n**Verify:** `npx tsc --noEmit`\n\n```json:metadata\n{\"files\": [\"src/types.ts\"], \"verifyCommand\": \"npx tsc --noEmit\", \"acceptanceCriteria\": [\"All core types defined\", \"Types compile\"]}\n```"
+    },
+    {
+      "id": 12,
+      "subject": "Task 3: Set Inference Engine",
+      "status": "pending",
+      "blockedBy": [11],
+      "description": "**Goal:** Parse Sets column and expand to individual ExpandedSet objects.\n\n**Verify:** `npx vitest run src/__tests__/setInference.test.ts`\n\n```json:metadata\n{\"files\": [\"src/workout/setInference.ts\", \"src/__tests__/setInference.test.ts\"], \"verifyCommand\": \"npx vitest run src/__tests__/setInference.test.ts\", \"acceptanceCriteria\": [\"Set expansion\", \"Fill-up behavior\", \"Superset detection\", \"All tests pass\"]}\n```"
+    },
+    {
+      "id": 13,
+      "subject": "Task 4: Autofill Logic",
+      "status": "pending",
+      "blockedBy": [11],
+      "description": "**Goal:** Resolve reps/value from log history with routine config fallback.\n\n**Verify:** `npx vitest run src/__tests__/autofill.test.ts`\n\n```json:metadata\n{\"files\": [\"src/workout/autofill.ts\", \"src/__tests__/autofill.test.ts\"], \"verifyCommand\": \"npx vitest run src/__tests__/autofill.test.ts\", \"acceptanceCriteria\": [\"Log history priority\", \"Config fallback\", \"Null handling\", \"All tests pass\"]}\n```"
+    },
+    {
+      "id": 14,
+      "subject": "Task 5: Google Auth + Token Management",
+      "status": "pending",
+      "blockedBy": [10],
+      "description": "**Goal:** Google OAuth with persistent session via GIS.\n\n**Verify:** `npx tsc --noEmit`\n\n```json:metadata\n{\"files\": [\"src/auth/googleAuth.ts\", \"src/auth/AuthProvider.tsx\", \"src/auth/useAuth.ts\", \"src/auth/LoginScreen.tsx\", \"index.html\"], \"verifyCommand\": \"npx tsc --noEmit\", \"acceptanceCriteria\": [\"GIS script loaded\", \"Token persistence\", \"AuthProvider works\", \"Login screen renders\"]}\n```"
+    },
+    {
+      "id": 15,
+      "subject": "Task 6: Google Sheets & Drive API Services",
+      "status": "pending",
+      "blockedBy": [11],
+      "description": "**Goal:** Read routines, read/append logs via Sheets API; list/create sheets via Drive API.\n\n**Verify:** `npx tsc --noEmit`\n\n```json:metadata\n{\"files\": [\"src/sheets/sheetsApi.ts\", \"src/sheets/driveApi.ts\"], \"verifyCommand\": \"npx tsc --noEmit\", \"acceptanceCriteria\": [\"Routine fetch\", \"Log fetch/append\", \"Sheet listing\", \"Sheet creation\"]}\n```"
+    },
+    {
+      "id": 16,
+      "subject": "Task 7: IndexedDB Cache Layer",
+      "status": "pending",
+      "blockedBy": [11],
+      "description": "**Goal:** Dexie-based IndexedDB for caching routines, logs, workouts, preferences.\n\n**Verify:** `npx tsc --noEmit`\n\n```json:metadata\n{\"files\": [\"src/data/db.ts\"], \"verifyCommand\": \"npx tsc --noEmit\", \"acceptanceCriteria\": [\"Dexie database configured\", \"All CRUD functions exported\", \"Compiles clean\"]}\n```"
+    },
+    {
+      "id": 17,
+      "subject": "Task 8: Data Hooks",
+      "status": "pending",
+      "blockedBy": [14, 15, 16, 12, 13],
+      "description": "**Goal:** React hooks bridging Sheets API, IndexedDB, and UI.\n\n**Verify:** `npx tsc --noEmit`\n\n```json:metadata\n{\"files\": [\"src/data/useSheetContext.tsx\", \"src/data/useRoutines.ts\", \"src/data/useWorkout.ts\"], \"verifyCommand\": \"npx tsc --noEmit\", \"acceptanceCriteria\": [\"SheetProvider works\", \"useRoutines hook\", \"useWorkout hook\", \"Workout persists in IndexedDB\"]}\n```"
+    },
+    {
+      "id": 18,
+      "subject": "Task 9: App Shell + Bottom Navigation",
+      "status": "pending",
+      "blockedBy": [14],
+      "description": "**Goal:** App shell with header, bottom nav, 3 tabs, sync indicator.\n\n**Verify:** `npx tsc --noEmit`\n\n```json:metadata\n{\"files\": [\"src/ui/icons.tsx\", \"src/ui/BottomNav.tsx\", \"src/ui/Layout.tsx\", \"src/ui/SyncIndicator.tsx\", \"src/App.tsx\"], \"verifyCommand\": \"npx tsc --noEmit\", \"acceptanceCriteria\": [\"3 tabs render\", \"Active/inactive icons\", \"Dumbbell icon\", \"Tab switching\", \"Sync indicator\"]}\n```"
+    },
+    {
+      "id": 19,
+      "subject": "Task 10: Routines Tab",
+      "status": "pending",
+      "blockedBy": [17, 18],
+      "description": "**Goal:** Routines tab with program selector and routine cards.\n\n**Verify:** `npx tsc --noEmit`\n\n```json:metadata\n{\"files\": [\"src/ui/routines/ProgramSelector.tsx\", \"src/ui/routines/RoutineCard.tsx\", \"src/ui/routines/RoutinesTab.tsx\", \"src/App.tsx\"], \"verifyCommand\": \"npx tsc --noEmit\", \"acceptanceCriteria\": [\"Program selector\", \"Routine cards\", \"Workout start\", \"Discard confirmation\"]}\n```"
+    },
+    {
+      "id": 20,
+      "subject": "Task 11: Workout Tab",
+      "status": "pending",
+      "blockedBy": [17, 18],
+      "description": "**Goal:** Workout tab with collapsed/expanded views, checkboxes, supersets, finish flow.\n\n**Verify:** `npx tsc --noEmit`\n\n```json:metadata\n{\"files\": [\"src/ui/workout/SetRow.tsx\", \"src/ui/workout/ExerciseRow.tsx\", \"src/ui/workout/SupersetGroup.tsx\", \"src/ui/workout/WorkoutTab.tsx\", \"src/ui/workout/FinishWorkoutSheet.tsx\", \"src/App.tsx\"], \"verifyCommand\": \"npx tsc --noEmit\", \"acceptanceCriteria\": [\"Collapsed/expanded views\", \"Checkboxes\", \"Superset grouping\", \"Add Set\", \"Finish flow\", \"Discard\"]}\n```"
+    },
+    {
+      "id": 21,
+      "subject": "Task 12: Routine Update Prompt + Sheet Selector",
+      "status": "pending",
+      "blockedBy": [19, 20],
+      "description": "**Goal:** Post-workout routine update prompt and sheet selector screen.\n\n**Verify:** `npx tsc --noEmit`\n\n```json:metadata\n{\"files\": [\"src/ui/workout/RoutineUpdatePrompt.tsx\", \"src/ui/SheetSelector.tsx\", \"src/App.tsx\"], \"verifyCommand\": \"npx tsc --noEmit\", \"acceptanceCriteria\": [\"Routine update prompt\", \"Sheet selector\", \"Sheet creation\", \"Full flow works\"]}\n```"
+    }
+  ],
+  "lastUpdated": "2026-04-08T12:00:00Z"
+}
