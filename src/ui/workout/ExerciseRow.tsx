@@ -55,7 +55,7 @@ export function ExerciseRow({
   const repsHasMismatch = exercise.sets.some((s) => s.reps !== summaryReps)
   const valueHasMismatch = exercise.sets.some((s) => s.value !== summaryValue)
 
-  const userNotes = userNotes ?? ''
+  const userNotes = exercise.userNotes ?? ''
   const hasUserNotes = userNotes.length > 0
 
   const notesInput = showNotes ? (
