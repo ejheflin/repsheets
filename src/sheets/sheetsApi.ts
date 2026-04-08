@@ -47,7 +47,7 @@ export async function fetchLogEntries(spreadsheetId: string): Promise<LogEntry[]
 }
 
 export async function appendLogEntries(spreadsheetId: string, entries: LogEntry[]): Promise<void> {
-  const url = `${SHEETS_BASE}/${spreadsheetId}/values/Log!A:J:append?valueInputOption=USER_ENTERED`
+  const url = `${SHEETS_BASE}/${spreadsheetId}/values/Log!A:J:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`
   const values = entries.map((e) => [
     e.date, e.athlete, e.program, e.routine, e.exercise,
     e.set, e.reps, e.value ?? '', e.unit, e.notes,
