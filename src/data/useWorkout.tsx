@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback, createContext, useContext, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, useRef, createContext, useContext, type ReactNode } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from './useSheetContext'
 import { expandRoutine } from '../workout/setInference'
 import { resolveSetValues } from '../workout/autofill'
-import { fetchLogEntries, appendLogEntries } from '../sheets/sheetsApi'
+import { fetchRoutineRows, fetchLogEntries, appendLogEntries } from '../sheets/sheetsApi'
 import { saveWorkout, getWorkout, clearWorkout, saveLogs, getLogs, queueLogEntries } from './db'
 import type { RoutineRow, WorkoutState, WorkoutExercise, LogEntry } from '../types'
+
+const REFRESH_TIMEOUT_MS = 5000
 
 interface WorkoutContextValue {
   workout: WorkoutState | null
@@ -42,6 +44,70 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       saveWorkout(workout)
     }
   }, [workout])
+
+  // Refresh persisted workout from Google Sheets on load
+  const hasRefreshed = useRef(false)
+  useEffect(() => {
+    if (hasRefreshed.current || !workout || !spreadsheetId || !user || isLoading) return
+    hasRefreshed.current = true
+
+    const refreshWorkout = async () => {
+      try {
+        const [routineRows, logs] = await Promise.race([
+          Promise.all([
+            fetchRoutineRows(spreadsheetId),
+            fetchLogEntries(spreadsheetId),
+          ]),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('timeout')), REFRESH_TIMEOUT_MS)
+          ),
+        ])
+
+        await saveLogs(spreadsheetId, logs)
+
+        // Find the rows for this workout's routine
+        const workoutRows = routineRows.filter(
+          (r) => r.program === workout.program && r.routine === workout.routine
+        )
+        if (workoutRows.length === 0) return
+
+        const expanded = expandRoutine(workoutRows)
+
+        setWorkout((prev) => {
+          if (!prev) return prev
+          const next = structuredClone(prev)
+
+          for (const ex of next.exercises) {
+            // Update coach notes from latest routine config
+            const matchingExpanded = expanded.find((s) => s.exercise === ex.exercise)
+            if (matchingExpanded) {
+              ex.notes = matchingExpanded.notes
+            }
+
+            // Update autofill values for untouched sets
+            for (const set of ex.sets) {
+              if (set.completed || set.isAdded) continue
+              const resolved = resolveSetValues(
+                { exercise: ex.exercise, setNumber: set.setNumber, reps: null, value: null, unit: set.unit, notes: '', supersetGroup: null },
+                logs,
+                prev.program,
+                prev.routine,
+                user.email
+              )
+              if (resolved.reps !== null) set.reps = resolved.reps
+              if (resolved.value !== null) set.value = resolved.value
+            }
+          }
+
+          return next
+        })
+      } catch {
+        // Timeout or error — keep cached workout as-is
+      }
+    }
+
+    refreshWorkout()
+  }, [workout, spreadsheetId, user, isLoading])
 
   const startWorkout = useCallback(async (
     program: string,
