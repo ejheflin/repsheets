@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { SetRow } from './SetRow'
 import type { WorkoutExercise } from '../../types'
 
@@ -17,6 +18,18 @@ function ChevronDown() {
   )
 }
 
+function NotesIcon({ hasNotes }: { hasNotes: boolean }) {
+  const color = hasNotes ? '#6c63ff' : '#555'
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M13 1H3a1 1 0 00-1 1v12a1 1 0 001 1h7l4-4V2a1 1 0 00-1-1z" />
+      <polyline points="10 14 10 10 14 10" />
+      <line x1="5" y1="5" x2="11" y2="5" />
+      <line x1="5" y1="8" x2="9" y2="8" />
+    </svg>
+  )
+}
+
 interface ExerciseRowProps {
   exercise: WorkoutExercise
   onToggleExpand: () => void
@@ -24,23 +37,38 @@ interface ExerciseRowProps {
   onToggleSet: (setIdx: number) => void
   onUpdateSet: (setIdx: number, field: 'reps' | 'value', val: number | null) => void
   onUpdateAllSets: (field: 'reps' | 'value', val: number | null) => void
+  onUpdateNotes: (notes: string) => void
   onAddSet: () => void
 }
 
 export function ExerciseRow({
   exercise,
-  onToggleExpand, onToggleExercise, onToggleSet, onUpdateSet, onUpdateAllSets, onAddSet,
+  onToggleExpand, onToggleExercise, onToggleSet, onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet,
 }: ExerciseRowProps) {
+  const [showNotes, setShowNotes] = useState(false)
   const allCompleted = exercise.sets.every((s) => s.completed)
   const unit = exercise.sets[0]?.unit ?? ''
 
-  // Collapsed view values: use first set's values as the "summary" value
   const summaryReps = exercise.sets[0]?.reps ?? null
   const summaryValue = exercise.sets[0]?.value ?? null
 
-  // Check if any set differs from the summary
   const repsHasMismatch = exercise.sets.some((s) => s.reps !== summaryReps)
   const valueHasMismatch = exercise.sets.some((s) => s.value !== summaryValue)
+
+  const hasUserNotes = exercise.userNotes.length > 0
+
+  const notesInput = showNotes ? (
+    <div className="mt-1.5 ml-5">
+      <input
+        type="text"
+        value={exercise.userNotes}
+        onChange={(e) => onUpdateNotes(e.target.value)}
+        className="w-full bg-[#1a1a2e] border border-[#3a3a5a] rounded text-xs text-gray-300 px-2 py-1.5 outline-none focus:border-[#6c63ff]"
+        placeholder="Add a note..."
+        autoFocus
+      />
+    </div>
+  ) : null
 
   if (!exercise.isExpanded) {
     return (
@@ -85,8 +113,11 @@ export function ExerciseRow({
               className={`w-16 bg-[#1a1a2e] rounded text-center text-sm font-semibold py-1 outline-none [appearance:textfield] ${valueHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
               placeholder="—" />
           </div>
-          <div className="w-7" />
+          <button onClick={() => setShowNotes(!showNotes)} className="w-7 flex items-center justify-center">
+            <NotesIcon hasNotes={hasUserNotes} />
+          </button>
         </div>
+        {notesInput}
       </div>
     )
   }
@@ -123,11 +154,17 @@ export function ExerciseRow({
             onRepsChange={(v) => onUpdateSet(setIdx, 'reps', v)}
             onValueChange={(v) => onUpdateSet(setIdx, 'value', v)} />
         ))}
-        <button onClick={onAddSet}
-          className="w-full text-center text-xs text-[#6c63ff] py-2 mt-1 font-semibold">
-          + Add Set
-        </button>
+        <div className="flex items-center mt-1">
+          <button onClick={onAddSet}
+            className="flex-1 text-center text-xs text-[#6c63ff] py-2 font-semibold">
+            + Add Set
+          </button>
+          <button onClick={() => setShowNotes(!showNotes)} className="w-7 flex items-center justify-center py-2">
+            <NotesIcon hasNotes={hasUserNotes} />
+          </button>
+        </div>
       </div>
+      {notesInput}
     </div>
   )
 }

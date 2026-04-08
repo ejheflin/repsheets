@@ -15,6 +15,7 @@ interface WorkoutContextValue {
   toggleExercise: (exerciseIdx: number) => void
   updateSet: (exerciseIdx: number, setIdx: number, field: 'reps' | 'value', val: number | null) => void
   updateAllSets: (exerciseIdx: number, field: 'reps' | 'value', val: number | null) => void
+  updateNotes: (exerciseIdx: number, notes: string) => void
   toggleExpanded: (exerciseIdx: number) => void
   addSet: (exerciseIdx: number) => void
   finishWorkout: (logOnlyCompleted: boolean) => Promise<{ entries: LogEntry[]; exercisesWithAddedSets: WorkoutExercise[] } | undefined>
@@ -72,6 +73,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       return {
         exercise: name,
         notes: firstSet?.notes ?? '',
+        userNotes: '',
         supersetGroup: firstSet?.supersetGroup ?? null,
         isExpanded: false,
         sets: sets.map((s) => {
@@ -146,6 +148,15 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const updateNotes = useCallback((exerciseIdx: number, notes: string) => {
+    setWorkout((prev) => {
+      if (!prev) return prev
+      const next = structuredClone(prev)
+      next.exercises[exerciseIdx].userNotes = notes
+      return next
+    })
+  }, [])
+
   const toggleExpanded = useCallback((exerciseIdx: number) => {
     setWorkout((prev) => {
       if (!prev) return prev
@@ -192,7 +203,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
           reps: set.reps ?? 0,
           value: set.value,
           unit: set.unit,
-          notes: ex.notes,
+          notes: ex.userNotes,
         })
       }
     }
@@ -221,7 +232,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   return (
     <WorkoutContext.Provider value={{
       workout, isLoading, startWorkout, toggleSet, toggleExercise,
-      updateSet, updateAllSets, toggleExpanded, addSet, finishWorkout, discardWorkout,
+      updateSet, updateAllSets, updateNotes, toggleExpanded, addSet, finishWorkout, discardWorkout,
     }}>
       {children}
     </WorkoutContext.Provider>
