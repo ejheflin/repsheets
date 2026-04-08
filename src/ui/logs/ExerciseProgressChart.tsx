@@ -18,12 +18,20 @@ export function ExerciseProgressChart({ exerciseHistory, uniqueExercises, progra
     return new Set(uniqueExercises.slice(0, 1))
   })
 
-  // Filter exercises by selected program
+  // Filter exercises: must have log data, and match selected program if any
   const filteredExercises = useMemo(() => {
     if (!selectedProgram) return uniqueExercises
     const programExs = programExercises.get(selectedProgram) ?? []
     return uniqueExercises.filter((ex) => programExs.includes(ex))
   }, [selectedProgram, uniqueExercises, programExercises])
+
+  // Filter programs to only those with at least one logged exercise
+  const filteredPrograms = useMemo(() => {
+    return programs.filter((p) => {
+      const exs = programExercises.get(p) ?? []
+      return exs.some((ex) => uniqueExercises.includes(ex))
+    })
+  }, [programs, programExercises, uniqueExercises])
 
   const toggleProgram = (program: string) => {
     if (selectedProgram === program) {
@@ -77,9 +85,9 @@ export function ExerciseProgressChart({ exerciseHistory, uniqueExercises, progra
     <div className="bg-[#2a2a4a] rounded-[10px] p-3">
       <span className="text-sm font-semibold block mb-2">Progress</span>
 
-      {programs.length > 1 && (
+      {filteredPrograms.length > 1 && (
         <div className="flex gap-1.5 overflow-x-auto pb-1.5 -mx-3 px-3 scrollbar-hide">
-          {programs.map((p) => (
+          {filteredPrograms.map((p) => (
             <button key={p} onClick={() => toggleProgram(p)}
               className={`flex-shrink-0 px-3 py-1 rounded-full text-[11px] font-medium transition border ${
                 selectedProgram === p
