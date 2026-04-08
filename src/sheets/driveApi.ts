@@ -1,17 +1,18 @@
 import type { RepSheet, RoutineRow } from '../types'
+import { authFetch } from '../auth/authFetch'
 
 const DRIVE_BASE = 'https://www.googleapis.com/drive/v3'
 const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets'
 
-export async function listRepSheets(token: string): Promise<RepSheet[]> {
+export async function listRepSheets(): Promise<RepSheet[]> {
   const query = "mimeType='application/vnd.google-apps.spreadsheet' and trashed=false"
   const url = `${DRIVE_BASE}/files?q=${encodeURIComponent(query)}&fields=files(id,name,owners)&pageSize=100`
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  const res = await authFetch(url)
   if (!res.ok) throw new Error('Failed to list sheets')
   const data = await res.json()
   const sheets: RepSheet[] = []
   for (const file of data.files ?? []) {
-    const hasSchema = await checkRepSheetsSchema(file.id, token)
+    const hasSchema = await checkRepSheetsSchema(file.id)
     if (hasSchema) {
       sheets.push({
         spreadsheetId: file.id,
@@ -24,10 +25,10 @@ export async function listRepSheets(token: string): Promise<RepSheet[]> {
   return sheets
 }
 
-async function checkRepSheetsSchema(spreadsheetId: string, token: string): Promise<boolean> {
+async function checkRepSheetsSchema(spreadsheetId: string): Promise<boolean> {
   try {
     const url = `${SHEETS_BASE}/${spreadsheetId}?fields=sheets.properties.title`
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    const res = await authFetch(url)
     if (!res.ok) return false
     const data = await res.json()
     const titles = (data.sheets ?? []).map(
@@ -40,10 +41,10 @@ async function checkRepSheetsSchema(spreadsheetId: string, token: string): Promi
 const ROUTINE_HEADERS = ['Program', 'Routine', 'Exercise', 'Sets', 'Reps', 'Value', 'Unit', 'Notes']
 const LOG_HEADERS = ['Date', 'Athlete', 'Program', 'Routine', 'Exercise', 'Set', 'Reps', 'Value', 'Unit', 'Notes']
 
-export async function createExampleSheet(token: string, programRows: RoutineRow[]): Promise<string> {
-  const createRes = await fetch(SHEETS_BASE, {
+export async function createExampleSheet(programRows: RoutineRow[]): Promise<string> {
+  const createRes = await authFetch(SHEETS_BASE, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       properties: { title: 'repsheets - My Workouts' },
       sheets: [
@@ -63,16 +64,16 @@ export async function createExampleSheet(token: string, programRows: RoutineRow[
       r.reps ?? '', r.value ?? '', r.unit, r.notes,
     ]),
   ]
-  await writeRange(spreadsheetId, 'Routines!A1', routineValues, token)
-  await writeRange(spreadsheetId, 'Log!A1', [LOG_HEADERS], token)
+  await writeRange(spreadsheetId, 'Routines!A1', routineValues)
+  await writeRange(spreadsheetId, 'Log!A1', [LOG_HEADERS])
   return spreadsheetId
 }
 
-async function writeRange(spreadsheetId: string, range: string, values: (string | number)[][], token: string): Promise<void> {
+async function writeRange(spreadsheetId: string, range: string, values: (string | number)[][]): Promise<void> {
   const url = `${SHEETS_BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`
-  const res = await fetch(url, {
+  const res = await authFetch(url, {
     method: 'PUT',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ values }),
   })
   if (!res.ok) throw new Error(`Failed to write range ${range}`)

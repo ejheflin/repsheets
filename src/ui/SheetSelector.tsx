@@ -19,7 +19,7 @@ export function SheetSelector() {
 
   useEffect(() => {
     if (!user) return
-    listRepSheets(user.accessToken).then((s) => {
+    listRepSheets().then((s) => {
       setSheets(s)
       setIsLoading(false)
     }).catch(() => setIsLoading(false))
@@ -29,7 +29,7 @@ export function SheetSelector() {
     if (!user) return
     setIsCreating(true)
     try {
-      const id = await createExampleSheet(user.accessToken, PLACEHOLDER_ROWS)
+      const id = await createExampleSheet(PLACEHOLDER_ROWS)
       setSpreadsheetId(id)
     } catch (e) {
       console.error('Failed to create sheet:', e)

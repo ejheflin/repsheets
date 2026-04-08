@@ -1,10 +1,11 @@
 import type { RoutineRow, LogEntry } from '../types'
+import { authFetch } from '../auth/authFetch'
 
 const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets'
 
-async function fetchRange(spreadsheetId: string, range: string, token: string): Promise<string[][]> {
+async function fetchRange(spreadsheetId: string, range: string): Promise<string[][]> {
   const url = `${SHEETS_BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}`
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  const res = await authFetch(url)
   if (!res.ok) {
     const err = await res.json()
     throw new Error(`Sheets API error: ${err.error?.message ?? res.statusText}`)
@@ -13,8 +14,8 @@ async function fetchRange(spreadsheetId: string, range: string, token: string): 
   return data.values ?? []
 }
 
-export async function fetchRoutineRows(spreadsheetId: string, token: string): Promise<RoutineRow[]> {
-  const rows = await fetchRange(spreadsheetId, 'Routines!A:H', token)
+export async function fetchRoutineRows(spreadsheetId: string): Promise<RoutineRow[]> {
+  const rows = await fetchRange(spreadsheetId, 'Routines!A:H')
   if (rows.length < 2) return []
   return rows.slice(1).map((row) => ({
     program: row[0] ?? '',
@@ -28,8 +29,8 @@ export async function fetchRoutineRows(spreadsheetId: string, token: string): Pr
   }))
 }
 
-export async function fetchLogEntries(spreadsheetId: string, token: string): Promise<LogEntry[]> {
-  const rows = await fetchRange(spreadsheetId, 'Log!A:J', token)
+export async function fetchLogEntries(spreadsheetId: string): Promise<LogEntry[]> {
+  const rows = await fetchRange(spreadsheetId, 'Log!A:J')
   if (rows.length < 2) return []
   return rows.slice(1).map((row) => ({
     date: row[0] ?? '',
@@ -45,15 +46,15 @@ export async function fetchLogEntries(spreadsheetId: string, token: string): Pro
   }))
 }
 
-export async function appendLogEntries(spreadsheetId: string, token: string, entries: LogEntry[]): Promise<void> {
+export async function appendLogEntries(spreadsheetId: string, entries: LogEntry[]): Promise<void> {
   const url = `${SHEETS_BASE}/${spreadsheetId}/values/Log!A:J:append?valueInputOption=USER_ENTERED`
   const values = entries.map((e) => [
     e.date, e.athlete, e.program, e.routine, e.exercise,
     e.set, e.reps, e.value ?? '', e.unit, e.notes,
   ])
-  const res = await fetch(url, {
+  const res = await authFetch(url, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ values }),
   })
   if (!res.ok) {
