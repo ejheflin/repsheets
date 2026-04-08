@@ -6,6 +6,7 @@ import { Layout } from './ui/Layout'
 import { RoutinesTab } from './ui/routines/RoutinesTab'
 import { WorkoutTab } from './ui/workout/WorkoutTab'
 import { SheetSelector } from './ui/SheetSelector'
+import { WorkoutProvider } from './data/useWorkout'
 
 function MainApp() {
   const { spreadsheetId } = useSheetContext()
@@ -15,19 +16,21 @@ function MainApp() {
   }
 
   return (
-    <Layout>
-      {(activeTab, setActiveTab) => (
-        <>
-          {activeTab === 'routines' && (
-            <RoutinesTab onStartWorkout={() => setActiveTab('workout')} />
-          )}
-          {activeTab === 'workout' && <WorkoutTab />}
-          {activeTab === 'logs' && (
-            <p className="text-gray-400">Logs tab (coming in Phase 2)</p>
-          )}
-        </>
-      )}
-    </Layout>
+    <WorkoutProvider>
+      <Layout>
+        {(activeTab, setActiveTab) => (
+          <>
+            {activeTab === 'routines' && (
+              <RoutinesTab onStartWorkout={() => setActiveTab('workout')} />
+            )}
+            {activeTab === 'workout' && <WorkoutTab />}
+            {activeTab === 'logs' && (
+              <p className="text-gray-400">Logs tab (coming in Phase 2)</p>
+            )}
+          </>
+        )}
+      </Layout>
+    </WorkoutProvider>
   )
 }
 

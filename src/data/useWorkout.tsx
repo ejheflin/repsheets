@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, createContext, useContext, type ReactNode } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from './useSheetContext'
 import { expandRoutine } from '../workout/setInference'
@@ -7,7 +7,22 @@ import { fetchLogEntries, appendLogEntries } from '../sheets/sheetsApi'
 import { saveWorkout, getWorkout, clearWorkout, saveLogs, getLogs, queueLogEntries } from './db'
 import type { RoutineRow, WorkoutState, WorkoutExercise, LogEntry } from '../types'
 
-export function useWorkout() {
+interface WorkoutContextValue {
+  workout: WorkoutState | null
+  isLoading: boolean
+  startWorkout: (program: string, routineName: string, routineRows: RoutineRow[]) => Promise<void>
+  toggleSet: (exerciseIdx: number, setIdx: number) => void
+  toggleExercise: (exerciseIdx: number) => void
+  updateSet: (exerciseIdx: number, setIdx: number, field: 'reps' | 'value', val: number | null) => void
+  toggleExpanded: (exerciseIdx: number) => void
+  addSet: (exerciseIdx: number) => void
+  finishWorkout: (logOnlyCompleted: boolean) => Promise<{ entries: LogEntry[]; exercisesWithAddedSets: WorkoutExercise[] } | undefined>
+  discardWorkout: () => Promise<void>
+}
+
+const WorkoutContext = createContext<WorkoutContextValue | null>(null)
+
+export function WorkoutProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const { spreadsheetId } = useSheetContext()
   const [workout, setWorkout] = useState<WorkoutState | null>(null)
@@ -189,16 +204,18 @@ export function useWorkout() {
     setWorkout(null)
   }, [])
 
-  return {
-    workout,
-    isLoading,
-    startWorkout,
-    toggleSet,
-    toggleExercise,
-    updateSet,
-    toggleExpanded,
-    addSet,
-    finishWorkout,
-    discardWorkout,
-  }
+  return (
+    <WorkoutContext.Provider value={{
+      workout, isLoading, startWorkout, toggleSet, toggleExercise,
+      updateSet, toggleExpanded, addSet, finishWorkout, discardWorkout,
+    }}>
+      {children}
+    </WorkoutContext.Provider>
+  )
+}
+
+export function useWorkout() {
+  const ctx = useContext(WorkoutContext)
+  if (!ctx) throw new Error('useWorkout must be used within WorkoutProvider')
+  return ctx
 }

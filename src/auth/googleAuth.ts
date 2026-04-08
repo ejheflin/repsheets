@@ -60,7 +60,7 @@ export function initLogin(onSuccess: (user: AuthUser) => void, onError: (err: st
         const user: AuthUser = { ...info, accessToken: response.access_token }
         storeUser(user)
         onSuccess(user)
-      } catch (e) { onError(String(e)) }
+      } catch (e) { console.error('Login error:', e); onError(String(e)) }
     },
     error_callback: (error) => { onError(error.type) },
   })
