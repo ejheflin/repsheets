@@ -60,7 +60,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
 
   return (
     <div>
-      <div className={`sticky top-8 z-20 bg-[#1a1a2e] -mx-4 px-4 flex justify-between items-center transition-all duration-200 ${scrolled ? 'py-1.5 mb-1.5' : 'py-2 mb-2'}`}>
+      <div className={`sticky top-0 z-20 bg-[#1a1a2e] -mx-4 px-4 flex justify-between items-center transition-all duration-200 ${scrolled ? 'pt-2 pb-1.5 mb-1.5' : 'pt-1 pb-2 mb-2'}`}>
         <div className="min-w-0">
           {!scrolled && <div className="text-[11px] text-gray-500">{workout.program}</div>}
           <h1 className={`font-bold truncate transition-all duration-200 ${scrolled ? 'text-[15px]' : 'text-[20px]'}`}>{workout.routine}</h1>
