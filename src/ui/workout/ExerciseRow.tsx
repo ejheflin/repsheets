@@ -116,6 +116,8 @@ export function ExerciseRow({
         {exercise.sets.map((set, setIdx) => (
           <SetRow key={set.setNumber} setNumber={set.setNumber} reps={set.reps}
             value={set.value} unit={unit} completed={set.completed}
+            repsFlag={set.reps !== summaryReps}
+            valueFlag={set.value !== summaryValue}
             onToggle={() => onToggleSet(setIdx)}
             onRepsChange={(v) => onUpdateSet(setIdx, 'reps', v)}
             onValueChange={(v) => onUpdateSet(setIdx, 'value', v)} />
