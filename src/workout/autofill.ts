@@ -9,12 +9,14 @@ export function resolveSetValues(
   set: ExpandedSet,
   logs: LogEntry[],
   program: string,
-  routine: string
+  routine: string,
+  athlete: string
 ): ResolvedValues {
   // Find the last matching entry — log is append-only so last = most recent
   let latest: LogEntry | null = null
   for (const log of logs) {
     if (
+      log.athlete === athlete &&
       log.program === program &&
       log.routine === routine &&
       log.exercise === set.exercise &&
