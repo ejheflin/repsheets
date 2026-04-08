@@ -4,6 +4,7 @@ import { RoutineCard } from './RoutineCard'
 import { useRoutines } from '../../data/useRoutines'
 import { useWorkout } from '../../data/useWorkout'
 import { getPreference, setPreference } from '../../data/db'
+import { useSheetContext } from '../../data/useSheetContext'
 import type { RoutineRow } from '../../types'
 
 interface RoutinesTabProps {
@@ -20,6 +21,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
   }, [])
   const { routineList, programs, isLoading } = useRoutines(selectedProgram || null)
   const { workout, startWorkout, discardWorkout } = useWorkout()
+  const { spreadsheetId } = useSheetContext()
   const [confirmDiscard, setConfirmDiscard] = useState<{
     program: string; routine: string; rows: RoutineRow[]
   } | null>(null)
@@ -73,6 +75,16 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
           <RoutineCard key={r.name} name={r.name} exercises={r.exercises}
             onTap={() => handleRoutineTap(r)} />
         ))
+      )}
+      {spreadsheetId && (
+        <a
+          href={`https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-center text-xs text-[#6c63ff] mt-4 py-2"
+        >
+          Open Google Sheet
+        </a>
       )}
       {confirmDiscard && (
         <div className="fixed inset-0 bg-black/60 flex items-end z-50">
