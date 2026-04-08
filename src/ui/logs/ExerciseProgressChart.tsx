@@ -110,6 +110,7 @@ export function ExerciseProgressChart({ exerciseHistory, uniqueExercises, progra
             <Tooltip
               contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #3a3a5a', borderRadius: 8, fontSize: 12 }}
               labelStyle={{ color: '#888' }}
+              cursor={{ fill: 'transparent', stroke: '#6c63ff', strokeDasharray: '4 2', strokeWidth: 1 }}
             />
             {activeExercises.length > 1 && (
               <Legend wrapperStyle={{ fontSize: 10, color: '#888' }} />
