@@ -79,7 +79,7 @@ export function ExerciseRow({
           <button onClick={onToggleExpand} className="flex-1 text-left min-w-0">
             <div className="font-semibold text-sm truncate">{exercise.exercise}</div>
             {exercise.notes && (
-              <div className="text-[10px] text-yellow-400 mt-0.5 truncate">💡 {exercise.notes}</div>
+              <div className="text-[10px] text-[#6c63ff] mt-0.5 truncate">▸ {exercise.notes}</div>
             )}
           </button>
           <button onClick={onToggleExercise} className="ml-2">
@@ -137,7 +137,7 @@ export function ExerciseRow({
         </button>
       </div>
       {exercise.notes && (
-        <div className="text-[10px] text-yellow-400 mb-2 ml-5">💡 {exercise.notes}</div>
+        <div className="text-[10px] text-[#6c63ff] mb-2 ml-5">▸ {exercise.notes}</div>
       )}
       <div className="ml-5">
         <div className="flex pb-1 text-[10px] text-gray-600 uppercase tracking-wider">
