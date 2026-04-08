@@ -5,6 +5,8 @@ import { fetchRoutineRows } from '../sheets/sheetsApi'
 import { saveRoutines, getRoutines } from './db'
 import type { RoutineRow } from '../types'
 
+const REFRESH_TIMEOUT_MS = 5000
+
 export function useRoutines(selectedProgram: string | null) {
   const { user } = useAuth()
   const { spreadsheetId } = useSheetContext()
@@ -13,14 +15,25 @@ export function useRoutines(selectedProgram: string | null) {
 
   const refresh = useCallback(async () => {
     if (!spreadsheetId || !user) return
-    setIsLoading(true)
+
+    // Race the API call against a timeout
     try {
-      const rows = await fetchRoutineRows(spreadsheetId)
-      await saveRoutines(spreadsheetId, rows)
-      setAllRows(rows)
+      const rows = await Promise.race([
+        fetchRoutineRows(spreadsheetId),
+        new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), REFRESH_TIMEOUT_MS)
+        ),
+      ])
+      if (rows) {
+        await saveRoutines(spreadsheetId, rows)
+        setAllRows(rows)
+      }
     } catch {
+      // Timeout or error — fall back to cache
       const cached = await getRoutines(spreadsheetId)
-      setAllRows(cached)
+      if (cached.length > 0) {
+        setAllRows(cached)
+      }
     }
     setIsLoading(false)
   }, [spreadsheetId, user])
@@ -31,11 +44,13 @@ export function useRoutines(selectedProgram: string | null) {
         setIsLoading(false)
         return
       }
+      // Show cache immediately
       const cached = await getRoutines(spreadsheetId)
       if (cached.length > 0) {
         setAllRows(cached)
         setIsLoading(false)
       }
+      // Then refresh from API in background
       if (user) {
         refresh()
       }
