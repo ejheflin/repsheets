@@ -40,6 +40,7 @@ export interface WorkoutExercise {
   exercise: string
   sets: WorkoutSet[]
   notes: string         // from routine config
+  userNotes: string     // athlete's per-workout notes
   supersetGroup: string | null
   isExpanded: boolean
 }
