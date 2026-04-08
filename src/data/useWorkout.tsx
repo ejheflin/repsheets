@@ -53,7 +53,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
 
     let logs: LogEntry[] = []
     try {
-      logs = await fetchLogEntries(spreadsheetId, user.accessToken)
+      logs = await fetchLogEntries(spreadsheetId)
       await saveLogs(spreadsheetId, logs)
     } catch {
       logs = await getLogs(spreadsheetId)
@@ -198,7 +198,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      await appendLogEntries(spreadsheetId, user.accessToken, entries)
+      await appendLogEntries(spreadsheetId, entries)
     } catch {
       await queueLogEntries(spreadsheetId, entries)
     }

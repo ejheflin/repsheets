@@ -15,7 +15,7 @@ export function useRoutines(selectedProgram: string | null) {
     if (!spreadsheetId || !user) return
     setIsLoading(true)
     try {
-      const rows = await fetchRoutineRows(spreadsheetId, user.accessToken)
+      const rows = await fetchRoutineRows(spreadsheetId)
       await saveRoutines(spreadsheetId, rows)
       setAllRows(rows)
     } catch {
