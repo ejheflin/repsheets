@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import type { AuthUser } from '../types'
-import { getStoredUser, initLogin, trySilentRefresh, logout as doLogout } from './googleAuth'
+import { getStoredUser, initLogin, logout as doLogout } from './googleAuth'
 
 interface AuthContextValue {
   user: AuthUser | null
@@ -20,13 +20,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const stored = getStoredUser()
     if (stored) {
-      trySilentRefresh().then((refreshed) => {
-        setUser(refreshed)
-        setIsLoading(false)
-      })
-    } else {
-      setIsLoading(false)
+      setUser(stored)
     }
+    setIsLoading(false)
   }, [])
 
   const login = useCallback(() => {
