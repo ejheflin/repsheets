@@ -14,6 +14,7 @@ interface WorkoutContextValue {
   toggleSet: (exerciseIdx: number, setIdx: number) => void
   toggleExercise: (exerciseIdx: number) => void
   updateSet: (exerciseIdx: number, setIdx: number, field: 'reps' | 'value', val: number | null) => void
+  updateAllSets: (exerciseIdx: number, field: 'reps' | 'value', val: number | null) => void
   toggleExpanded: (exerciseIdx: number) => void
   addSet: (exerciseIdx: number) => void
   finishWorkout: (logOnlyCompleted: boolean) => Promise<{ entries: LogEntry[]; exercisesWithAddedSets: WorkoutExercise[] } | undefined>
@@ -132,6 +133,19 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const updateAllSets = useCallback((
+    exerciseIdx: number,
+    field: 'reps' | 'value',
+    val: number | null
+  ) => {
+    setWorkout((prev) => {
+      if (!prev) return prev
+      const next = structuredClone(prev)
+      next.exercises[exerciseIdx].sets.forEach((s) => { s[field] = val })
+      return next
+    })
+  }, [])
+
   const toggleExpanded = useCallback((exerciseIdx: number) => {
     setWorkout((prev) => {
       if (!prev) return prev
@@ -207,7 +221,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   return (
     <WorkoutContext.Provider value={{
       workout, isLoading, startWorkout, toggleSet, toggleExercise,
-      updateSet, toggleExpanded, addSet, finishWorkout, discardWorkout,
+      updateSet, updateAllSets, toggleExpanded, addSet, finishWorkout, discardWorkout,
     }}>
       {children}
     </WorkoutContext.Provider>

@@ -6,7 +6,7 @@ import { useWorkout } from '../../data/useWorkout'
 
 export function WorkoutTab() {
   const {
-    workout, toggleSet, toggleExercise, updateSet,
+    workout, toggleSet, toggleExercise, updateSet, updateAllSets,
     toggleExpanded, addSet, finishWorkout, discardWorkout,
   } = useWorkout()
   const [showFinish, setShowFinish] = useState(false)
@@ -67,6 +67,7 @@ export function WorkoutTab() {
             onToggleExercise={() => toggleExercise(exIdx)}
             onToggleSet={(setIdx) => toggleSet(exIdx, setIdx)}
             onUpdateSet={(setIdx, field, val) => updateSet(exIdx, setIdx, field, val)}
+            onUpdateAllSets={(field, val) => updateAllSets(exIdx, field, val)}
             onAddSet={() => addSet(exIdx)} />
         ))
         return group.supersetGroup ? (
