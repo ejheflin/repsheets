@@ -4,7 +4,11 @@ import { SupersetGroup } from './SupersetGroup'
 import { FinishWorkoutSheet } from './FinishWorkoutSheet'
 import { useWorkout } from '../../data/useWorkout'
 
-export function WorkoutTab() {
+interface WorkoutTabProps {
+  onGoToRoutines: () => void
+}
+
+export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const {
     workout, toggleSet, toggleExercise, updateSet, updateAllSets, updateNotes,
     toggleExpanded, addSet, finishWorkout, discardWorkout,
@@ -16,7 +20,7 @@ export function WorkoutTab() {
     return (
       <div className="text-center mt-20">
         <p className="text-gray-400">No workout in progress.</p>
-        <p className="text-gray-500 text-sm mt-2">Pick a routine to get started.</p>
+        <p className="text-gray-500 text-sm mt-2">Pick a <button onClick={onGoToRoutines} className="text-[#6c63ff] underline">routine</button> to get started.</p>
       </div>
     )
   }
