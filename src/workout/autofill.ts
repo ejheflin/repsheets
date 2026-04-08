@@ -11,18 +11,20 @@ export function resolveSetValues(
   program: string,
   routine: string
 ): ResolvedValues {
-  const matching = logs
-    .filter(
-      (log) =>
-        log.program === program &&
-        log.routine === routine &&
-        log.exercise === set.exercise &&
-        log.set === set.setNumber
-    )
-    .sort((a, b) => b.date.localeCompare(a.date))
+  // Find the last matching entry — log is append-only so last = most recent
+  let latest: LogEntry | null = null
+  for (const log of logs) {
+    if (
+      log.program === program &&
+      log.routine === routine &&
+      log.exercise === set.exercise &&
+      log.set === set.setNumber
+    ) {
+      latest = log
+    }
+  }
 
-  if (matching.length > 0) {
-    const latest = matching[0]
+  if (latest) {
     return {
       reps: latest.reps,
       value: latest.value,
