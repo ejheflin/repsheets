@@ -74,7 +74,7 @@ export function ExerciseRow({
     <div className="bg-[#2a2a4a] rounded-[10px] mb-1.5 px-3 py-2.5">
       <div className="flex items-center mb-2">
         <button onClick={onToggleExpand} className="mr-1.5 flex items-center"><ChevronDown /></button>
-        <div className="flex-1 font-bold text-[15px]">{exercise.exercise}</div>
+        <button onClick={onToggleExpand} className="flex-1 text-left font-bold text-[15px]">{exercise.exercise}</button>
         <button onClick={onToggleExercise}>
           {allCompleted ? (
             <div className="w-[22px] h-[22px] bg-[#6c63ff] rounded-md flex items-center justify-center text-xs">✓</div>
