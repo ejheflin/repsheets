@@ -4,6 +4,7 @@ import { useAuth } from './auth/useAuth'
 import { LoginScreen } from './auth/LoginScreen'
 import { Layout } from './ui/Layout'
 import { RoutinesTab } from './ui/routines/RoutinesTab'
+import { WorkoutTab } from './ui/workout/WorkoutTab'
 
 function MainApp() {
   const { spreadsheetId } = useSheetContext()
@@ -23,7 +24,7 @@ function MainApp() {
           {activeTab === 'routines' && (
             <RoutinesTab onStartWorkout={() => setActiveTab('workout')} />
           )}
-          {activeTab === 'workout' && <p className="text-gray-400">Workout tab (Task 11)</p>}
+          {activeTab === 'workout' && <WorkoutTab />}
           {activeTab === 'logs' && <p className="text-gray-400">Logs tab (Phase 2)</p>}
         </>
       )}
