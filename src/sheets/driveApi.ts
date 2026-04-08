@@ -45,7 +45,7 @@ export async function createExampleSheet(token: string, programRows: RoutineRow[
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      properties: { title: 'RepSheets - My Workouts' },
+      properties: { title: 'repsheets - My Workouts' },
       sheets: [
         { properties: { title: 'Routines' } },
         { properties: { title: 'Log' } },
