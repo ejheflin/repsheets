@@ -7,7 +7,13 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('routines')
+  const [activeTab, setActiveTabState] = useState<TabId>(
+    () => (sessionStorage.getItem('repsheets_tab') as TabId) || 'routines'
+  )
+  const setActiveTab = (tab: TabId) => {
+    sessionStorage.setItem('repsheets_tab', tab)
+    setActiveTabState(tab)
+  }
   const [syncStatus] = useState<SyncStatus>('synced')
 
   return (
