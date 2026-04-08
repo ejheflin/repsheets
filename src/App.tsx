@@ -1,6 +1,33 @@
 import { AuthProvider } from './auth/AuthProvider'
+import { SheetProvider } from './data/useSheetContext'
 import { useAuth } from './auth/useAuth'
+import { useSheetContext } from './data/useSheetContext'
 import { LoginScreen } from './auth/LoginScreen'
+import { Layout } from './ui/Layout'
+
+function MainApp() {
+  const { spreadsheetId } = useSheetContext()
+
+  if (!spreadsheetId) {
+    return (
+      <div className="min-h-screen bg-[#1a1a2e] flex items-center justify-center">
+        <p className="text-gray-400">No sheet selected (Sheet selector coming in Task 12)</p>
+      </div>
+    )
+  }
+
+  return (
+    <Layout>
+      {(activeTab) => (
+        <>
+          {activeTab === 'routines' && <p className="text-gray-400">Routines tab (Task 10)</p>}
+          {activeTab === 'workout' && <p className="text-gray-400">Workout tab (Task 11)</p>}
+          {activeTab === 'logs' && <p className="text-gray-400">Logs tab (Phase 2)</p>}
+        </>
+      )}
+    </Layout>
+  )
+}
 
 function AppContent() {
   const { user, isLoading } = useAuth()
@@ -13,9 +40,9 @@ function AppContent() {
   }
   if (!user) return <LoginScreen />
   return (
-    <div className="min-h-screen bg-[#1a1a2e] text-white">
-      <p className="p-4">Welcome, {user.name}</p>
-    </div>
+    <SheetProvider>
+      <MainApp />
+    </SheetProvider>
   )
 }
 
