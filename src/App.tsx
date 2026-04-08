@@ -1,9 +1,9 @@
 import { AuthProvider } from './auth/AuthProvider'
-import { SheetProvider } from './data/useSheetContext'
+import { SheetProvider, useSheetContext } from './data/useSheetContext'
 import { useAuth } from './auth/useAuth'
-import { useSheetContext } from './data/useSheetContext'
 import { LoginScreen } from './auth/LoginScreen'
 import { Layout } from './ui/Layout'
+import { RoutinesTab } from './ui/routines/RoutinesTab'
 
 function MainApp() {
   const { spreadsheetId } = useSheetContext()
@@ -18,9 +18,11 @@ function MainApp() {
 
   return (
     <Layout>
-      {(activeTab) => (
+      {(activeTab, setActiveTab) => (
         <>
-          {activeTab === 'routines' && <p className="text-gray-400">Routines tab (Task 10)</p>}
+          {activeTab === 'routines' && (
+            <RoutinesTab onStartWorkout={() => setActiveTab('workout')} />
+          )}
           {activeTab === 'workout' && <p className="text-gray-400">Workout tab (Task 11)</p>}
           {activeTab === 'logs' && <p className="text-gray-400">Logs tab (Phase 2)</p>}
         </>
