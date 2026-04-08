@@ -55,8 +55,8 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
     <div>
       <div className="flex justify-between items-center mb-2">
         <div>
-          <div className="text-[11px] text-gray-500">{workout.routine}</div>
-          <h1 className="text-[20px] font-bold">Workout</h1>
+          <div className="text-[11px] text-gray-500">{workout.program}</div>
+          <h1 className="text-[20px] font-bold">{workout.routine}</h1>
         </div>
         <button onClick={() => setShowDiscard(true)}
           className="text-xs text-red-400 font-semibold flex items-center gap-1">
