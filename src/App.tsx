@@ -7,6 +7,7 @@ import { RoutinesTab } from './ui/routines/RoutinesTab'
 import { WorkoutTab } from './ui/workout/WorkoutTab'
 import { SheetSelector } from './ui/SheetSelector'
 import { WorkoutProvider } from './data/useWorkout'
+import { LogsTab } from './ui/logs/LogsTab'
 
 function MainApp() {
   const { spreadsheetId } = useSheetContext()
@@ -24,9 +25,7 @@ function MainApp() {
               <RoutinesTab onStartWorkout={() => setActiveTab('workout')} />
             )}
             {activeTab === 'workout' && <WorkoutTab onGoToRoutines={() => setActiveTab('routines')} />}
-            {activeTab === 'logs' && (
-              <p className="text-gray-400">Logs tab (coming in Phase 2)</p>
-            )}
+            {activeTab === 'logs' && <LogsTab />}
           </>
         )}
       </Layout>
