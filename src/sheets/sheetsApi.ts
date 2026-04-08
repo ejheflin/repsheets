@@ -1,0 +1,63 @@
+import type { RoutineRow, LogEntry } from '../types'
+
+const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets'
+
+async function fetchRange(spreadsheetId: string, range: string, token: string): Promise<string[][]> {
+  const url = `${SHEETS_BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}`
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(`Sheets API error: ${err.error?.message ?? res.statusText}`)
+  }
+  const data = await res.json()
+  return data.values ?? []
+}
+
+export async function fetchRoutineRows(spreadsheetId: string, token: string): Promise<RoutineRow[]> {
+  const rows = await fetchRange(spreadsheetId, 'Routines!A:H', token)
+  if (rows.length < 2) return []
+  return rows.slice(1).map((row) => ({
+    program: row[0] ?? '',
+    routine: row[1] ?? '',
+    exercise: row[2] ?? '',
+    sets: row[3] ?? '1',
+    reps: row[4] ? Number(row[4]) : null,
+    value: row[5] ? Number(row[5]) : null,
+    unit: row[6] ?? '',
+    notes: row[7] ?? '',
+  }))
+}
+
+export async function fetchLogEntries(spreadsheetId: string, token: string): Promise<LogEntry[]> {
+  const rows = await fetchRange(spreadsheetId, 'Log!A:J', token)
+  if (rows.length < 2) return []
+  return rows.slice(1).map((row) => ({
+    date: row[0] ?? '',
+    athlete: row[1] ?? '',
+    program: row[2] ?? '',
+    routine: row[3] ?? '',
+    exercise: row[4] ?? '',
+    set: row[5] ? Number(row[5]) : 0,
+    reps: row[6] ? Number(row[6]) : 0,
+    value: row[7] ? Number(row[7]) : null,
+    unit: row[8] ?? '',
+    notes: row[9] ?? '',
+  }))
+}
+
+export async function appendLogEntries(spreadsheetId: string, token: string, entries: LogEntry[]): Promise<void> {
+  const url = `${SHEETS_BASE}/${spreadsheetId}/values/Log!A:J:append?valueInputOption=USER_ENTERED`
+  const values = entries.map((e) => [
+    e.date, e.athlete, e.program, e.routine, e.exercise,
+    e.set, e.reps, e.value ?? '', e.unit, e.notes,
+  ])
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ values }),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(`Sheets API append error: ${err.error?.message ?? res.statusText}`)
+  }
+}
