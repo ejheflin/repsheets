@@ -1,6 +1,22 @@
 import { SetRow } from './SetRow'
 import type { WorkoutExercise } from '../../types'
 
+function ChevronRight() {
+  return (
+    <svg width="8" height="24" viewBox="0 0 8 24" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="2 6 6 12 2 18" />
+    </svg>
+  )
+}
+
+function ChevronDown() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="2 4 6 8 10 4" />
+    </svg>
+  )
+}
+
 interface ExerciseRowProps {
   exercise: WorkoutExercise
   onToggleExpand: () => void
@@ -35,7 +51,7 @@ export function ExerciseRow({
   if (!exercise.isExpanded) {
     return (
       <div className="bg-[#2a2a4a] rounded-[10px] mb-1.5 px-3 py-2.5 flex items-center">
-        <button onClick={onToggleExpand} className="text-gray-500 mr-2 text-xs">▶</button>
+        <button onClick={onToggleExpand} className="mr-1.5 self-stretch flex items-center"><ChevronRight /></button>
         <button onClick={onToggleExpand} className="flex-1 text-left">
           <div className="font-semibold text-sm">{exercise.exercise}</div>
           <div className="text-xs text-gray-500 mt-0.5">{summary}</div>
@@ -57,7 +73,7 @@ export function ExerciseRow({
   return (
     <div className="bg-[#2a2a4a] rounded-[10px] mb-1.5 px-3 py-2.5">
       <div className="flex items-center mb-2">
-        <button onClick={onToggleExpand} className="text-gray-500 mr-2 text-xs">▼</button>
+        <button onClick={onToggleExpand} className="mr-1.5 flex items-center"><ChevronDown /></button>
         <div className="flex-1 font-bold text-[15px]">{exercise.exercise}</div>
         <button onClick={onToggleExercise}>
           {allCompleted ? (
