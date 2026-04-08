@@ -23,7 +23,7 @@ function MainApp() {
             {activeTab === 'routines' && (
               <RoutinesTab onStartWorkout={() => setActiveTab('workout')} />
             )}
-            {activeTab === 'workout' && <WorkoutTab />}
+            {activeTab === 'workout' && <WorkoutTab onGoToRoutines={() => setActiveTab('routines')} />}
             {activeTab === 'logs' && (
               <p className="text-gray-400">Logs tab (coming in Phase 2)</p>
             )}
