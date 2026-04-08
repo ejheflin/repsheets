@@ -55,13 +55,14 @@ export function ExerciseRow({
   const repsHasMismatch = exercise.sets.some((s) => s.reps !== summaryReps)
   const valueHasMismatch = exercise.sets.some((s) => s.value !== summaryValue)
 
-  const hasUserNotes = exercise.userNotes.length > 0
+  const userNotes = userNotes ?? ''
+  const hasUserNotes = userNotes.length > 0
 
   const notesInput = showNotes ? (
     <div className="mt-1.5 ml-5">
       <input
         type="text"
-        value={exercise.userNotes}
+        value={userNotes}
         onChange={(e) => onUpdateNotes(e.target.value)}
         className="w-full bg-[#1a1a2e] border border-[#3a3a5a] rounded text-xs text-gray-300 px-2 py-1.5 outline-none focus:border-[#6c63ff]"
         placeholder="Add a note..."
