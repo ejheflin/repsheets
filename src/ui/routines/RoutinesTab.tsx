@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { ProgramSelector } from './ProgramSelector'
 import { RoutineCard } from './RoutineCard'
 import { useRoutines } from '../../data/useRoutines'
 import { useWorkout } from '../../data/useWorkout'
+import { getPreference, setPreference } from '../../data/db'
 import type { RoutineRow } from '../../types'
 
 interface RoutinesTabProps {
@@ -10,7 +11,13 @@ interface RoutinesTabProps {
 }
 
 export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
-  const [selectedProgram, setSelectedProgram] = useState<string>('')
+  const [selectedProgram, setSelectedProgramState] = useState<string>('')
+  const [programLoaded, setProgramLoaded] = useState(false)
+
+  const setSelectedProgram = useCallback((program: string) => {
+    setSelectedProgramState(program)
+    setPreference('activeProgram', program)
+  }, [])
   const { routineList, programs, isLoading } = useRoutines(selectedProgram || null)
   const { workout, startWorkout, discardWorkout } = useWorkout()
   const [confirmDiscard, setConfirmDiscard] = useState<{
@@ -18,10 +25,19 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
   } | null>(null)
 
   useEffect(() => {
-    if (programs.length > 0 && !selectedProgram) {
+    if (!programLoaded) {
+      getPreference('activeProgram').then((saved) => {
+        if (saved && programs.includes(saved)) {
+          setSelectedProgramState(saved)
+        } else if (programs.length > 0) {
+          setSelectedProgram(programs[0])
+        }
+        setProgramLoaded(true)
+      })
+    } else if (programs.length > 0 && !selectedProgram) {
       setSelectedProgram(programs[0])
     }
-  }, [programs, selectedProgram])
+  }, [programs, selectedProgram, programLoaded, setSelectedProgram])
 
   const handleRoutineTap = (routine: { name: string; rows: RoutineRow[] }) => {
     if (workout) {
