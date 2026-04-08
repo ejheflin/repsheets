@@ -487,12 +487,12 @@ For percentage-based programs (5/3/1, nSuns), each percentage tier is encoded as
 | Bench Press @ 75% | 1 | 5 | | lbs | |
 | Bench Press @ 85% | 1 | 3 | | lbs | |
 | Bench Press @ 95% | 1 | 1 | | lbs | AMRAP |
-| Bench Press Backoff @ 90% | 1 | 3 | | lbs | backoff |
-| Bench Press Backoff @ 85% | 1 | 3 | | lbs | backoff |
-| Bench Press Backoff @ 80% | 1 | 3 | | lbs | backoff |
-| Bench Press Backoff @ 75% | 1 | 5 | | lbs | backoff |
-| Bench Press Backoff @ 70% | 1 | 5 | | lbs | backoff |
-| Bench Press Backoff @ 65% | 1 | 5 | | lbs | AMRAP backoff |
+| Bench Press @ 90% | 1 | 3 | | lbs | backoff |
+| Bench Press @ 85% | 1 | 3 | | lbs | backoff |
+| Bench Press @ 80% | 1 | 3 | | lbs | backoff |
+| Bench Press @ 75% | 1 | 5 | | lbs | backoff |
+| Bench Press @ 70% | 1 | 5 | | lbs | backoff |
+| Bench Press @ 65% | 1 | 5 | | lbs | AMRAP backoff |
 | OHP @ 50% | 8 | 6 | | lbs | secondary lift, 8 sets |
 | Lat Pulldown | 3 | 8 | | lbs | |
 | Bicep Curl | 4 | 8 | | lbs | |
@@ -504,12 +504,12 @@ For percentage-based programs (5/3/1, nSuns), each percentage tier is encoded as
 | Squat @ 75% | 1 | 5 | | lbs | |
 | Squat @ 85% | 1 | 3 | | lbs | |
 | Squat @ 95% | 1 | 1 | | lbs | AMRAP |
-| Squat Backoff @ 90% | 1 | 3 | | lbs | backoff |
-| Squat Backoff @ 85% | 1 | 3 | | lbs | backoff |
-| Squat Backoff @ 80% | 1 | 3 | | lbs | backoff |
-| Squat Backoff @ 75% | 1 | 5 | | lbs | backoff |
-| Squat Backoff @ 70% | 1 | 5 | | lbs | backoff |
-| Squat Backoff @ 65% | 1 | 5 | | lbs | AMRAP backoff |
+| Squat @ 90% | 1 | 3 | | lbs | backoff |
+| Squat @ 85% | 1 | 3 | | lbs | backoff |
+| Squat @ 80% | 1 | 3 | | lbs | backoff |
+| Squat @ 75% | 1 | 5 | | lbs | backoff |
+| Squat @ 70% | 1 | 5 | | lbs | backoff |
+| Squat @ 65% | 1 | 5 | | lbs | AMRAP backoff |
 | Sumo Deadlift @ 50% | 8 | 6 | | lbs | secondary lift |
 | Hanging Leg Raise | 3 | 12 | | reps | |
 | Leg Extension | 3 | 8 | | lbs | |
@@ -521,12 +521,12 @@ For percentage-based programs (5/3/1, nSuns), each percentage tier is encoded as
 | OHP @ 75% | 1 | 5 | | lbs | |
 | OHP @ 85% | 1 | 3 | | lbs | |
 | OHP @ 95% | 1 | 1 | | lbs | AMRAP |
-| OHP Backoff @ 90% | 1 | 3 | | lbs | backoff |
-| OHP Backoff @ 85% | 1 | 3 | | lbs | backoff |
-| OHP Backoff @ 80% | 1 | 3 | | lbs | backoff |
-| OHP Backoff @ 75% | 1 | 5 | | lbs | backoff |
-| OHP Backoff @ 70% | 1 | 5 | | lbs | backoff |
-| OHP Backoff @ 65% | 1 | 5 | | lbs | AMRAP backoff |
+| OHP @ 90% | 1 | 3 | | lbs | backoff |
+| OHP @ 85% | 1 | 3 | | lbs | backoff |
+| OHP @ 80% | 1 | 3 | | lbs | backoff |
+| OHP @ 75% | 1 | 5 | | lbs | backoff |
+| OHP @ 70% | 1 | 5 | | lbs | backoff |
+| OHP @ 65% | 1 | 5 | | lbs | AMRAP backoff |
 | Incline Bench Press @ 50% | 8 | 6 | | lbs | secondary lift |
 | Lateral Raise | 4 | 12 | | lbs | |
 | Face Pull | 3 | 12 | | lbs | |
@@ -538,12 +538,12 @@ For percentage-based programs (5/3/1, nSuns), each percentage tier is encoded as
 | Deadlift @ 75% | 1 | 5 | | lbs | |
 | Deadlift @ 85% | 1 | 3 | | lbs | |
 | Deadlift @ 95% | 1 | 1 | | lbs | AMRAP |
-| Deadlift Backoff @ 90% | 1 | 3 | | lbs | backoff |
-| Deadlift Backoff @ 85% | 1 | 3 | | lbs | backoff |
-| Deadlift Backoff @ 80% | 1 | 3 | | lbs | backoff |
-| Deadlift Backoff @ 75% | 1 | 3 | | lbs | backoff |
-| Deadlift Backoff @ 70% | 1 | 3 | | lbs | backoff |
-| Deadlift Backoff @ 65% | 1 | 3 | | lbs | AMRAP backoff |
+| Deadlift @ 90% | 1 | 3 | | lbs | backoff |
+| Deadlift @ 85% | 1 | 3 | | lbs | backoff |
+| Deadlift @ 80% | 1 | 3 | | lbs | backoff |
+| Deadlift @ 75% | 1 | 3 | | lbs | backoff |
+| Deadlift @ 70% | 1 | 3 | | lbs | backoff |
+| Deadlift @ 65% | 1 | 3 | | lbs | AMRAP backoff |
 | Front Squat @ 50% | 8 | 6 | | lbs | secondary lift |
 | Ab Wheel | 3 | 12 | | reps | |
 | Chin Up | 3 | 8 | | reps | |
@@ -555,12 +555,12 @@ For percentage-based programs (5/3/1, nSuns), each percentage tier is encoded as
 | Bench Press @ 75% | 1 | 5 | | lbs | |
 | Bench Press @ 85% | 1 | 3 | | lbs | |
 | Bench Press @ 95% | 1 | 1 | | lbs | AMRAP |
-| Bench Press Backoff @ 90% | 1 | 3 | | lbs | backoff |
-| Bench Press Backoff @ 85% | 1 | 5 | | lbs | backoff |
-| Bench Press Backoff @ 80% | 1 | 3 | | lbs | backoff |
-| Bench Press Backoff @ 75% | 1 | 5 | | lbs | backoff |
-| Bench Press Backoff @ 70% | 1 | 3 | | lbs | backoff |
-| Bench Press Backoff @ 65% | 1 | 5 | | lbs | AMRAP backoff |
+| Bench Press @ 90% | 1 | 3 | | lbs | backoff |
+| Bench Press @ 85% | 1 | 5 | | lbs | backoff |
+| Bench Press @ 80% | 1 | 3 | | lbs | backoff |
+| Bench Press @ 75% | 1 | 5 | | lbs | backoff |
+| Bench Press @ 70% | 1 | 3 | | lbs | backoff |
+| Bench Press @ 65% | 1 | 5 | | lbs | AMRAP backoff |
 | Close Grip Bench @ 50% | 8 | 6 | | lbs | secondary lift |
 | Tricep Pushdown | 3 | 8 | | lbs | |
 | Hammer Curl | 4 | 8 | | lbs | |
