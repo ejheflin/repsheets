@@ -75,7 +75,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         supersetGroup: firstSet?.supersetGroup ?? null,
         isExpanded: false,
         sets: sets.map((s) => {
-          const resolved = resolveSetValues(s, logs, program, routineName)
+          const resolved = resolveSetValues(s, logs, program, routineName, user.email)
           return {
             setNumber: s.setNumber,
             reps: resolved.reps,
