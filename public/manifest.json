@@ -1,6 +1,6 @@
 {
-  "name": "RepSheets",
-  "short_name": "RepSheets",
+  "name": "repsheets",
+  "short_name": "repsheets",
   "description": "Workout tracker powered by Google Sheets",
   "start_url": "/",
   "display": "standalone",

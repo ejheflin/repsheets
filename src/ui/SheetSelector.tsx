@@ -40,7 +40,7 @@ export function SheetSelector() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#1a1a2e] flex items-center justify-center">
-        <p className="text-gray-400">Scanning for RepSheets...</p>
+        <p className="text-gray-400">Scanning for repsheets...</p>
       </div>
     )
   }
@@ -48,7 +48,7 @@ export function SheetSelector() {
   return (
     <div className="min-h-screen bg-[#1a1a2e] text-white p-6">
       <h1 className="text-2xl font-bold mb-1">Select a Sheet</h1>
-      <p className="text-gray-400 text-sm mb-6">Pick an existing RepSheets spreadsheet or create a new one.</p>
+      <p className="text-gray-400 text-sm mb-6">Pick an existing repsheets spreadsheet or create a new one.</p>
       {sheets.map((s) => (
         <button key={s.spreadsheetId} onClick={() => setSpreadsheetId(s.spreadsheetId)}
           className="w-full bg-[#2a2a4a] rounded-[10px] p-4 mb-2 text-left active:opacity-80">

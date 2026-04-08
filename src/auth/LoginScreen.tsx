@@ -4,7 +4,7 @@ export function LoginScreen() {
   const { login } = useAuth()
   return (
     <div className="min-h-screen bg-[#1a1a2e] flex flex-col items-center justify-center px-6">
-      <h1 className="text-4xl font-bold text-white mb-2">RepSheets</h1>
+      <h1 className="text-4xl font-bold text-white mb-2">repsheets</h1>
       <p className="text-gray-400 mb-10 text-center">Workout tracking powered by Google Sheets</p>
       <button onClick={login}
         className="bg-white text-gray-800 font-semibold px-6 py-3 rounded-lg flex items-center gap-3 hover:bg-gray-100 transition">
