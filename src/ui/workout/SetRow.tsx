@@ -10,7 +10,7 @@ interface SetRowProps {
 }
 
 export function SetRow({
-  setNumber, reps, value, unit, completed,
+  setNumber, reps, value, unit: _unit, completed,
   onToggle, onRepsChange, onValueChange,
 }: SetRowProps) {
   return (
