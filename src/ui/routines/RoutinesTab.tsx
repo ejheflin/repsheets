@@ -13,7 +13,8 @@ interface RoutinesTabProps {
 
 export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
   const [selectedProgram, setSelectedProgramState] = useState<string>('')
-  const [programLoaded, setProgramLoaded] = useState(false)
+  const [savedProgram, setSavedProgram] = useState<string | null>(null)
+  const [prefLoaded, setPrefLoaded] = useState(false)
 
   const setSelectedProgram = useCallback((program: string) => {
     setSelectedProgramState(program)
@@ -26,20 +27,25 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     program: string; routine: string; rows: RoutineRow[]
   } | null>(null)
 
+  // Load saved preference once on mount
   useEffect(() => {
-    if (!programLoaded) {
-      getPreference('activeProgram').then((saved) => {
-        if (saved && programs.includes(saved)) {
-          setSelectedProgramState(saved)
-        } else if (programs.length > 0) {
-          setSelectedProgram(programs[0])
-        }
-        setProgramLoaded(true)
-      })
-    } else if (programs.length > 0 && !selectedProgram) {
+    getPreference('activeProgram').then((saved) => {
+      setSavedProgram(saved ?? null)
+      setPrefLoaded(true)
+    })
+  }, [])
+
+  // Once both preference and programs are available, reconcile
+  useEffect(() => {
+    if (!prefLoaded || programs.length === 0) return
+    if (selectedProgram && programs.includes(selectedProgram)) return
+
+    if (savedProgram && programs.includes(savedProgram)) {
+      setSelectedProgramState(savedProgram)
+    } else {
       setSelectedProgram(programs[0])
     }
-  }, [programs, selectedProgram, programLoaded, setSelectedProgram])
+  }, [prefLoaded, programs, savedProgram, selectedProgram, setSelectedProgram])
 
   const handleRoutineTap = (routine: { name: string; rows: RoutineRow[] }) => {
     if (workout) {
