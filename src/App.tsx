@@ -5,16 +5,13 @@ import { LoginScreen } from './auth/LoginScreen'
 import { Layout } from './ui/Layout'
 import { RoutinesTab } from './ui/routines/RoutinesTab'
 import { WorkoutTab } from './ui/workout/WorkoutTab'
+import { SheetSelector } from './ui/SheetSelector'
 
 function MainApp() {
   const { spreadsheetId } = useSheetContext()
 
   if (!spreadsheetId) {
-    return (
-      <div className="min-h-screen bg-[#1a1a2e] flex items-center justify-center">
-        <p className="text-gray-400">No sheet selected (Sheet selector coming in Task 12)</p>
-      </div>
-    )
+    return <SheetSelector />
   }
 
   return (
@@ -25,7 +22,9 @@ function MainApp() {
             <RoutinesTab onStartWorkout={() => setActiveTab('workout')} />
           )}
           {activeTab === 'workout' && <WorkoutTab />}
-          {activeTab === 'logs' && <p className="text-gray-400">Logs tab (Phase 2)</p>}
+          {activeTab === 'logs' && (
+            <p className="text-gray-400">Logs tab (coming in Phase 2)</p>
+          )}
         </>
       )}
     </Layout>
