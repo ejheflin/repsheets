@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ExerciseRow } from './ExerciseRow'
 import { SupersetGroup } from './SupersetGroup'
 import { FinishWorkoutSheet } from './FinishWorkoutSheet'
@@ -15,6 +15,13 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   } = useWorkout()
   const [showFinish, setShowFinish] = useState(false)
   const [showDiscard, setShowDiscard] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   if (!workout) {
     return (
@@ -53,18 +60,18 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-2">
-        <div>
-          <div className="text-[11px] text-gray-500">{workout.program}</div>
-          <h1 className="text-[20px] font-bold">{workout.routine}</h1>
+      <div className={`sticky top-8 z-20 bg-[#1a1a2e] -mx-4 px-4 flex justify-between items-center transition-all duration-200 ${scrolled ? 'py-1.5 mb-1.5' : 'py-2 mb-2'}`}>
+        <div className="min-w-0">
+          {!scrolled && <div className="text-[11px] text-gray-500">{workout.program}</div>}
+          <h1 className={`font-bold truncate transition-all duration-200 ${scrolled ? 'text-[15px]' : 'text-[20px]'}`}>{workout.routine}</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <button onClick={() => setShowDiscard(true)}
-            className="w-7 h-7 rounded-md bg-[#2a2a4a] text-red-400 flex items-center justify-center text-sm">
+            className={`rounded-md bg-[#2a2a4a] text-red-400 flex items-center justify-center transition-all duration-200 ${scrolled ? 'w-8 h-8 text-xs' : 'w-9 h-9 text-sm'}`}>
             ✕
           </button>
           <button onClick={handleFinish}
-            className="bg-[#6c63ff] rounded-md px-4 py-1.5 text-sm font-semibold">
+            className={`bg-[#6c63ff] rounded-md font-semibold transition-all duration-200 ${scrolled ? 'px-3 py-1.5 text-xs h-8' : 'px-4 py-2 text-sm h-9'}`}>
             Finish
           </button>
         </div>
