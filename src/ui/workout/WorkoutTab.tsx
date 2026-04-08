@@ -58,10 +58,16 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
           <div className="text-[11px] text-gray-500">{workout.program}</div>
           <h1 className="text-[20px] font-bold">{workout.routine}</h1>
         </div>
-        <button onClick={() => setShowDiscard(true)}
-          className="text-xs text-red-400 font-semibold flex items-center gap-1">
-          ✕ Discard
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowDiscard(true)}
+            className="w-7 h-7 rounded-md bg-[#2a2a4a] text-red-400 flex items-center justify-center text-sm">
+            ✕
+          </button>
+          <button onClick={handleFinish}
+            className="bg-[#6c63ff] rounded-md px-4 py-1.5 text-sm font-semibold">
+            Finish
+          </button>
+        </div>
       </div>
 
       {groups.map((group, gIdx) => {
@@ -81,11 +87,6 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
           <div key={gIdx}>{content}</div>
         )
       })}
-
-      <button onClick={handleFinish}
-        className="w-full bg-[#6c63ff] rounded-[10px] py-3 text-center font-bold text-[15px] mt-4">
-        Finish Workout
-      </button>
 
       {showFinish && (
         <FinishWorkoutSheet
