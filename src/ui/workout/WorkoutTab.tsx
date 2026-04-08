@@ -62,7 +62,7 @@ export function WorkoutTab() {
 
       {groups.map((group, gIdx) => {
         const content = group.exerciseIndices.map((exIdx) => (
-          <ExerciseRow key={exIdx} exercise={workout.exercises[exIdx]} exerciseIdx={exIdx}
+          <ExerciseRow key={exIdx} exercise={workout.exercises[exIdx]}
             onToggleExpand={() => toggleExpanded(exIdx)}
             onToggleExercise={() => toggleExercise(exIdx)}
             onToggleSet={(setIdx) => toggleSet(exIdx, setIdx)}

@@ -3,7 +3,6 @@ import type { WorkoutExercise } from '../../types'
 
 interface ExerciseRowProps {
   exercise: WorkoutExercise
-  exerciseIdx: number
   onToggleExpand: () => void
   onToggleExercise: () => void
   onToggleSet: (setIdx: number) => void
@@ -26,7 +25,7 @@ function summarizeSets(exercise: WorkoutExercise): string {
 }
 
 export function ExerciseRow({
-  exercise, exerciseIdx,
+  exercise,
   onToggleExpand, onToggleExercise, onToggleSet, onUpdateSet, onAddSet,
 }: ExerciseRowProps) {
   const allCompleted = exercise.sets.every((s) => s.completed)
