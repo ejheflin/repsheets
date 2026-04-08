@@ -61,30 +61,31 @@ export function ExerciseRow({
             )}
           </button>
         </div>
-        <div className="flex items-center mt-1.5 ml-[14px]">
-          <span className="text-[11px] text-gray-500 mr-2 w-8 flex-shrink-0">{exercise.sets.length}×</span>
-          <div className="flex items-center gap-1">
+        <div className="flex items-center mt-1.5 ml-5">
+          <span className="text-xs text-gray-500 mr-2 w-7 flex-shrink-0">{exercise.sets.length}×</span>
+          <div className="flex-1 flex items-center justify-center gap-1">
             <button
               onClick={() => onUpdateAllSets('reps', Math.max(0, (summaryReps ?? 0) - 1))}
-              className="w-5 h-5 rounded bg-[#1a1a2e] text-gray-400 text-xs flex items-center justify-center active:bg-[#3a3a5a]"
+              className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#3a3a5a]"
             >−</button>
             <input type="text" inputMode="numeric" value={summaryReps ?? ''}
               onChange={(e) => onUpdateAllSets('reps', e.target.value ? Number(e.target.value) : null)}
               onFocus={(e) => e.target.select()}
-              className={`w-9 bg-[#1a1a2e] rounded text-center text-xs font-semibold py-0.5 outline-none ${repsHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
+              className={`w-10 bg-[#1a1a2e] rounded text-center text-sm font-semibold py-1 outline-none [appearance:textfield] ${repsHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
               placeholder="—" />
             <button
               onClick={() => onUpdateAllSets('reps', (summaryReps ?? 0) + 1)}
-              className="w-5 h-5 rounded bg-[#1a1a2e] text-gray-400 text-xs flex items-center justify-center active:bg-[#3a3a5a]"
+              className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#3a3a5a]"
             >+</button>
           </div>
-          <span className="text-[11px] text-gray-500 mx-2">@</span>
-          <input type="text" inputMode="decimal" value={summaryValue ?? ''}
-            onChange={(e) => onUpdateAllSets('value', e.target.value ? Number(e.target.value) : null)}
-            onFocus={(e) => e.target.select()}
-            className={`w-14 bg-[#1a1a2e] rounded text-center text-xs font-semibold py-0.5 outline-none ${valueHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
-            placeholder="—" />
-          <span className="text-[11px] text-gray-500 ml-1">{unit}</span>
+          <div className="flex-1 text-center">
+            <input type="text" inputMode="decimal" value={summaryValue ?? ''}
+              onChange={(e) => onUpdateAllSets('value', e.target.value ? Number(e.target.value) : null)}
+              onFocus={(e) => e.target.select()}
+              className={`w-16 bg-[#1a1a2e] rounded text-center text-sm font-semibold py-1 outline-none [appearance:textfield] ${valueHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
+              placeholder="—" />
+          </div>
+          <div className="w-7" />
         </div>
       </div>
     )
