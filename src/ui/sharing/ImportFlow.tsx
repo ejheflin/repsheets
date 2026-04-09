@@ -64,12 +64,13 @@ export function ImportFlow({ sheetId, onDone }: ImportFlowProps) {
 
       // If user has no personal sheet, create one
       if (!targetSheetId) {
-        targetSheetId = await createExampleSheet([])
+        targetSheetId = await createExampleSheet(rowsToImport)
         setSpreadsheetId(targetSheetId)
+      } else {
+        // Append the imported routines to existing sheet
+        await appendRoutineRows(targetSheetId, rowsToImport)
       }
 
-      // Append the imported routines
-      await appendRoutineRows(targetSheetId, rowsToImport)
       onDone()
     } catch (e) {
       setError(String(e))
