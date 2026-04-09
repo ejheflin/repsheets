@@ -1,9 +1,9 @@
 import { useAuth } from './useAuth'
-import { useDemo } from '../demo/DemoProvider'
+// import { useDemo } from '../demo/DemoProvider'
 
 export function LoginScreen() {
   const { login } = useAuth()
-  const { startDemo } = useDemo()
+  // const { startDemo } = useDemo()
   return (
     <div className="min-h-screen bg-[#1a1a2e] flex flex-col items-center justify-center px-6">
       <h1 className="text-4xl font-bold text-white mb-2">repsheets</h1>
