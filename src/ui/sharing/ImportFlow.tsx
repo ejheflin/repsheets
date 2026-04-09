@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../auth/useAuth'
 import { useSheetContext } from '../../data/useSheetContext'
 import { fetchRoutineRows, fetchPublicRoutineRows } from '../../sheets/sheetsApi'
-import { appendRoutineRows, createExampleSheet } from '../../sheets/driveApi'
+import { appendRoutineRows, createExampleSheet, listRepSheets } from '../../sheets/driveApi'
 import type { RoutineRow } from '../../types'
 
 type DuplicateAction = 'skip' | 'rename' | 'replace'
@@ -65,10 +65,18 @@ export function ImportFlow({ sheetId, onDone }: ImportFlowProps) {
     }
 
     try {
-      let targetSheetId = spreadsheetId
+      // Only import into sheets the user owns
+      let targetSheetId: string | null = null
+      if (spreadsheetId) {
+        const sheets = await listRepSheets()
+        const activeSheet = sheets.find((s) => s.spreadsheetId === spreadsheetId)
+        if (activeSheet?.isOwner) {
+          targetSheetId = spreadsheetId
+        }
+      }
 
       if (!targetSheetId) {
-        // No personal sheet — create one with the imported rows
+        // No owned sheet — create a new personal one
         targetSheetId = await createExampleSheet(rowsToImport)
         setSpreadsheetId(targetSheetId)
         onDone()

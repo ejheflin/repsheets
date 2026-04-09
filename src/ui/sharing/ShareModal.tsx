@@ -51,8 +51,11 @@ export function ShareCopyModal({ program, sheetLevel, onClose }: ShareCopyModalP
         {mode === 'confirm' && (
           <>
             <h2 className="text-base font-bold text-center mb-1">Share {label}</h2>
-            <p className="text-xs text-gray-400 text-center mb-4">
+            <p className="text-xs text-gray-400 text-center mb-2">
               Creates a read-only copy of the routines. Your logs are not included.
+            </p>
+            <p className="text-[10px] text-gray-500 text-center mb-4">
+              Looking to invite them to work out together? Share the sheet instead.
             </p>
             {error && <p className="text-red-400 text-xs text-center mb-3">{error}</p>}
             <button onClick={handleCopy} disabled={isLoading}
