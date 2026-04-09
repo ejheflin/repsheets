@@ -134,7 +134,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
         <SheetSwitcherModal onClose={() => setShowSheetSwitcher(false)} />
       )}
       {showShare && (
-        <ShareModal program={selectedProgram || null} onClose={() => setShowShare(false)} />
+        <ShareModal program={selectedProgram || programs[0] || null} onClose={() => setShowShare(false)} />
       )}
       {confirmDiscard && (
         <div className="fixed inset-0 bg-black/60 flex items-end z-50">
