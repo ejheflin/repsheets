@@ -1,13 +1,19 @@
-import { refreshToken } from './googleAuth'
 import { getStoredUser } from './googleAuth'
 
+export class AuthExpiredError extends Error {
+  constructor() {
+    super('Session expired')
+    this.name = 'AuthExpiredError'
+  }
+}
+
 /**
- * Fetch wrapper that auto-refreshes the token on 401 and retries once.
- * Uses the stored token, so callers don't need to pass it.
+ * Fetch wrapper that uses the stored token.
+ * Throws AuthExpiredError on 401 so the UI can prompt re-auth.
  */
 export async function authFetch(url: string, init?: RequestInit): Promise<Response> {
   const user = getStoredUser()
-  if (!user) throw new Error('Not authenticated')
+  if (!user) throw new AuthExpiredError()
 
   const headers = new Headers(init?.headers)
   headers.set('Authorization', `Bearer ${user.accessToken}`)
@@ -15,11 +21,7 @@ export async function authFetch(url: string, init?: RequestInit): Promise<Respon
   const res = await fetch(url, { ...init, headers })
 
   if (res.status === 401) {
-    const refreshed = await refreshToken()
-    if (!refreshed) throw new Error('Token refresh failed — please log in again')
-
-    headers.set('Authorization', `Bearer ${refreshed.accessToken}`)
-    return fetch(url, { ...init, headers })
+    throw new AuthExpiredError()
   }
 
   return res
