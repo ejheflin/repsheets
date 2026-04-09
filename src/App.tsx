@@ -8,6 +8,7 @@ import { WorkoutTab } from './ui/workout/WorkoutTab'
 import { SheetSelector } from './ui/SheetSelector'
 import { WorkoutProvider } from './data/useWorkout'
 import { LogsTab } from './ui/logs/LogsTab'
+import { IOSInstallHint } from './ui/IOSInstallHint'
 
 function MainApp() {
   const { spreadsheetId } = useSheetContext()
@@ -29,6 +30,7 @@ function MainApp() {
           </>
         )}
       </Layout>
+      <IOSInstallHint />
     </WorkoutProvider>
   )
 }
