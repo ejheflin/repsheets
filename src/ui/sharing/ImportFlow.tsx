@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../auth/useAuth'
 import { useSheetContext } from '../../data/useSheetContext'
-import { fetchRoutineRows } from '../../sheets/sheetsApi'
+import { fetchRoutineRows, fetchPublicRoutineRows } from '../../sheets/sheetsApi'
 import { appendRoutineRows, createExampleSheet } from '../../sheets/driveApi'
 import type { RoutineRow } from '../../types'
 
@@ -28,7 +28,7 @@ export function ImportFlow({ sheetId, onDone }: ImportFlowProps) {
   }, [routines])
 
   useEffect(() => {
-    fetchRoutineRows(sheetId)
+    fetchPublicRoutineRows(sheetId)
       .then((rows) => {
         setRoutines(rows)
         setSelectedPrograms(new Set(
