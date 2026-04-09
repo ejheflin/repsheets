@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from '../data/useSheetContext'
 import { listRepSheets, renameSheet } from '../sheets/driveApi'
-import { InviteSheetModal } from './sharing/InviteSheetModal'
+import { ShareSheetModal } from './sharing/ShareSheetModal'
 import type { RepSheet } from '../types'
 
 interface SheetSwitcherModalProps {
@@ -77,7 +77,7 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
   }
 
   if (shareSheet) {
-    return <InviteSheetModal spreadsheetId={shareSheet.spreadsheetId} sheetName={shareSheet.name} onClose={() => setShareSheet(null)} />
+    return <ShareSheetModal sheet={shareSheet} onClose={() => setShareSheet(null)} />
   }
 
   return (

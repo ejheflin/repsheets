@@ -6,27 +6,36 @@ type CopyMode = 'confirm' | 'done'
 
 interface ShareCopyModalProps {
   program: string
+  sheetLevel?: boolean  // when true, share all programs
   onClose: () => void
 }
 
-/** Share a read-only copy of a program's routines (safe for strangers) */
-export function ShareCopyModal({ program, onClose }: ShareCopyModalProps) {
+/** Share a read-only copy of routines (safe for strangers) */
+export function ShareCopyModal({ program, sheetLevel, onClose }: ShareCopyModalProps) {
   const { allRows } = useRoutines(null)
   const [mode, setMode] = useState<CopyMode>('confirm')
   const [resultUrl, setResultUrl] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  const programRows = allRows.filter((r) => r.program === program)
+  const programRows = sheetLevel
+    ? allRows
+    : allRows.filter((r) => r.program === program)
+
+  const programNames = sheetLevel
+    ? [...new Set(allRows.map((r) => r.program))].filter(Boolean)
+    : [program]
+
+  const label = sheetLevel ? 'all programs' : `"${program}"`
 
   const handleCopy = async () => {
     setIsLoading(true)
     setError('')
     try {
-      const { url } = await createSharedTemplate(programRows, [program])
+      const { url } = await createSharedTemplate(programRows, programNames)
       const importUrl = `${window.location.origin}${window.location.pathname}?import=${url.split('/d/')[1]?.split('/')[0] ?? ''}`
       setResultUrl(importUrl)
-      try { await navigator.clipboard.writeText(importUrl) } catch { /* clipboard may fail on mobile */ }
+      try { await navigator.clipboard.writeText(importUrl) } catch {}
       setMode('done')
     } catch (e) {
       console.error('Share copy failed:', e)
@@ -41,9 +50,9 @@ export function ShareCopyModal({ program, onClose }: ShareCopyModalProps) {
 
         {mode === 'confirm' && (
           <>
-            <h2 className="text-base font-bold text-center mb-1">Share "{program}"</h2>
+            <h2 className="text-base font-bold text-center mb-1">Share {label}</h2>
             <p className="text-xs text-gray-400 text-center mb-4">
-              Creates a read-only copy of this program's routines. Your logs are not included.
+              Creates a read-only copy of the routines. Your logs are not included.
             </p>
             {error && <p className="text-red-400 text-xs text-center mb-3">{error}</p>}
             <button onClick={handleCopy} disabled={isLoading}
