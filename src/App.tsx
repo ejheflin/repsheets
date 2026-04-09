@@ -12,6 +12,8 @@ import { IOSInstallHint } from './ui/IOSInstallHint'
 import { OnboardingTour } from './ui/OnboardingTour'
 import { ImportFlow } from './ui/sharing/ImportFlow'
 import { ReAuthPrompt } from './ui/ReAuthPrompt'
+import { DemoProvider, useDemo } from './demo/DemoProvider'
+import { DemoApp } from './demo/DemoApp'
 import { useState, useEffect } from 'react'
 import { AuthExpiredError } from './auth/authFetch'
 
@@ -97,6 +99,7 @@ function MainApp() {
 
 function AppContent() {
   const { user, isLoading } = useAuth()
+  const { isDemo } = useDemo()
   const { importSheetId, clearImport } = useImportParam()
   const { joinSheetId, clearJoin } = useJoinParam()
   const { showReAuth, clearReAuth } = useAuthExpiredHandler()
@@ -108,6 +111,8 @@ function AppContent() {
       </div>
     )
   }
+
+  if (isDemo) return <DemoApp />
 
   if (!user) return <LoginScreen />
 
@@ -138,8 +143,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <DemoProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </DemoProvider>
   )
 }
