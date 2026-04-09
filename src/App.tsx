@@ -9,6 +9,7 @@ import { SheetSelector } from './ui/SheetSelector'
 import { WorkoutProvider } from './data/useWorkout'
 import { LogsTab } from './ui/logs/LogsTab'
 import { IOSInstallHint } from './ui/IOSInstallHint'
+import { OnboardingTour } from './ui/OnboardingTour'
 import { ImportFlow } from './ui/sharing/ImportFlow'
 import { ReAuthPrompt } from './ui/ReAuthPrompt'
 import { useState, useEffect } from 'react'
@@ -89,6 +90,7 @@ function MainApp() {
         )}
       </Layout>
       <IOSInstallHint />
+      <OnboardingTour />
     </WorkoutProvider>
   )
 }
