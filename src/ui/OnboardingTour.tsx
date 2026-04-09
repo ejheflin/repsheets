@@ -14,7 +14,7 @@ const STEPS: TourStep[] = [
   {
     target: 'sheet-switcher',
     title: 'Sheets',
-    text: 'Tap the grid icon to switch spreadsheets, rename them, or share with friends.',
+    text: 'All data is saved in Google Sheets. Tap here to switch, rename, share, or invite friends or clients.',
     position: 'below',
     action: 'auto',
   },
@@ -35,14 +35,14 @@ const STEPS: TourStep[] = [
   {
     target: 'exercise-checkbox',
     title: 'Checkboxes',
-    text: 'Check off individual sets, whole exercises, or the entire workout with Finish.',
+    text: 'Check off individual sets, whole exercises, or the entire workout with 1 boop!',
     position: 'below',
     action: 'auto',
   },
   {
     target: 'exercise-row',
     title: 'Exercises',
-    text: 'Edit reps and weight while collapsed. Tap the chevron to expand individual sets.',
+    text: 'Bulk edit reps and weight while collapsed. Tap the chevron to expand to individual sets.',
     position: 'below',
     action: 'auto',
   },
@@ -123,17 +123,20 @@ export function OnboardingTour() {
     }
   }
 
-  // Tooltip position
-  const tooltipStyle: React.CSSProperties = targetRect ? {
-    position: 'fixed',
-    left: Math.max(16, Math.min(targetRect.left, window.innerWidth - 280)),
-    ...(current.position === 'below'
-      ? { top: targetRect.bottom + padding + 12 }
-      : { bottom: window.innerHeight - targetRect.top + padding + 12 }
-    ),
-    width: Math.min(260, window.innerWidth - 32),
-    zIndex: 52,
-  } : {
+  // Tooltip position — clamped within viewport
+  const tooltipWidth = Math.min(260, window.innerWidth - 32)
+  const tooltipStyle: React.CSSProperties = targetRect ? (() => {
+    const left = Math.max(16, Math.min(targetRect.left, window.innerWidth - tooltipWidth - 16))
+    if (current.position === 'above') {
+      const top = targetRect.top - padding - 180
+      // If above would go off-screen, put it below instead
+      if (top < 16) {
+        return { position: 'fixed' as const, left, top: targetRect.bottom + padding + 12, width: tooltipWidth, zIndex: 52 }
+      }
+      return { position: 'fixed' as const, left, top, width: tooltipWidth, zIndex: 52 }
+    }
+    return { position: 'fixed' as const, left, top: targetRect.bottom + padding + 12, width: tooltipWidth, zIndex: 52 }
+  })() : {
     position: 'fixed',
     left: '50%',
     top: '50%',
