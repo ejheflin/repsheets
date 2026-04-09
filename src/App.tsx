@@ -10,7 +10,7 @@ import { WorkoutProvider } from './data/useWorkout'
 import { LogsTab } from './ui/logs/LogsTab'
 import { IOSInstallHint } from './ui/IOSInstallHint'
 import { ImportFlow } from './ui/sharing/ImportFlow'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 function getImportParam(): string | null {
   const params = new URLSearchParams(window.location.search)
