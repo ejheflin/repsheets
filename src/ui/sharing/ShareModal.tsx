@@ -53,6 +53,7 @@ export function ShareModal({ program, onClose }: ShareModalProps) {
       setResultUrl('')
       setMode('done')
     } catch (e) {
+      console.error('Invite email failed:', e)
       setError(String(e))
     }
     setIsLoading(false)
@@ -65,9 +66,10 @@ export function ShareModal({ program, onClose }: ShareModalProps) {
     try {
       const url = await inviteByLink(spreadsheetId)
       setResultUrl(url)
-      await navigator.clipboard.writeText(url)
+      try { await navigator.clipboard.writeText(url) } catch { /* clipboard may fail on mobile */ }
       setMode('done')
     } catch (e) {
+      console.error('Invite link failed:', e)
       setError(String(e))
     }
     setIsLoading(false)
