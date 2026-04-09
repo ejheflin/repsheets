@@ -1,7 +1,9 @@
 import { useAuth } from './useAuth'
+import { useDemo } from '../demo/DemoProvider'
 
 export function LoginScreen() {
   const { login } = useAuth()
+  const { startDemo } = useDemo()
   return (
     <div className="min-h-screen bg-[#1a1a2e] flex flex-col items-center justify-center px-6">
       <h1 className="text-4xl font-bold text-white mb-2">repsheets</h1>
@@ -15,6 +17,10 @@ export function LoginScreen() {
           <path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 5.95C6.51 42.62 14.62 48 24 48z"/>
         </svg>
         Sign in with Google
+      </button>
+      <button onClick={startDemo}
+        className="mt-4 text-sm text-gray-500 hover:text-gray-300 transition">
+        Try the demo
       </button>
     </div>
   )
