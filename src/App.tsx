@@ -14,22 +14,26 @@ import { ReAuthPrompt } from './ui/ReAuthPrompt'
 import { useState, useEffect } from 'react'
 import { AuthExpiredError } from './auth/authFetch'
 
-function getImportParam(): string | null {
-  const params = new URLSearchParams(window.location.search)
-  return params.get('import')
+function getUrlParam(name: string): string | null {
+  return new URLSearchParams(window.location.search).get(name)
+}
+
+function clearUrlParam(name: string) {
+  const url = new URL(window.location.href)
+  url.searchParams.delete(name)
+  window.history.replaceState({}, '', url.pathname)
 }
 
 function useImportParam() {
-  const [importSheetId, setImportSheetId] = useState<string | null>(getImportParam)
-
-  const clearImport = () => {
-    setImportSheetId(null)
-    const url = new URL(window.location.href)
-    url.searchParams.delete('import')
-    window.history.replaceState({}, '', url.pathname)
-  }
-
+  const [importSheetId, setImportSheetId] = useState<string | null>(() => getUrlParam('import'))
+  const clearImport = () => { setImportSheetId(null); clearUrlParam('import') }
   return { importSheetId, clearImport }
+}
+
+function useJoinParam() {
+  const [joinSheetId, setJoinSheetId] = useState<string | null>(() => getUrlParam('join'))
+  const clearJoin = () => { setJoinSheetId(null); clearUrlParam('join') }
+  return { joinSheetId, clearJoin }
 }
 
 function useAuthExpiredHandler() {
@@ -47,6 +51,21 @@ function useAuthExpiredHandler() {
   }, [])
 
   return { showReAuth, clearReAuth: () => setShowReAuth(false) }
+}
+
+function JoinHandler({ sheetId, onDone }: { sheetId: string; onDone: () => void }) {
+  const { setSpreadsheetId } = useSheetContext()
+
+  useEffect(() => {
+    setSpreadsheetId(sheetId)
+    onDone()
+  }, [sheetId, setSpreadsheetId, onDone])
+
+  return (
+    <div className="min-h-screen bg-[#1a1a2e] flex items-center justify-center">
+      <p className="text-gray-400">Joining sheet...</p>
+    </div>
+  )
 }
 
 function MainApp() {
@@ -77,6 +96,7 @@ function MainApp() {
 function AppContent() {
   const { user, isLoading } = useAuth()
   const { importSheetId, clearImport } = useImportParam()
+  const { joinSheetId, clearJoin } = useJoinParam()
   const { showReAuth, clearReAuth } = useAuthExpiredHandler()
 
   if (isLoading) {
@@ -89,12 +109,19 @@ function AppContent() {
 
   if (!user) return <LoginScreen />
 
-  // Import flow runs OUTSIDE SheetProvider to prevent background fetches
   if (importSheetId) {
     return (
       <SheetProvider>
         <ImportFlow sheetId={importSheetId} onDone={clearImport} />
         {showReAuth && <ReAuthPrompt onDone={clearReAuth} />}
+      </SheetProvider>
+    )
+  }
+
+  if (joinSheetId) {
+    return (
+      <SheetProvider>
+        <JoinHandler sheetId={joinSheetId} onDone={clearJoin} />
       </SheetProvider>
     )
   }
