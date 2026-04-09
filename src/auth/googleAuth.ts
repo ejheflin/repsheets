@@ -91,21 +91,39 @@ export async function trySilentRefresh(): Promise<AuthUser | null> {
 
 export function refreshToken(): Promise<AuthUser | null> {
   return new Promise((resolve) => {
-    const client = window.google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
-      scope: SCOPES,
-      callback: async (response) => {
-        if (response.error) { resolve(null); return }
-        try {
-          const info = await fetchUserInfo(response.access_token)
-          const user: AuthUser = { ...info, accessToken: response.access_token }
-          storeUser(user)
-          resolve(user)
-        } catch { resolve(null) }
-      },
-      error_callback: () => { resolve(null) },
-    })
-    client.requestAccessToken({ prompt: '' })
+    // Try silent first, fall back to interactive
+    const tryRefresh = (silent: boolean) => {
+      const client = window.google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: SCOPES,
+        callback: async (response) => {
+          if (response.error) {
+            if (silent) {
+              // Silent failed — try interactive (Google will auto-consent if already authorized)
+              tryRefresh(false)
+            } else {
+              resolve(null)
+            }
+            return
+          }
+          try {
+            const info = await fetchUserInfo(response.access_token)
+            const user: AuthUser = { ...info, accessToken: response.access_token }
+            storeUser(user)
+            resolve(user)
+          } catch { resolve(null) }
+        },
+        error_callback: () => {
+          if (silent) {
+            tryRefresh(false)
+          } else {
+            resolve(null)
+          }
+        },
+      })
+      client.requestAccessToken(silent ? { prompt: '' } : {})
+    }
+    tryRefresh(true)
   })
 }
 
