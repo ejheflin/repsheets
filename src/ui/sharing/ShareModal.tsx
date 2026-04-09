@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useSheetContext } from '../../data/useSheetContext'
 import { useRoutines } from '../../data/useRoutines'
 import { createSharedTemplate, createCompeteSheet, inviteByEmail, inviteByLink } from '../../sheets/driveApi'
 
@@ -12,7 +11,6 @@ interface ShareModalProps {
 }
 
 export function ShareModal({ program, onClose }: ShareModalProps) {
-  const { spreadsheetId } = useSheetContext()
   const { allRows } = useRoutines(null)
   const [mode, setMode] = useState<ShareMode>('choose')
   const [email, setEmail] = useState('')
