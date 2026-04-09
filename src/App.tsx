@@ -32,11 +32,6 @@ function useImportParam() {
 
 function MainApp() {
   const { spreadsheetId } = useSheetContext()
-  const { importSheetId, clearImport } = useImportParam()
-
-  if (importSheetId) {
-    return <ImportFlow sheetId={importSheetId} onDone={clearImport} />
-  }
 
   if (!spreadsheetId) {
     return <SheetSelector />
@@ -62,6 +57,8 @@ function MainApp() {
 
 function AppContent() {
   const { user, isLoading } = useAuth()
+  const { importSheetId, clearImport } = useImportParam()
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#1a1a2e] flex items-center justify-center">
@@ -69,7 +66,18 @@ function AppContent() {
       </div>
     )
   }
+
   if (!user) return <LoginScreen />
+
+  // Import flow runs OUTSIDE SheetProvider to prevent background fetches
+  if (importSheetId) {
+    return (
+      <SheetProvider>
+        <ImportFlow sheetId={importSheetId} onDone={clearImport} />
+      </SheetProvider>
+    )
+  }
+
   return (
     <SheetProvider>
       <MainApp />
