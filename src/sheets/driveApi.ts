@@ -137,6 +137,38 @@ export async function createSharedTemplate(
   return { spreadsheetId, url }
 }
 
+export async function createCompeteSheet(
+  programRows: RoutineRow[],
+  programNames: string[]
+): Promise<string> {
+  const title = `repsheets - Compete: ${programNames.join(', ')}`
+  const createRes = await authFetch(SHEETS_BASE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      properties: { title },
+      sheets: [
+        { properties: { title: 'Routines' } },
+        { properties: { title: 'Log' } },
+      ],
+    }),
+  })
+  if (!createRes.ok) throw new Error('Failed to create compete sheet')
+  const created = await createRes.json()
+  const spreadsheetId = created.spreadsheetId
+
+  const routineValues = [
+    ROUTINE_HEADERS,
+    ...programRows.map((r) => [
+      r.program, r.routine, r.exercise, r.sets,
+      r.reps ?? '', r.value ?? '', r.unit, r.notes,
+    ]),
+  ]
+  await writeRange(spreadsheetId, 'Routines!A1', routineValues)
+  await writeRange(spreadsheetId, 'Log!A1', [LOG_HEADERS])
+  return spreadsheetId
+}
+
 export async function inviteByEmail(spreadsheetId: string, email: string): Promise<void> {
   const res = await authFetch(`${DRIVE_BASE}/files/${spreadsheetId}/permissions`, {
     method: 'POST',
