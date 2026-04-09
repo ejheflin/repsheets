@@ -33,10 +33,12 @@ export function ShareModal({ program, onClose }: ShareModalProps) {
     setError('')
     try {
       const { url } = await createSharedTemplate(programRows, programNames)
-      setResultUrl(url)
-      await navigator.clipboard.writeText(url)
+      const importUrl = `${window.location.origin}${window.location.pathname}?import=${url.split('/d/')[1]?.split('/')[0] ?? ''}`
+      setResultUrl(importUrl)
+      try { await navigator.clipboard.writeText(importUrl) } catch { /* clipboard may fail on mobile */ }
       setMode('done')
     } catch (e) {
+      console.error('Share copy failed:', e)
       setError(String(e))
     }
     setIsLoading(false)
@@ -71,7 +73,7 @@ export function ShareModal({ program, onClose }: ShareModalProps) {
     setIsLoading(false)
   }
 
-  const appImportUrl = `${window.location.origin}${window.location.pathname}?import=${resultUrl.split('/d/')[1]?.split('/')[0] ?? ''}`
+  // resultUrl is already the app import URL for copy mode, or a sheets URL for invite mode
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-end z-50" onClick={onClose}>
@@ -99,6 +101,8 @@ export function ShareModal({ program, onClose }: ShareModalProps) {
                 Share your actual sheet. Both of you log workouts and can see each other's progress.
               </div>
             </button>
+
+            {error && <p className="text-red-400 text-xs text-center mt-2">{error}</p>}
 
             <button onClick={onClose} className="w-full p-3 text-center text-gray-400 font-semibold text-sm mt-1">
               Cancel
@@ -175,9 +179,9 @@ export function ShareModal({ program, onClose }: ShareModalProps) {
               <>
                 <p className="text-xs text-gray-400 text-center mb-3">Link copied to clipboard</p>
                 <div className="bg-[#2a2a4a] rounded-[10px] p-3 mb-3">
-                  <p className="text-[11px] text-gray-400 break-all">{appImportUrl || resultUrl}</p>
+                  <p className="text-[11px] text-gray-400 break-all">{resultUrl || resultUrl}</p>
                 </div>
-                <button onClick={() => navigator.clipboard.writeText(appImportUrl || resultUrl)}
+                <button onClick={() => navigator.clipboard.writeText(resultUrl || resultUrl)}
                   className="w-full bg-[#2a2a4a] rounded-[10px] p-3 text-center text-[#6c63ff] font-semibold text-sm mb-2">
                   Copy Link Again
                 </button>
