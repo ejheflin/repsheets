@@ -6,7 +6,18 @@ import { useWorkout } from '../../data/useWorkout'
 import { getPreference, setPreference } from '../../data/db'
 import { useSheetContext } from '../../data/useSheetContext'
 import { SheetSwitcherModal } from '../SheetSwitcherModal'
+import { ShareModal } from '../sharing/ShareModal'
 import type { RoutineRow } from '../../types'
+
+function ShareIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7" />
+      <polyline points="16 6 12 2 8 6" />
+      <line x1="12" y1="2" x2="12" y2="15" />
+    </svg>
+  )
+}
 
 function SheetIcon() {
   return (
@@ -37,6 +48,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
   const { workout, startWorkout, discardWorkout } = useWorkout()
   const { spreadsheetId } = useSheetContext()
   const [showSheetSwitcher, setShowSheetSwitcher] = useState(false)
+  const [showShare, setShowShare] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState<{
     program: string; routine: string; rows: RoutineRow[]
   } | null>(null)
@@ -94,6 +106,10 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
         ) : (
           <h1 className="text-[20px] font-bold flex-1">Routines</h1>
         )}
+        <button onClick={() => setShowShare(true)}
+          className="w-12 rounded-[10px] bg-[#2a2a4a] border border-[#3a3a5a] flex items-center justify-center flex-shrink-0 active:opacity-80">
+          <ShareIcon />
+        </button>
       </div>
       {programs.length > 1 && <h1 className="text-[20px] font-bold mb-3">Routines</h1>}
       {routineList.length === 0 ? (
@@ -116,6 +132,9 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
       )}
       {showSheetSwitcher && (
         <SheetSwitcherModal onClose={() => setShowSheetSwitcher(false)} />
+      )}
+      {showShare && (
+        <ShareModal program={selectedProgram || null} onClose={() => setShowShare(false)} />
       )}
       {confirmDiscard && (
         <div className="fixed inset-0 bg-black/60 flex items-end z-50">

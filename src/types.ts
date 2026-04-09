@@ -69,6 +69,8 @@ export interface RepSheet {
   name: string
   owner: string
   ownerEmail: string
+  isOwner: boolean
+  isTemplate: boolean  // true if _meta tab has type=shared_template
 }
 
 /** User auth state */
