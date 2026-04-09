@@ -22,7 +22,6 @@ export function ImportFlow({ sheetId, onDone }: ImportFlowProps) {
   const [selectedPrograms, setSelectedPrograms] = useState<Set<string>>(new Set())
   const [duplicates, setDuplicates] = useState<string[]>([])
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false)
-  const [existingPrograms, setExistingPrograms] = useState<string[]>([])
 
   const programs = useMemo(() => {
     return [...new Set(routines.map((r) => r.program))].filter(Boolean)
@@ -79,7 +78,6 @@ export function ImportFlow({ sheetId, onDone }: ImportFlowProps) {
       if (!duplicateAction) {
         const existingRows = await fetchRoutineRows(targetSheetId)
         const existing = [...new Set(existingRows.map((r) => r.program))].filter(Boolean)
-        setExistingPrograms(existing)
         const dupes = [...selectedPrograms].filter((p) => existing.includes(p))
 
         if (dupes.length > 0) {
