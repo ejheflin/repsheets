@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from '../data/useSheetContext'
 import { listRepSheets, renameSheet } from '../sheets/driveApi'
-import { ShareModal } from './sharing/ShareModal'
+import { InviteSheetModal } from './sharing/InviteSheetModal'
 import type { RepSheet } from '../types'
 
 interface SheetSwitcherModalProps {
@@ -34,7 +34,7 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
-  const [shareSheetId, setShareSheetId] = useState<string | null>(null)
+  const [shareSheet, setShareSheet] = useState<RepSheet | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -71,13 +71,13 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
     setRenamingId(null)
   }
 
-  const handleShare = (e: React.MouseEvent, sheetId: string) => {
+  const handleShare = (e: React.MouseEvent, sheet: RepSheet) => {
     e.stopPropagation()
-    setShareSheetId(sheetId)
+    setShareSheet(sheet)
   }
 
-  if (shareSheetId) {
-    return <ShareModal program={null} onClose={() => setShareSheetId(null)} />
+  if (shareSheet) {
+    return <InviteSheetModal spreadsheetId={shareSheet.spreadsheetId} sheetName={shareSheet.name} onClose={() => setShareSheet(null)} />
   }
 
   return (
@@ -127,7 +127,7 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
                       </button>
                     )}
                     {s.isOwner && (
-                      <button onClick={(e) => handleShare(e, s.spreadsheetId)}
+                      <button onClick={(e) => handleShare(e, s)}
                         className="text-gray-500 p-1.5 active:text-[#6c63ff]">
                         <ShareIcon />
                       </button>

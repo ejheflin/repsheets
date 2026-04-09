@@ -6,7 +6,7 @@ import { useWorkout } from '../../data/useWorkout'
 import { getPreference, setPreference } from '../../data/db'
 import { useSheetContext } from '../../data/useSheetContext'
 import { SheetSwitcherModal } from '../SheetSwitcherModal'
-import { ShareModal } from '../sharing/ShareModal'
+import { ShareCopyModal } from '../sharing/ShareModal'
 import type { RoutineRow } from '../../types'
 
 function ShareIcon() {
@@ -134,7 +134,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
         <SheetSwitcherModal onClose={() => setShowSheetSwitcher(false)} />
       )}
       {showShare && (
-        <ShareModal program={selectedProgram || programs[0] || null} onClose={() => setShowShare(false)} />
+        <ShareCopyModal program={selectedProgram || programs[0] || ''} onClose={() => setShowShare(false)} />
       )}
       {confirmDiscard && (
         <div className="fixed inset-0 bg-black/60 flex items-end z-50">
