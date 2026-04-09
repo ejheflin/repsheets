@@ -191,6 +191,17 @@ export async function inviteByLink(spreadsheetId: string): Promise<string> {
   return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`
 }
 
+export async function renameSheet(spreadsheetId: string, newName: string): Promise<void> {
+  const res = await authFetch(`${SHEETS_BASE}/${spreadsheetId}:batchUpdate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      requests: [{ updateSpreadsheetProperties: { properties: { title: newName }, fields: 'title' } }],
+    }),
+  })
+  if (!res.ok) throw new Error('Failed to rename sheet')
+}
+
 export async function readSheetInfo(spreadsheetId: string): Promise<{ name: string; metaType: string | null }> {
   const url = `${SHEETS_BASE}/${spreadsheetId}?fields=properties.title,sheets.properties.title`
   const res = await authFetch(url)
