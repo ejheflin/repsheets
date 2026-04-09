@@ -65,21 +65,22 @@ export function ImportFlow({ sheetId, onDone }: ImportFlowProps) {
     }
 
     try {
-      // Only import into sheets the user owns
-      let targetSheetId: string | null = null
-      if (spreadsheetId) {
-        const sheets = await listRepSheets()
-        const activeSheet = sheets.find((s) => s.spreadsheetId === spreadsheetId)
-        if (activeSheet?.isOwner) {
-          targetSheetId = spreadsheetId
-        }
-      }
+      let targetSheetId = spreadsheetId
 
       if (!targetSheetId) {
-        // No owned sheet — create a new personal one
+        // No sheet at all — create a new personal one
         targetSheetId = await createExampleSheet(rowsToImport)
         setSpreadsheetId(targetSheetId)
         onDone()
+        return
+      }
+
+      // Check ownership
+      const sheets = await listRepSheets()
+      const activeSheet = sheets.find((s) => s.spreadsheetId === targetSheetId)
+      if (activeSheet && !activeSheet.isOwner) {
+        setError('You are not the owner of the active sheet. Please switch to a sheet you own before importing.')
+        setIsImporting(false)
         return
       }
 
