@@ -50,7 +50,8 @@ export function ShareModal({ program, onClose }: ShareModalProps) {
     setError('')
     try {
       await inviteByEmail(spreadsheetId, email.trim())
-      setResultUrl('')
+      const joinUrl = `${window.location.origin}${window.location.pathname}?join=${spreadsheetId}`
+      setResultUrl(joinUrl)
       setMode('done')
     } catch (e) {
       console.error('Invite email failed:', e)
@@ -64,9 +65,10 @@ export function ShareModal({ program, onClose }: ShareModalProps) {
     setIsLoading(true)
     setError('')
     try {
-      const url = await inviteByLink(spreadsheetId)
-      setResultUrl(url)
-      try { await navigator.clipboard.writeText(url) } catch { /* clipboard may fail on mobile */ }
+      await inviteByLink(spreadsheetId)
+      const joinUrl = `${window.location.origin}${window.location.pathname}?join=${spreadsheetId}`
+      setResultUrl(joinUrl)
+      try { await navigator.clipboard.writeText(joinUrl) } catch { /* clipboard may fail on mobile */ }
       setMode('done')
     } catch (e) {
       console.error('Invite link failed:', e)
