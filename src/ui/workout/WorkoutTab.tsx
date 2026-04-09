@@ -70,7 +70,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
             className={`rounded-md bg-[#2a2a4a] text-red-400 flex items-center justify-center transition-all duration-200 ${scrolled ? 'w-8 h-8 text-xs' : 'w-9 h-9 text-sm'}`}>
             ✕
           </button>
-          <button onClick={handleFinish}
+          <button data-tour="finish-button" onClick={handleFinish}
             className={`bg-[#6c63ff] rounded-md font-semibold transition-all duration-200 ${scrolled ? 'px-3 py-1.5 text-xs h-8' : 'px-4 py-2 text-sm h-9'}`}>
             Finish
           </button>
@@ -86,7 +86,8 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
             onUpdateSet={(setIdx, field, val) => updateSet(exIdx, setIdx, field, val)}
             onUpdateAllSets={(field, val) => updateAllSets(exIdx, field, val)}
             onUpdateNotes={(notes) => updateNotes(exIdx, notes)}
-            onAddSet={() => addSet(exIdx)} />
+            onAddSet={() => addSet(exIdx)}
+            tourId={exIdx === 0 ? 'first-exercise' : undefined} />
         ))
         return group.supersetGroup ? (
           <SupersetGroup key={gIdx}>{content}</SupersetGroup>
