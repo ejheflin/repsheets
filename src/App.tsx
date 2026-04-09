@@ -12,16 +12,13 @@ import { IOSInstallHint } from './ui/IOSInstallHint'
 import { ImportFlow } from './ui/sharing/ImportFlow'
 import { useState, useEffect } from 'react'
 
-function useImportParam() {
-  const [importSheetId, setImportSheetId] = useState<string | null>(null)
+function getImportParam(): string | null {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('import')
+}
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const id = params.get('import')
-    if (id) {
-      setImportSheetId(id)
-    }
-  }, [])
+function useImportParam() {
+  const [importSheetId, setImportSheetId] = useState<string | null>(getImportParam)
 
   const clearImport = () => {
     setImportSheetId(null)
