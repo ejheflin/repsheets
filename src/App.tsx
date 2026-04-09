@@ -9,9 +9,37 @@ import { SheetSelector } from './ui/SheetSelector'
 import { WorkoutProvider } from './data/useWorkout'
 import { LogsTab } from './ui/logs/LogsTab'
 import { IOSInstallHint } from './ui/IOSInstallHint'
+import { ImportFlow } from './ui/sharing/ImportFlow'
+import { useState, useEffect } from 'react'
+
+function useImportParam() {
+  const [importSheetId, setImportSheetId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const id = params.get('import')
+    if (id) {
+      setImportSheetId(id)
+    }
+  }, [])
+
+  const clearImport = () => {
+    setImportSheetId(null)
+    const url = new URL(window.location.href)
+    url.searchParams.delete('import')
+    window.history.replaceState({}, '', url.pathname)
+  }
+
+  return { importSheetId, clearImport }
+}
 
 function MainApp() {
   const { spreadsheetId } = useSheetContext()
+  const { importSheetId, clearImport } = useImportParam()
+
+  if (importSheetId) {
+    return <ImportFlow sheetId={importSheetId} onDone={clearImport} />
+  }
 
   if (!spreadsheetId) {
     return <SheetSelector />
