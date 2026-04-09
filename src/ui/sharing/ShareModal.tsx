@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useSheetContext } from '../../data/useSheetContext'
 import { useRoutines } from '../../data/useRoutines'
-import { createSharedTemplate, inviteByEmail, inviteByLink } from '../../sheets/driveApi'
+import { createSharedTemplate, createCompeteSheet, inviteByEmail, inviteByLink } from '../../sheets/driveApi'
 
 type ShareMode = 'choose' | 'copy' | 'invite-choose' | 'invite-email' | 'invite-link-warn' | 'done'
 
@@ -45,12 +45,13 @@ export function ShareModal({ program, onClose }: ShareModalProps) {
   }
 
   const handleInviteEmail = async () => {
-    if (!spreadsheetId || !email.trim()) return
+    if (!email.trim()) return
     setIsLoading(true)
     setError('')
     try {
-      await inviteByEmail(spreadsheetId, email.trim())
-      const joinUrl = `${window.location.origin}${window.location.pathname}?join=${spreadsheetId}`
+      const competeSheetId = await createCompeteSheet(programRows, programNames)
+      await inviteByEmail(competeSheetId, email.trim())
+      const joinUrl = `${window.location.origin}${window.location.pathname}?join=${competeSheetId}`
       setResultUrl(joinUrl)
       setMode('done')
     } catch (e) {
@@ -61,12 +62,12 @@ export function ShareModal({ program, onClose }: ShareModalProps) {
   }
 
   const handleInviteLink = async () => {
-    if (!spreadsheetId) return
     setIsLoading(true)
     setError('')
     try {
-      await inviteByLink(spreadsheetId)
-      const joinUrl = `${window.location.origin}${window.location.pathname}?join=${spreadsheetId}`
+      const competeSheetId = await createCompeteSheet(programRows, programNames)
+      await inviteByLink(competeSheetId)
+      const joinUrl = `${window.location.origin}${window.location.pathname}?join=${competeSheetId}`
       setResultUrl(joinUrl)
       try { await navigator.clipboard.writeText(joinUrl) } catch { /* clipboard may fail on mobile */ }
       setMode('done')
