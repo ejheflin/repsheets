@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useRoutines } from '../../data/useRoutines'
+import { useSheetContext } from '../../data/useSheetContext'
 import { createSharedTemplate, createCompeteSheet, inviteByEmail, inviteByLink } from '../../sheets/driveApi'
 
 type ShareMode = 'choose' | 'copy' | 'invite-choose' | 'invite-email' | 'invite-link-warn' | 'done'
@@ -12,6 +13,7 @@ interface ShareModalProps {
 
 export function ShareModal({ program, onClose }: ShareModalProps) {
   const { allRows } = useRoutines(null)
+  const { setSpreadsheetId } = useSheetContext()
   const [mode, setMode] = useState<ShareMode>('choose')
   const [email, setEmail] = useState('')
   const [resultUrl, setResultUrl] = useState('')
@@ -49,6 +51,7 @@ export function ShareModal({ program, onClose }: ShareModalProps) {
     try {
       const competeSheetId = await createCompeteSheet(programRows, programNames)
       await inviteByEmail(competeSheetId, email.trim())
+      setSpreadsheetId(competeSheetId)
       const joinUrl = `${window.location.origin}${window.location.pathname}?join=${competeSheetId}`
       setResultUrl(joinUrl)
       setMode('done')
@@ -65,6 +68,7 @@ export function ShareModal({ program, onClose }: ShareModalProps) {
     try {
       const competeSheetId = await createCompeteSheet(programRows, programNames)
       await inviteByLink(competeSheetId)
+      setSpreadsheetId(competeSheetId)
       const joinUrl = `${window.location.origin}${window.location.pathname}?join=${competeSheetId}`
       setResultUrl(joinUrl)
       try { await navigator.clipboard.writeText(joinUrl) } catch { /* clipboard may fail on mobile */ }
