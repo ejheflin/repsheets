@@ -49,10 +49,18 @@ export function useLogs() {
     load()
   }, [spreadsheetId, refresh])
 
+  const athleteName = useMemo(() => {
+    if (!user) return null
+    const parts = user.name.trim().split(/\s+/)
+    if (parts.length < 2) return parts[0] || ''
+    return `${parts[0]} ${parts[parts.length - 1][0]}.`
+  }, [user])
+
   const logs = useMemo(() => {
     if (!user) return allLogs
-    return allLogs.filter((l) => l.athlete === user.email)
-  }, [allLogs, user])
+    // Match by formatted name or email (backwards compat with old entries)
+    return allLogs.filter((l) => l.athlete === athleteName || l.athlete === user.email)
+  }, [allLogs, user, athleteName])
 
   const workoutDates = useMemo(() => {
     const map = new Map<string, string[]>()
