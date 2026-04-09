@@ -1,25 +1,27 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef } from 'react'
 import { Layout } from '../ui/Layout'
 import { CalendarView } from '../ui/logs/CalendarView'
 import { ExerciseProgressChart } from '../ui/logs/ExerciseProgressChart'
 import { PersonalRecords } from '../ui/logs/PersonalRecords'
 import { ExerciseRow } from '../ui/workout/ExerciseRow'
 import { FinishWorkoutSheet } from '../ui/workout/FinishWorkoutSheet'
+import { ProgramSelector } from '../ui/routines/ProgramSelector'
 import { DEMO_ROUTINES, DEMO_LOGS } from './demoData'
 import { useDemo } from './DemoProvider'
 import { expandRoutine } from '../workout/setInference'
 import { resolveSetValues } from '../workout/autofill'
 import type { WorkoutExercise, WorkoutState } from '../types'
 import type { ExerciseHistoryPoint, PersonalRecord } from '../data/useLogs'
+import type { TabId } from '../ui/BottomNav'
 
 export function DemoApp() {
   const { exitDemo } = useDemo()
-  const [activeTab, setActiveTab] = useState<'routines' | 'workout' | 'logs'>('routines')
   const [workout, setWorkout] = useState<WorkoutState | null>(null)
   const [showFinish, setShowFinish] = useState(false)
+  const setTabRef = useRef<((tab: TabId) => void) | null>(null)
 
   const programs = useMemo(() => [...new Set(DEMO_ROUTINES.map((r) => r.program))], [])
-  const [selectedProgram] = useState(programs[0] || '')
+  const [selectedProgram, setSelectedProgram] = useState(programs[0] || '')
 
   const routineNames = useMemo(() => {
     return [...new Set(DEMO_ROUTINES.filter((r) => r.program === selectedProgram).map((r) => r.routine))]
@@ -55,7 +57,7 @@ export function DemoApp() {
       }
     })
     setWorkout({ program: selectedProgram, routine: routineName, exercises, startedAt: new Date().toISOString() })
-    setActiveTab('workout')
+    setTabRef.current?.('workout')
   }, [selectedProgram])
 
   // Workout mutations
@@ -160,9 +162,8 @@ export function DemoApp() {
 
   return (
     <Layout>
-      {(_, setTab) => {
-        // Sync external tab state
-        if (_ !== activeTab) setActiveTab(_ as typeof activeTab)
+      {(activeTab, setActiveTab) => {
+        setTabRef.current = setActiveTab
         return (
           <>
             {activeTab === 'routines' && (
@@ -173,6 +174,13 @@ export function DemoApp() {
                   <button onClick={exitDemo}
                     className="mt-2 text-[11px] text-gray-500 underline">Sign in with Google to get started</button>
                 </div>
+
+                {programs.length > 1 && (
+                  <div className="mb-4">
+                    <ProgramSelector programs={programs} selected={selectedProgram} onSelect={setSelectedProgram} />
+                  </div>
+                )}
+
                 <h1 className="text-[20px] font-bold mb-3">Routines</h1>
                 {routineNames.map((name) => {
                   const exercises = [...new Set(DEMO_ROUTINES.filter((r) => r.routine === name).map((r) => r.exercise))]
@@ -192,7 +200,7 @@ export function DemoApp() {
                 {!workout ? (
                   <div className="text-center mt-20">
                     <p className="text-gray-400">No workout in progress.</p>
-                    <p className="text-gray-500 text-sm mt-2">Pick a <button onClick={() => setTab('routines')} className="text-[#6c63ff] underline">routine</button> to get started.</p>
+                    <p className="text-gray-500 text-sm mt-2">Pick a <button onClick={() => setActiveTab('routines')} className="text-[#6c63ff] underline">routine</button> to get started.</p>
                   </div>
                 ) : (
                   <>
@@ -201,14 +209,20 @@ export function DemoApp() {
                         <div className="text-[11px] text-gray-500">{workout.program}</div>
                         <h1 className="text-[20px] font-bold">{workout.routine}</h1>
                       </div>
-                      <button onClick={() => {
-                        const allChecked = workout.exercises.every((ex) => ex.sets.every((s) => s.completed))
-                        if (allChecked) { setWorkout(null); setActiveTab('routines') }
-                        else setShowFinish(true)
-                      }}
-                        className="bg-[#6c63ff] rounded-md px-4 py-2 text-sm font-semibold h-9">
-                        Finish
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => { setWorkout(null) }}
+                          className="w-9 h-9 rounded-md bg-[#2a2a4a] text-red-400 flex items-center justify-center text-sm">
+                          ✕
+                        </button>
+                        <button onClick={() => {
+                          const allChecked = workout.exercises.every((ex) => ex.sets.every((s) => s.completed))
+                          if (allChecked) { setWorkout(null); setActiveTab('routines') }
+                          else setShowFinish(true)
+                        }}
+                          className="bg-[#6c63ff] rounded-md px-4 py-2 text-sm font-semibold h-9">
+                          Finish
+                        </button>
+                      </div>
                     </div>
                     {workout.exercises.map((ex, i) => (
                       <ExerciseRow key={i} exercise={ex}
