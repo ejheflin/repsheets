@@ -90,9 +90,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
           <SheetIcon />
         </button>
         {programs.length > 1 ? (
-          <div className="flex-1">
-            <ProgramSelector programs={programs} selected={selectedProgram} onSelect={setSelectedProgram} />
-          </div>
+          <ProgramSelector programs={programs} selected={selectedProgram} onSelect={setSelectedProgram} />
         ) : (
           <h1 className="text-[20px] font-bold flex-1">Routines</h1>
         )}
