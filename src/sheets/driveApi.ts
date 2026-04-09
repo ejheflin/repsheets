@@ -63,6 +63,24 @@ async function checkMetaType(spreadsheetId: string): Promise<string | null> {
   } catch { return null }
 }
 
+function sheetTitle(programNames?: string[]): string {
+  if (!programNames || programNames.length === 0) return 'repsheets'
+  const joined = programNames.join(', ')
+  const full = `repsheets - ${joined}`
+  if (full.length <= 60) return full
+  // Truncate: show as many programs as fit
+  let result = 'repsheets - '
+  for (let i = 0; i < programNames.length; i++) {
+    const next = i === 0 ? programNames[i] : `, ${programNames[i]}`
+    if (result.length + next.length + 5 > 60) {
+      result += ` +${programNames.length - i}`
+      break
+    }
+    result += next
+  }
+  return result
+}
+
 const ROUTINE_HEADERS = ['Program', 'Routine', 'Exercise', 'Sets', 'Reps', 'Value', 'Unit', 'Notes']
 const LOG_HEADERS = ['Date', 'Athlete', 'Program', 'Routine', 'Exercise', 'Set', 'Reps', 'Value', 'Unit', 'Notes']
 
@@ -71,7 +89,7 @@ export async function createExampleSheet(programRows: RoutineRow[]): Promise<str
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      properties: { title: 'repsheets - My Workouts' },
+      properties: { title: sheetTitle() },
       sheets: [
         { properties: { title: 'Routines' } },
         { properties: { title: 'Log' } },
@@ -98,7 +116,7 @@ export async function createSharedTemplate(
   programRows: RoutineRow[],
   programNames: string[]
 ): Promise<{ spreadsheetId: string; url: string }> {
-  const title = `repsheets - Shared: ${programNames.join(', ')}`
+  const title = sheetTitle(programNames)
   const createRes = await authFetch(SHEETS_BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -141,7 +159,7 @@ export async function createCompeteSheet(
   programRows: RoutineRow[],
   programNames: string[]
 ): Promise<string> {
-  const title = `repsheets - Compete: ${programNames.join(', ')}`
+  const title = sheetTitle(programNames)
   const createRes = await authFetch(SHEETS_BASE, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
