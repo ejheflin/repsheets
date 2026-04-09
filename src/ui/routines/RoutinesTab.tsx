@@ -5,7 +5,20 @@ import { useRoutines } from '../../data/useRoutines'
 import { useWorkout } from '../../data/useWorkout'
 import { getPreference, setPreference } from '../../data/db'
 import { useSheetContext } from '../../data/useSheetContext'
+import { SheetSwitcherModal } from '../SheetSwitcherModal'
 import type { RoutineRow } from '../../types'
+
+function SheetIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="3" y1="9" x2="21" y2="9" />
+      <line x1="3" y1="15" x2="21" y2="15" />
+      <line x1="9" y1="3" x2="9" y2="21" />
+      <line x1="15" y1="3" x2="15" y2="21" />
+    </svg>
+  )
+}
 
 interface RoutinesTabProps {
   onStartWorkout: () => void
@@ -23,6 +36,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
   const { routineList, programs, isLoading } = useRoutines(selectedProgram || null)
   const { workout, startWorkout, discardWorkout } = useWorkout()
   const { spreadsheetId } = useSheetContext()
+  const [showSheetSwitcher, setShowSheetSwitcher] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState<{
     program: string; routine: string; rows: RoutineRow[]
   } | null>(null)
@@ -70,10 +84,20 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
 
   return (
     <div>
-      {programs.length > 1 && (
-        <ProgramSelector programs={programs} selected={selectedProgram} onSelect={setSelectedProgram} />
-      )}
-      <h1 className="text-[20px] font-bold mb-3">Routines</h1>
+      <div className="flex items-center gap-2 mb-4">
+        <button onClick={() => setShowSheetSwitcher(true)}
+          className="w-10 h-10 rounded-[10px] bg-[#2a2a4a] border border-[#3a3a5a] flex items-center justify-center flex-shrink-0 active:opacity-80">
+          <SheetIcon />
+        </button>
+        {programs.length > 1 ? (
+          <div className="flex-1">
+            <ProgramSelector programs={programs} selected={selectedProgram} onSelect={setSelectedProgram} />
+          </div>
+        ) : (
+          <h1 className="text-[20px] font-bold flex-1">Routines</h1>
+        )}
+      </div>
+      {programs.length > 1 && <h1 className="text-[20px] font-bold mb-3">Routines</h1>}
       {routineList.length === 0 ? (
         <p className="text-gray-500 text-sm">No routines found for this program.</p>
       ) : (
@@ -91,6 +115,9 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
         >
           Open Google Sheet
         </a>
+      )}
+      {showSheetSwitcher && (
+        <SheetSwitcherModal onClose={() => setShowSheetSwitcher(false)} />
       )}
       {confirmDiscard && (
         <div className="fixed inset-0 bg-black/60 flex items-end z-50">
