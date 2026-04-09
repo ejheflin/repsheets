@@ -5,6 +5,8 @@ import { fetchRoutineRows } from '../../sheets/sheetsApi'
 import { appendRoutineRows, createExampleSheet } from '../../sheets/driveApi'
 import type { RoutineRow } from '../../types'
 
+type DuplicateAction = 'skip' | 'rename' | 'replace'
+
 interface ImportFlowProps {
   sheetId: string
   onDone: () => void
@@ -18,6 +20,9 @@ export function ImportFlow({ sheetId, onDone }: ImportFlowProps) {
   const [isImporting, setIsImporting] = useState(false)
   const [error, setError] = useState('')
   const [selectedPrograms, setSelectedPrograms] = useState<Set<string>>(new Set())
+  const [duplicates, setDuplicates] = useState<string[]>([])
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false)
+  const [existingPrograms, setExistingPrograms] = useState<string[]>([])
 
   const programs = useMemo(() => {
     return [...new Set(routines.map((r) => r.program))].filter(Boolean)
@@ -47,12 +52,12 @@ export function ImportFlow({ sheetId, onDone }: ImportFlowProps) {
     })
   }
 
-  const handleImport = async () => {
+  const handleImport = async (duplicateAction?: DuplicateAction) => {
     if (!user) return
     setIsImporting(true)
     setError('')
 
-    const rowsToImport = routines.filter((r) => selectedPrograms.has(r.program))
+    let rowsToImport = routines.filter((r) => selectedPrograms.has(r.program))
     if (rowsToImport.length === 0) {
       setError('No programs selected')
       setIsImporting(false)
@@ -62,15 +67,47 @@ export function ImportFlow({ sheetId, onDone }: ImportFlowProps) {
     try {
       let targetSheetId = spreadsheetId
 
-      // If user has no personal sheet, create one
       if (!targetSheetId) {
+        // No personal sheet — create one with the imported rows
         targetSheetId = await createExampleSheet(rowsToImport)
         setSpreadsheetId(targetSheetId)
-      } else {
-        // Append the imported routines to existing sheet
-        await appendRoutineRows(targetSheetId, rowsToImport)
+        onDone()
+        return
       }
 
+      // Check for duplicate programs in existing sheet
+      if (!duplicateAction) {
+        const existingRows = await fetchRoutineRows(targetSheetId)
+        const existing = [...new Set(existingRows.map((r) => r.program))].filter(Boolean)
+        setExistingPrograms(existing)
+        const dupes = [...selectedPrograms].filter((p) => existing.includes(p))
+
+        if (dupes.length > 0) {
+          setDuplicates(dupes)
+          setShowDuplicateWarning(true)
+          setIsImporting(false)
+          return
+        }
+      }
+
+      // Handle duplicate action
+      if (duplicateAction === 'skip') {
+        rowsToImport = rowsToImport.filter((r) => !duplicates.includes(r.program))
+        if (rowsToImport.length === 0) {
+          onDone()
+          return
+        }
+      } else if (duplicateAction === 'rename') {
+        rowsToImport = rowsToImport.map((r) => {
+          if (duplicates.includes(r.program)) {
+            return { ...r, program: `${r.program} (imported)` }
+          }
+          return r
+        })
+      }
+      // 'replace' — just append as-is (user accepts duplicates)
+
+      await appendRoutineRows(targetSheetId, rowsToImport)
       onDone()
     } catch (e) {
       setError(String(e))
@@ -129,14 +166,40 @@ export function ImportFlow({ sheetId, onDone }: ImportFlowProps) {
 
       {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
 
-      <button onClick={handleImport} disabled={isImporting || selectedPrograms.size === 0}
-        className="w-full bg-[#6c63ff] rounded-[10px] p-3 text-center font-semibold text-sm mt-4 disabled:opacity-50">
-        {isImporting ? 'Importing...' : `Import ${selectedPrograms.size} Program${selectedPrograms.size !== 1 ? 's' : ''}`}
-      </button>
+      {showDuplicateWarning ? (
+        <div className="mt-4 bg-[#2a2a4a] rounded-[10px] p-4">
+          <p className="text-sm font-semibold mb-1">Duplicate programs found</p>
+          <p className="text-[11px] text-gray-400 mb-3">
+            {duplicates.join(', ')} already {duplicates.length === 1 ? 'exists' : 'exist'} in your sheet.
+          </p>
+          <button onClick={() => { setShowDuplicateWarning(false); handleImport('skip') }}
+            className="w-full bg-[#2a2a4a] border border-[#3a3a5a] rounded-[10px] p-3 text-center text-sm mb-2">
+            Skip Duplicates
+          </button>
+          <button onClick={() => { setShowDuplicateWarning(false); handleImport('rename') }}
+            className="w-full bg-[#2a2a4a] border border-[#3a3a5a] rounded-[10px] p-3 text-center text-sm mb-2">
+            Import as "{duplicates[0]} (imported)"
+          </button>
+          <button onClick={() => { setShowDuplicateWarning(false); handleImport('replace') }}
+            className="w-full bg-[#2a2a4a] border border-[#3a3a5a] rounded-[10px] p-3 text-center text-sm text-yellow-400 mb-2">
+            Import Anyway (may cause duplicates)
+          </button>
+          <button onClick={onDone} className="w-full p-3 text-center text-gray-400 font-semibold text-sm">
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <>
+          <button onClick={() => handleImport()} disabled={isImporting || selectedPrograms.size === 0}
+            className="w-full bg-[#6c63ff] rounded-[10px] p-3 text-center font-semibold text-sm mt-4 disabled:opacity-50">
+            {isImporting ? 'Importing...' : `Import ${selectedPrograms.size} Program${selectedPrograms.size !== 1 ? 's' : ''}`}
+          </button>
 
-      <button onClick={onDone} className="w-full p-3 text-center text-gray-400 font-semibold text-sm mt-1">
-        Skip
-      </button>
+          <button onClick={onDone} className="w-full p-3 text-center text-gray-400 font-semibold text-sm mt-1">
+            Skip
+          </button>
+        </>
+      )}
     </div>
   )
 }
