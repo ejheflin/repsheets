@@ -84,9 +84,9 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-stretch gap-2 mb-4">
         <button onClick={() => setShowSheetSwitcher(true)}
-          className="w-10 h-10 rounded-[10px] bg-[#2a2a4a] border border-[#3a3a5a] flex items-center justify-center flex-shrink-0 active:opacity-80">
+          className="w-12 rounded-[10px] bg-[#2a2a4a] border border-[#3a3a5a] flex items-center justify-center flex-shrink-0 active:opacity-80">
           <SheetIcon />
         </button>
         {programs.length > 1 ? (
