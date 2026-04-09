@@ -1,11 +1,30 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from '../data/useSheetContext'
-import { listRepSheets } from '../sheets/driveApi'
+import { listRepSheets, renameSheet } from '../sheets/driveApi'
+import { ShareModal } from './sharing/ShareModal'
 import type { RepSheet } from '../types'
 
 interface SheetSwitcherModalProps {
   onClose: () => void
+}
+
+function EditIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11.5 1.5l3 3L5 14H2v-3z" />
+    </svg>
+  )
+}
+
+function ShareIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7" />
+      <polyline points="16 6 12 2 8 6" />
+      <line x1="12" y1="2" x2="12" y2="15" />
+    </svg>
+  )
 }
 
 export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
@@ -13,6 +32,9 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
   const { spreadsheetId, setSpreadsheetId } = useSheetContext()
   const [sheets, setSheets] = useState<RepSheet[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [shareSheetId, setShareSheetId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -23,10 +45,39 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
   }, [user])
 
   const handleSelect = (id: string) => {
+    if (renamingId) return
     if (id !== spreadsheetId) {
       setSpreadsheetId(id)
     }
     onClose()
+  }
+
+  const startRename = (e: React.MouseEvent, sheet: RepSheet) => {
+    e.stopPropagation()
+    setRenamingId(sheet.spreadsheetId)
+    setRenameValue(sheet.name)
+  }
+
+  const submitRename = async () => {
+    if (!renamingId || !renameValue.trim()) return
+    try {
+      await renameSheet(renamingId, renameValue.trim())
+      setSheets((prev) => prev.map((s) =>
+        s.spreadsheetId === renamingId ? { ...s, name: renameValue.trim() } : s
+      ))
+    } catch (e) {
+      console.error('Rename failed:', e)
+    }
+    setRenamingId(null)
+  }
+
+  const handleShare = (e: React.MouseEvent, sheetId: string) => {
+    e.stopPropagation()
+    setShareSheetId(sheetId)
+  }
+
+  if (shareSheetId) {
+    return <ShareModal program={null} onClose={() => setShareSheetId(null)} />
   }
 
   return (
@@ -41,20 +92,52 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
         ) : (
           <>
             {sheets.map((s) => (
-              <button key={s.spreadsheetId} onClick={() => handleSelect(s.spreadsheetId)}
-                className={`w-full rounded-[10px] p-4 mb-2 text-left active:opacity-80 flex items-center gap-3 ${
+              <div key={s.spreadsheetId}
+                onClick={() => handleSelect(s.spreadsheetId)}
+                className={`rounded-[10px] p-4 mb-2 active:opacity-80 cursor-pointer ${
                   s.spreadsheetId === spreadsheetId
                     ? 'bg-[#6c63ff]/15 border border-[#6c63ff]'
                     : 'bg-[#2a2a4a]'
                 }`}>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm truncate">{s.name}</div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">Owner: {s.owner}</div>
-                </div>
-                {s.spreadsheetId === spreadsheetId && (
-                  <div className="text-[#6c63ff] text-xs flex-shrink-0">Active</div>
+                {renamingId === s.spreadsheetId ? (
+                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="text"
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && submitRename()}
+                      className="flex-1 bg-[#1a1a2e] border border-[#3a3a5a] rounded px-2 py-1 text-sm outline-none focus:border-[#6c63ff]"
+                      autoFocus
+                    />
+                    <button onClick={submitRename}
+                      className="text-[#6c63ff] text-xs font-semibold px-2">Save</button>
+                    <button onClick={() => setRenamingId(null)}
+                      className="text-gray-400 text-xs px-2">Cancel</button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-sm truncate">{s.name}</div>
+                      <div className="text-[11px] text-gray-500 mt-0.5">Owner: {s.owner}</div>
+                    </div>
+                    {s.isOwner && (
+                      <button onClick={(e) => startRename(e, s)}
+                        className="text-gray-500 p-1.5 active:text-white">
+                        <EditIcon />
+                      </button>
+                    )}
+                    {s.isOwner && (
+                      <button onClick={(e) => handleShare(e, s.spreadsheetId)}
+                        className="text-gray-500 p-1.5 active:text-[#6c63ff]">
+                        <ShareIcon />
+                      </button>
+                    )}
+                    {s.spreadsheetId === spreadsheetId && (
+                      <div className="text-[#6c63ff] text-xs flex-shrink-0">Active</div>
+                    )}
+                  </div>
                 )}
-              </button>
+              </div>
             ))}
             {sheets.length === 0 && (
               <p className="text-gray-500 text-sm text-center py-4">No repsheets found</p>
