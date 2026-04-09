@@ -36,8 +36,9 @@ export function ImportFlow({ sheetId, onDone }: ImportFlowProps) {
         ))
         setIsLoading(false)
       })
-      .catch(() => {
-        setError('Could not read the shared sheet. It may have been deleted or you may not have access.')
+      .catch((e) => {
+        console.error('Import fetch failed:', e)
+        setError(String(e))
         setIsLoading(false)
       })
   }, [sheetId])
