@@ -18,10 +18,10 @@ export function LoginScreen() {
         </svg>
         Sign in with Google
       </button>
-      <button onClick={startDemo}
+      {/* <button onClick={startDemo}
         className="mt-4 text-sm text-gray-500 hover:text-gray-300 transition">
         Try the demo
-      </button>
+      </button> */}
     </div>
   )
 }
