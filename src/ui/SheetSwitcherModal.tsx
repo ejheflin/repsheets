@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from '../data/useSheetContext'
+import { clearWorkout } from '../data/db'
 import { listRepSheets } from '../sheets/driveApi'
 import type { RepSheet } from '../types'
 
@@ -9,7 +10,7 @@ interface SheetSwitcherModalProps {
 }
 
 export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   const { spreadsheetId, setSpreadsheetId } = useSheetContext()
   const [sheets, setSheets] = useState<RepSheet[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -66,6 +67,14 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
           className="w-full p-3 text-center text-gray-400 font-semibold text-sm mt-2">
           Cancel
         </button>
+
+        <div className="mt-4 pt-3 border-t border-[#3a3a5a]">
+          <div className="text-[11px] text-gray-500 text-center mb-2">{user?.email}</div>
+          <button onClick={() => { logout(); onClose() }}
+            className="w-full p-2 text-center text-red-400 text-xs font-semibold">
+            Log Out
+          </button>
+        </div>
       </div>
     </div>
   )
