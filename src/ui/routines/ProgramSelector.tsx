@@ -6,7 +6,7 @@ interface ProgramSelectorProps {
 
 export function ProgramSelector({ programs, selected, onSelect }: ProgramSelectorProps) {
   return (
-    <div className="mb-4">
+    <div>
       <div className="relative">
         <select
           value={selected}
