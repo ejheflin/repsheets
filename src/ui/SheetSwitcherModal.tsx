@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from '../data/useSheetContext'
-import { clearWorkout } from '../data/db'
 import { listRepSheets } from '../sheets/driveApi'
 import type { RepSheet } from '../types'
 
