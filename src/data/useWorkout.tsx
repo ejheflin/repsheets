@@ -10,7 +10,7 @@ import type { RoutineRow, WorkoutState, WorkoutExercise, LogEntry } from '../typ
 function formatAthleteName(name: string): string {
   const parts = name.trim().split(/\s+/)
   if (parts.length < 2) return parts[0] || ''
-  return `${parts[0]} ${parts[parts.length - 1][0]}.`
+  return `${parts[0]} ${parts[parts.length - 1][0]}`
 }
 
 const REFRESH_TIMEOUT_MS = 5000
