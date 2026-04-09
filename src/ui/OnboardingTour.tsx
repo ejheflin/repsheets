@@ -78,11 +78,24 @@ export function OnboardingTour() {
         setTargetRect(null)
       }
     }
-    update()
+    // Delay initial search to ensure target elements are mounted
+    const timer = setTimeout(update, 100)
+    // Also poll briefly in case the element mounts late
+    const poll = setInterval(() => {
+      const el = findTarget()
+      if (el) {
+        setTargetRect(el.getBoundingClientRect())
+        clearInterval(poll)
+      }
+    }, 200)
+    const pollTimeout = setTimeout(() => clearInterval(poll), 2000)
     // Re-measure on scroll/resize
     window.addEventListener('scroll', update, true)
     window.addEventListener('resize', update)
     return () => {
+      clearTimeout(timer)
+      clearInterval(poll)
+      clearTimeout(pollTimeout)
       window.removeEventListener('scroll', update, true)
       window.removeEventListener('resize', update)
     }
