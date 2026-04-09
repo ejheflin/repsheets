@@ -10,7 +10,9 @@ import { WorkoutProvider } from './data/useWorkout'
 import { LogsTab } from './ui/logs/LogsTab'
 import { IOSInstallHint } from './ui/IOSInstallHint'
 import { ImportFlow } from './ui/sharing/ImportFlow'
-import { useState } from 'react'
+import { ReAuthPrompt } from './ui/ReAuthPrompt'
+import { useState, useEffect } from 'react'
+import { AuthExpiredError } from './auth/authFetch'
 
 function getImportParam(): string | null {
   const params = new URLSearchParams(window.location.search)
@@ -28,6 +30,23 @@ function useImportParam() {
   }
 
   return { importSheetId, clearImport }
+}
+
+function useAuthExpiredHandler() {
+  const [showReAuth, setShowReAuth] = useState(false)
+
+  useEffect(() => {
+    const handler = (event: PromiseRejectionEvent) => {
+      if (event.reason instanceof AuthExpiredError) {
+        event.preventDefault()
+        setShowReAuth(true)
+      }
+    }
+    window.addEventListener('unhandledrejection', handler)
+    return () => window.removeEventListener('unhandledrejection', handler)
+  }, [])
+
+  return { showReAuth, clearReAuth: () => setShowReAuth(false) }
 }
 
 function MainApp() {
@@ -58,6 +77,7 @@ function MainApp() {
 function AppContent() {
   const { user, isLoading } = useAuth()
   const { importSheetId, clearImport } = useImportParam()
+  const { showReAuth, clearReAuth } = useAuthExpiredHandler()
 
   if (isLoading) {
     return (
@@ -74,6 +94,7 @@ function AppContent() {
     return (
       <SheetProvider>
         <ImportFlow sheetId={importSheetId} onDone={clearImport} />
+        {showReAuth && <ReAuthPrompt onDone={clearReAuth} />}
       </SheetProvider>
     )
   }
@@ -81,6 +102,7 @@ function AppContent() {
   return (
     <SheetProvider>
       <MainApp />
+      {showReAuth && <ReAuthPrompt onDone={clearReAuth} />}
     </SheetProvider>
   )
 }
