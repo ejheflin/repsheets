@@ -1,6 +1,6 @@
-import { createContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { createContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import type { AuthUser } from '../types'
-import { getStoredUser, initLogin, refreshToken as doRefresh, logout as doLogout } from './googleAuth'
+import { getStoredUser, initLogin, refreshToken as doRefresh, logout as doLogout, isTokenExpiringSoon } from './googleAuth'
 
 interface AuthContextValue {
   user: AuthUser | null
@@ -15,17 +15,41 @@ export const AuthContext = createContext<AuthContextValue>({
   refreshToken: () => Promise.resolve(null),
 })
 
+const CHECK_INTERVAL_MS = 5 * 60 * 1000 // check every 5 minutes
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const refreshing = useRef(false)
 
   useEffect(() => {
     const stored = getStoredUser()
     if (stored) {
       setUser(stored)
+      // If token is already expiring, refresh immediately on load
+      if (isTokenExpiringSoon()) {
+        doRefresh().then((refreshed) => {
+          if (refreshed) setUser(refreshed)
+        })
+      }
     }
     setIsLoading(false)
   }, [])
+
+  // Proactive refresh timer — checks every 5 minutes if token is nearing expiry
+  useEffect(() => {
+    if (!user) return
+    const interval = setInterval(async () => {
+      if (refreshing.current) return
+      if (isTokenExpiringSoon()) {
+        refreshing.current = true
+        const refreshed = await doRefresh()
+        if (refreshed) setUser(refreshed)
+        refreshing.current = false
+      }
+    }, CHECK_INTERVAL_MS)
+    return () => clearInterval(interval)
+  }, [user])
 
   const login = useCallback(() => {
     initLogin((u) => setUser(u), (err) => console.error('Auth error:', err))

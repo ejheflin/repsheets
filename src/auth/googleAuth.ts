@@ -3,6 +3,9 @@ import type { AuthUser } from '../types'
 
 const TOKEN_KEY = 'repsheets_token'
 const USER_KEY = 'repsheets_user'
+const TOKEN_TIME_KEY = 'repsheets_token_time'
+const TOKEN_LIFETIME_MS = 3600 * 1000 // 1 hour
+const REFRESH_BUFFER_MS = 15 * 60 * 1000 // refresh 15 min before expiry
 
 declare global {
   interface Window {
@@ -33,11 +36,20 @@ export function getStoredUser(): AuthUser | null {
 function storeUser(user: AuthUser) {
   localStorage.setItem(USER_KEY, JSON.stringify(user))
   localStorage.setItem(TOKEN_KEY, user.accessToken)
+  localStorage.setItem(TOKEN_TIME_KEY, String(Date.now()))
 }
 
 function clearStored() {
   localStorage.removeItem(USER_KEY)
   localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem(TOKEN_TIME_KEY)
+}
+
+export function isTokenExpiringSoon(): boolean {
+  const timeStr = localStorage.getItem(TOKEN_TIME_KEY)
+  if (!timeStr) return true
+  const elapsed = Date.now() - Number(timeStr)
+  return elapsed > (TOKEN_LIFETIME_MS - REFRESH_BUFFER_MS)
 }
 
 async function fetchUserInfo(accessToken: string): Promise<Omit<AuthUser, 'accessToken'>> {
