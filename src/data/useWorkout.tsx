@@ -7,6 +7,12 @@ import { fetchRoutineRows, fetchLogEntries, appendLogEntries } from '../sheets/s
 import { saveWorkout, getWorkout, clearWorkout, saveLogs, getLogs, queueLogEntries } from './db'
 import type { RoutineRow, WorkoutState, WorkoutExercise, LogEntry } from '../types'
 
+function formatAthleteName(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  if (parts.length < 2) return parts[0] || ''
+  return `${parts[0]} ${parts[parts.length - 1][0]}.`
+}
+
 const REFRESH_TIMEOUT_MS = 5000
 
 interface WorkoutContextValue {
@@ -92,7 +98,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
                 logs,
                 prev.program,
                 prev.routine,
-                user.email
+                formatAthleteName(user.name)
               )
               if (resolved.reps !== null) set.reps = resolved.reps
               if (resolved.value !== null) set.value = resolved.value
@@ -143,7 +149,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         supersetGroup: firstSet?.supersetGroup ?? null,
         isExpanded: false,
         sets: sets.map((s) => {
-          const resolved = resolveSetValues(s, logs, program, routineName, user.email)
+          const resolved = resolveSetValues(s, logs, program, routineName, formatAthleteName(user.name))
           return {
             setNumber: s.setNumber,
             reps: resolved.reps,
@@ -261,7 +267,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         if (logOnlyCompleted && !set.completed) continue
         entries.push({
           date: today,
-          athlete: user.email,
+          athlete: formatAthleteName(user.name),
           program: workout.program,
           routine: workout.routine,
           exercise: ex.exercise,
