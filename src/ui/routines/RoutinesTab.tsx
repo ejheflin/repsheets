@@ -97,7 +97,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
   return (
     <div>
       <div className="flex items-stretch gap-2 mb-4">
-        <button onClick={() => setShowSheetSwitcher(true)}
+        <button data-tour="sheet-switcher" onClick={() => setShowSheetSwitcher(true)}
           className="w-12 rounded-[10px] bg-[#2a2a4a] border border-[#3a3a5a] flex items-center justify-center flex-shrink-0 active:opacity-80">
           <SheetIcon />
         </button>
@@ -115,9 +115,9 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
       {routineList.length === 0 ? (
         <p className="text-gray-500 text-sm">No routines found for this program.</p>
       ) : (
-        routineList.map((r) => (
+        routineList.map((r, i) => (
           <RoutineCard key={r.name} name={r.name} exercises={r.exercises}
-            onTap={() => handleRoutineTap(r)} />
+            onTap={() => handleRoutineTap(r)} tourId={i === 0 ? 'routine-card' : undefined} />
         ))
       )}
       {spreadsheetId && (

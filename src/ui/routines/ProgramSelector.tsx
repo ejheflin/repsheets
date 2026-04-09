@@ -6,7 +6,7 @@ interface ProgramSelectorProps {
 
 export function ProgramSelector({ programs, selected, onSelect }: ProgramSelectorProps) {
   return (
-    <div className="relative flex-1">
+    <div data-tour="program-selector" className="relative flex-1">
       <select
         value={selected}
         onChange={(e) => onSelect(e.target.value)}

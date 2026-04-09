@@ -39,11 +39,12 @@ interface ExerciseRowProps {
   onUpdateAllSets: (field: 'reps' | 'value', val: number | null) => void
   onUpdateNotes: (notes: string) => void
   onAddSet: () => void
+  tourId?: string
 }
 
 export function ExerciseRow({
   exercise,
-  onToggleExpand, onToggleExercise, onToggleSet, onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet,
+  onToggleExpand, onToggleExercise, onToggleSet, onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet, tourId,
 }: ExerciseRowProps) {
   const [showNotes, setShowNotes] = useState(false)
   const allCompleted = exercise.sets.every((s) => s.completed)
@@ -73,7 +74,7 @@ export function ExerciseRow({
 
   if (!exercise.isExpanded) {
     return (
-      <div className="bg-[#2a2a4a] rounded-[10px] mb-1.5 px-3 py-2.5">
+      <div data-tour={tourId ? 'exercise-row' : undefined} className="bg-[#2a2a4a] rounded-[10px] mb-1.5 px-3 py-2.5">
         <div className="flex items-center">
           <button onClick={onToggleExpand} className="mr-1.5 self-stretch flex items-center"><ChevronRight /></button>
           <button onClick={onToggleExpand} className="flex-1 text-left min-w-0">
@@ -82,7 +83,7 @@ export function ExerciseRow({
               <div className="text-[10px] text-[#6c63ff] mt-0.5 truncate">▸ {exercise.notes}</div>
             )}
           </button>
-          <button onClick={onToggleExercise} className="ml-2">
+          <button data-tour={tourId ? 'exercise-checkbox' : undefined} onClick={onToggleExercise} className="ml-2">
             {allCompleted ? (
               <div className="w-[22px] h-[22px] bg-[#6c63ff] rounded-md flex items-center justify-center text-xs">✓</div>
             ) : (
