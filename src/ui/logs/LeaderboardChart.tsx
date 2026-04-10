@@ -58,8 +58,6 @@ export function LeaderboardChart({ allLogs, athletes }: LeaderboardChartProps) {
     return String(v)
   }
 
-  const topValue = data.length > 0 ? data[0].value : 0
-
   return (
     <div className="bg-[#2a2a4a] rounded-[10px] p-3">
       <div className="flex justify-between items-center mb-2">

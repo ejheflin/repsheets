@@ -44,7 +44,6 @@ interface LogsSettingsModalProps {
 
 export function LogsSettingsModal({ panes, onChange, onClose }: LogsSettingsModalProps) {
   const [local, setLocal] = useState<LogsPaneConfig[]>([...panes])
-  const [dragging, setDragging] = useState<number | null>(null)
 
   const togglePane = (id: string) => {
     setLocal((prev) => prev.map((p) => p.id === id ? { ...p, enabled: !p.enabled } : p))
