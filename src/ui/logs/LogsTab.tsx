@@ -7,8 +7,21 @@ import { CalendarView } from './CalendarView'
 import { ExerciseProgressChart } from './ExerciseProgressChart'
 import { PersonalRecords } from './PersonalRecords'
 import { AthleteFilter } from './AthleteFilter'
-import { Leaderboard } from './Leaderboard'
 import { LeaderboardChart } from './LeaderboardChart'
+import { LogsSettingsModal, loadPaneConfig, type LogsPaneConfig } from './LogsSettingsModal'
+
+function SettingsIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" />
+      <line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" />
+      <line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" />
+      <line x1="1" y1="14" x2="7" y2="14" />
+      <line x1="9" y1="8" x2="15" y2="8" />
+      <line x1="17" y1="16" x2="23" y2="16" />
+    </svg>
+  )
+}
 
 export function LogsTab() {
   const {
@@ -16,11 +29,12 @@ export function LogsTab() {
     exerciseHistory, exerciseHistoryByAthlete, personalRecords,
     uniqueExercises, lastLoggedProgram,
     athletes, isShared, selectedAthlete, setSelectedAthlete,
-    leaderboard, athleteStats,
   } = useLogs()
   const { allRows } = useRoutines(null)
   const { login } = useAuth()
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [panes, setPanes] = useState<LogsPaneConfig[]>(loadPaneConfig)
 
   const allRoutines = useMemo(() => {
     return [...new Set(allRows.map((r) => r.routine))]
@@ -52,6 +66,39 @@ export function LogsTab() {
     setIsRefreshing(false)
   }
 
+  const isPaneEnabled = (id: string) => {
+    const pane = panes.find((p) => p.id === id)
+    return pane ? pane.enabled : true
+  }
+
+  const renderPane = (id: string) => {
+    if (!isPaneEnabled(id)) return null
+
+    switch (id) {
+      case 'calendar':
+        return <CalendarView key={id} workoutDates={workoutDates} athleteDates={athleteDates} allRoutines={allRoutines} allAthletes={athletes} />
+      case 'progress':
+        return (
+          <ExerciseProgressChart key={id}
+            exerciseHistory={exerciseHistory}
+            exerciseHistoryByAthlete={exerciseHistoryByAthlete}
+            uniqueExercises={uniqueExercises}
+            programs={programs}
+            programExercises={programExercises}
+            lastLoggedProgram={lastLoggedProgram}
+            isShared={isShared}
+            showAllAthletes={selectedAthlete === '__all__'}
+          />
+        )
+      case 'records':
+        return <PersonalRecords key={id} records={personalRecords} />
+      case 'leaderboard':
+        return isShared ? <LeaderboardChart key={id} allLogs={allLogs} athletes={athletes} /> : null
+      default:
+        return null
+    }
+  }
+
   if (isLoading) {
     return <div className="text-gray-400 text-center mt-10">Loading logs...</div>
   }
@@ -60,14 +107,20 @@ export function LogsTab() {
     <div>
       <div className="flex justify-between items-center mb-3">
         <h1 className="text-[20px] font-bold">Logs</h1>
-        <button onClick={handleRefresh} disabled={isRefreshing}
-          className={`text-gray-500 p-1.5 active:text-[#6c63ff] transition ${isRefreshing ? 'animate-spin' : ''}`}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="23 4 23 10 17 10" />
-            <polyline points="1 20 1 14 7 14" />
-            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-1">
+          <button onClick={handleRefresh} disabled={isRefreshing}
+            className={`text-gray-500 p-1.5 active:text-[#6c63ff] transition ${isRefreshing ? 'animate-spin' : ''}`}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+            </svg>
+          </button>
+          <button onClick={() => setShowSettings(true)}
+            className="text-gray-500 p-1.5 active:text-[#6c63ff] transition">
+            <SettingsIcon />
+          </button>
+        </div>
       </div>
 
       {isShared && (
@@ -77,21 +130,12 @@ export function LogsTab() {
       )}
 
       <div className="space-y-3">
-        <CalendarView workoutDates={workoutDates} athleteDates={athleteDates} allRoutines={allRoutines} allAthletes={athletes} />
-        <ExerciseProgressChart
-          exerciseHistory={exerciseHistory}
-          exerciseHistoryByAthlete={exerciseHistoryByAthlete}
-          uniqueExercises={uniqueExercises}
-          programs={programs}
-          programExercises={programExercises}
-          lastLoggedProgram={lastLoggedProgram}
-          isShared={isShared}
-          showAllAthletes={selectedAthlete === '__all__'}
-        />
-        <PersonalRecords records={personalRecords} />
-        {isShared && <LeaderboardChart allLogs={allLogs} athletes={athletes} />}
-        {isShared && <Leaderboard leaderboard={leaderboard} athleteStats={athleteStats} />}
+        {panes.map((pane) => renderPane(pane.id))}
       </div>
+
+      {showSettings && (
+        <LogsSettingsModal panes={panes} onChange={setPanes} onClose={() => setShowSettings(false)} />
+      )}
     </div>
   )
 }
