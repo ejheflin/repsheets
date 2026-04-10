@@ -1,12 +1,11 @@
 import { useState, useMemo } from 'react'
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import type { LogEntry } from '../../types'
 
-type Metric = 'workouts' | 'volume' | 'maxWeight'
+type Metric = 'workouts' | 'volume'
 const METRICS: { key: Metric; label: string }[] = [
   { key: 'workouts', label: 'Workouts' },
   { key: 'volume', label: 'Volume' },
-  { key: 'maxWeight', label: 'Max Weight' },
 ]
 
 const PERIODS = [
@@ -16,8 +15,6 @@ const PERIODS = [
   { label: 'All', weeks: 0 },
 ]
 
-const COLORS = ['#6c63ff', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#8b5cf6', '#f97316']
-
 interface LeaderboardChartProps {
   allLogs: LogEntry[]
   athletes: string[]
@@ -25,7 +22,7 @@ interface LeaderboardChartProps {
 
 export function LeaderboardChart({ allLogs, athletes }: LeaderboardChartProps) {
   const [metric, setMetric] = useState<Metric>('workouts')
-  const [periodWeeks, setPeriodWeeks] = useState(0) // 0 = all
+  const [periodWeeks, setPeriodWeeks] = useState(0)
 
   const data = useMemo(() => {
     const cutoff = periodWeeks > 0
@@ -34,7 +31,7 @@ export function LeaderboardChart({ allLogs, athletes }: LeaderboardChartProps) {
 
     const filtered = cutoff ? allLogs.filter((l) => l.date >= cutoff) : allLogs
 
-    return athletes.map((athlete, i) => {
+    return athletes.map((athlete) => {
       const athleteLogs = filtered.filter((l) => l.athlete === athlete)
 
       let value = 0
@@ -42,13 +39,17 @@ export function LeaderboardChart({ allLogs, athletes }: LeaderboardChartProps) {
         value = new Set(athleteLogs.map((l) => l.date)).size
       } else if (metric === 'volume') {
         value = athleteLogs.reduce((sum, l) => sum + l.reps * (l.value ?? 0), 0)
-      } else if (metric === 'maxWeight') {
-        value = athleteLogs.reduce((max, l) => Math.max(max, l.value ?? 0), 0)
       }
 
-      return { name: athlete, value, color: COLORS[i % COLORS.length] }
+      return { name: athlete, value }
     }).sort((a, b) => b.value - a.value)
   }, [allLogs, athletes, metric, periodWeeks])
+
+  // Find the longest athlete name to size the Y axis
+  const maxNameLength = useMemo(() => {
+    return Math.max(...athletes.map((a) => a.length), 5)
+  }, [athletes])
+  const yAxisWidth = Math.min(Math.max(maxNameLength * 7, 50), 120)
 
   if (athletes.length < 2) return null
 
@@ -56,6 +57,8 @@ export function LeaderboardChart({ allLogs, athletes }: LeaderboardChartProps) {
     if (metric === 'volume' && v >= 1000) return `${Math.round(v / 1000)}k`
     return String(v)
   }
+
+  const topValue = data.length > 0 ? data[0].value : 0
 
   return (
     <div className="bg-[#2a2a4a] rounded-[10px] p-3">
@@ -83,21 +86,27 @@ export function LeaderboardChart({ allLogs, athletes }: LeaderboardChartProps) {
       </div>
 
       <ResponsiveContainer width="100%" height={data.length * 44 + 10}>
-        <BarChart data={data} layout="vertical" margin={{ top: 0, right: 10, bottom: 0, left: 0 }}>
+        <BarChart data={data} layout="vertical" margin={{ top: 0, right: 30, bottom: 0, left: 0 }}>
           <XAxis type="number" hide />
-          <YAxis type="category" dataKey="name" width={70}
+          <YAxis type="category" dataKey="name" width={yAxisWidth}
             tick={{ fill: '#ccc', fontSize: 11 }} axisLine={false} tickLine={false} />
           <Tooltip
             contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #3a3a5a', borderRadius: 8, fontSize: 12 }}
-            formatter={(value) => [formatValue(Number(value)), metric === 'workouts' ? 'Workouts' : metric === 'volume' ? 'Volume' : 'Max Weight']}
+            formatter={(value) => [formatValue(Number(value)), metric === 'workouts' ? 'Workouts' : 'Volume']}
             cursor={{ fill: 'transparent', stroke: '#6c63ff', strokeDasharray: '4 2', strokeWidth: 1 }}
           />
-          <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={24}
-            label={{ position: 'right', fill: '#888', fontSize: 10, formatter: (v: unknown) => formatValue(Number(v)) }}>
-            {data.map((entry, i) => (
-              <Cell key={i} fill={entry.color} />
-            ))}
-          </Bar>
+          <Bar dataKey="value" fill="#6c63ff" radius={[0, 6, 6, 0]} barSize={24}
+            label={{
+              position: 'right',
+              fill: '#888',
+              fontSize: 10,
+              formatter: (v: unknown) => {
+                const val = Number(v)
+                const label = formatValue(val)
+                return val === topValue && val > 0 ? `${label} 🏆` : label
+              },
+            }}
+          />
         </BarChart>
       </ResponsiveContainer>
     </div>
