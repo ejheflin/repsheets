@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 const LBS_PLATE_OPTIONS = [55, 45, 35, 25, 15, 10, 5, 2.5]
-const KG_PLATE_OPTIONS = [25, 20, 15, 10, 5, 2.5, 1.25]
+// const KG_PLATE_OPTIONS = [25, 20, 15, 10, 5, 2.5, 1.25]
 
 const COLOR_OPTIONS = [
   { name: 'red', value: 'rgba(239,68,68,0.35)' },
@@ -109,8 +109,6 @@ export function PlateSettingsModal({ onClose, onChange }: PlateSettingsModalProp
           {allPlates.map((plate) => {
             const enabled = settings.availablePlates.includes(plate)
             const color = settings.colorMap[plate] ?? 'rgba(108,99,255,0.35)'
-            const colorName = COLOR_OPTIONS.find((c) => c.value === color)?.name ?? 'custom'
-
             return (
               <div key={plate}>
                 <div className="flex items-center gap-3 bg-[#2a2a4a] rounded-[10px] p-3">
