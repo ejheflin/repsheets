@@ -52,7 +52,7 @@ export function ShareCopyModal({ program, sheetLevel, onClose }: ShareCopyModalP
           <>
             <h2 className="text-base font-bold text-center mb-1">Share {label}</h2>
             <p className="text-xs text-gray-400 text-center mb-2">
-              Creates a read-only copy of the routines. Your logs are not included.
+              Creates a read-only copy of the routines. Your logs are not included. Great for sharing with strangers.
             </p>
             <p className="text-[10px] text-gray-500 text-center mb-4">
               Looking to invite them to work out together? Share the sheet instead.
