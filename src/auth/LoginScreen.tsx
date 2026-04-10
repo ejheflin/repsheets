@@ -1,12 +1,14 @@
 import { useAuth } from './useAuth'
 import { useState, useEffect } from 'react'
-// import { useDemo } from '../demo/DemoProvider'
 
 const TAGLINES = [
-  'Your spreadsheet. Your workout app.',
+  'Free. Open source. Serverless.',
+  'Your data stays in your own Google Sheet.',
+  null, // shared with: rotation
   'Check off sets. Track progress.',
-  'Share programs. Compete with friends.',
 ]
+
+const SHARED_WITH = ['no one', 'friends', 'clients', 'everyone']
 
 function RotatingTagline() {
   const [index, setIndex] = useState(0)
@@ -23,18 +25,49 @@ function RotatingTagline() {
     return () => clearInterval(interval)
   }, [])
 
+  const tagline = TAGLINES[index]
+
+  if (tagline === null) {
+    return <SharedWithRotation visible={visible} />
+  }
+
   return (
     <p className={`text-gray-400 text-center text-sm h-6 transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-0'}`}>
-      {TAGLINES[index]}
+      {tagline}
+    </p>
+  )
+}
+
+function SharedWithRotation({ visible }: { visible: boolean }) {
+  const [wordIndex, setWordIndex] = useState(0)
+  const [wordVisible, setWordVisible] = useState(true)
+
+  useEffect(() => {
+    if (!visible) return
+    const interval = setInterval(() => {
+      setWordVisible(false)
+      setTimeout(() => {
+        setWordIndex((i) => (i + 1) % SHARED_WITH.length)
+        setWordVisible(true)
+      }, 300)
+    }, 800)
+    return () => clearInterval(interval)
+  }, [visible])
+
+  return (
+    <p className={`text-gray-400 text-center text-sm h-6 transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-0'}`}>
+      Shared with:{' '}
+      <span className={`text-[#6c63ff] font-semibold transition-opacity duration-200 ${wordVisible ? 'opacity-100' : 'opacity-0'}`}>
+        {SHARED_WITH[wordIndex]}
+      </span>
     </p>
   )
 }
 
 export function LoginScreen() {
   const { login } = useAuth()
-  // const { startDemo } = useDemo()
   return (
-    <div className="min-h-screen bg-[#1a1a2e] flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen bg-[#1a1a2e] flex flex-col items-center justify-center px-6 relative">
       <h1 className="text-4xl font-bold text-white mb-3">repsheets</h1>
       <RotatingTagline />
       <div className="mt-10">
@@ -49,10 +82,16 @@ export function LoginScreen() {
           Sign in with Google
         </button>
       </div>
-      {/* <button onClick={startDemo}
-        className="mt-4 text-sm text-gray-500 hover:text-gray-300 transition">
-        Try the demo
-      </button> */}
+
+      <div className="absolute bottom-6 flex items-center gap-1.5">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22" />
+        </svg>
+        <a href="https://github.com/ejheflin/repsheets" target="_blank" rel="noopener noreferrer"
+          className="text-[11px] text-gray-600 hover:text-gray-400 transition">
+          Open Source
+        </a>
+      </div>
     </div>
   )
 }
