@@ -12,7 +12,7 @@ interface ExerciseProgressChartProps {
   exerciseHistoryByAthlete: (name: string, limit?: number) => {
     dates: string[]
     athletes: string[]
-    data: Record<string, string | number>[]
+    data: Record<string, string | number | undefined>[]
   }
   uniqueExercises: string[]
   programs: string[]
