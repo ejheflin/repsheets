@@ -38,7 +38,10 @@ export function useLogs() {
       const logs = await fetchLogEntries(spreadsheetId)
       await saveLogs(spreadsheetId, logs)
       setAllLogs(logs)
-    } catch {
+    } catch (e) {
+      // Let auth errors propagate so the UI can trigger re-login
+      const { AuthExpiredError } = await import('../auth/authFetch')
+      if (e instanceof AuthExpiredError) throw e
       const cached = await getLogs(spreadsheetId)
       setAllLogs(cached)
     }
@@ -53,7 +56,7 @@ export function useLogs() {
         setAllLogs(cached)
         setIsLoading(false)
       }
-      refresh()
+      refresh().catch(() => {}) // silently fall back to cache on mount
     }
     load()
   }, [spreadsheetId, refresh])
