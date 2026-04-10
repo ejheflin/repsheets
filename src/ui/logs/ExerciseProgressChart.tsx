@@ -175,7 +175,8 @@ export function ExerciseProgressChart({
                 {series.length > 1 && <Legend wrapperStyle={{ fontSize: 10, color: '#888' }} />}
                 {series.map((s, i) => (
                   <Line key={s} type="monotone" dataKey={s} stroke={CHART_COLORS[i % CHART_COLORS.length]}
-                    strokeWidth={2} dot={{ r: 3, fill: CHART_COLORS[i % CHART_COLORS.length] }} />
+                    strokeWidth={2} dot={{ r: 3, fill: CHART_COLORS[i % CHART_COLORS.length] }}
+                    connectNulls={false} />
                 ))}
               </LineChart>
             )}

@@ -137,10 +137,11 @@ export function useLogs() {
       dates: sortedDates,
       athletes: athleteNames,
       data: sortedDates.map((date) => {
-        const entry: Record<string, string | number> = { date: date.slice(5) }
+        const entry: Record<string, string | number | undefined> = { date: date.slice(5) }
         const dateMap = byDate.get(date)!
         for (const a of athleteNames) {
-          entry[a] = dateMap.get(a) ?? 0
+          const val = dateMap.get(a)
+          if (val !== undefined) entry[a] = val
         }
         return entry
       }),
