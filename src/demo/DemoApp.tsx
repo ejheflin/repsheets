@@ -251,7 +251,7 @@ export function DemoApp() {
                 <h1 className="text-[20px] font-bold mb-3">Logs</h1>
                 <div className="space-y-3">
                   <CalendarView workoutDates={workoutDates} allRoutines={allRoutines} />
-                  <ExerciseProgressChart exerciseHistory={exerciseHistory} uniqueExercises={uniqueExercises} programs={programs} programExercises={programExercises} />
+                  <ExerciseProgressChart exerciseHistory={exerciseHistory} exerciseHistoryByAthlete={() => ({ dates: [], athletes: [], data: [] })} uniqueExercises={uniqueExercises} programs={programs} programExercises={programExercises} lastLoggedProgram={programs[0] || null} isShared={false} showAllAthletes={false} />
                   <PersonalRecords records={personalRecords} />
                 </div>
               </div>
