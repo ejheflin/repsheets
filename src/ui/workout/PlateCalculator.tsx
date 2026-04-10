@@ -106,8 +106,9 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
   const plateWidth = 8
   const plateGap = 1
   const handleLength = 16
-  const handleHeight = 3
-  const sleeveHeight = 5
+  const collarHeight = 10
+  const handleHeight = Math.round(collarHeight * 2/3)  // ~7, two-thirds of collar
+  const sleeveHeight = collarHeight
   const collarWidth = 4
   const sleeveRight = 6
 
@@ -135,38 +136,39 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
 
         {/* Handle outline */}
         <rect
-          x={0} y={centerY - handleHeight}
-          width={handleLength} height={handleHeight * 2}
+          x={0} y={centerY - handleHeight / 2}
+          width={handleLength} height={handleHeight}
           rx={1.5}
           fill="none" stroke={stroke} strokeWidth={0.75}
         />
         {/* Knurling crosshatch fill */}
         <rect
-          x={0} y={centerY - handleHeight}
-          width={handleLength} height={handleHeight * 2}
+          x={0} y={centerY - handleHeight / 2}
+          width={handleLength} height={handleHeight}
           rx={1.5}
           fill="url(#knurl)"
         />
         <rect
-          x={0} y={centerY - handleHeight}
-          width={handleLength} height={handleHeight * 2}
+          x={0} y={centerY - handleHeight / 2}
+          width={handleLength} height={handleHeight}
           rx={1.5}
           fill="url(#knurl2)"
         />
 
         {/* Collar */}
         <rect
-          x={handleLength} y={centerY - 5}
-          width={collarWidth} height={10}
+          x={handleLength} y={centerY - collarHeight / 2}
+          width={collarWidth} height={collarHeight}
           rx={1}
           fill={stroke} fillOpacity={0.15} stroke={stroke} strokeWidth={0.75}
         />
 
-        {/* Sleeve (thicker bar through and past plates) */}
-        <line
-          x1={handleLength + collarWidth} y1={centerY}
-          x2={svgWidth} y2={centerY}
-          stroke={stroke} strokeWidth={sleeveHeight} strokeLinecap="round"
+        {/* Sleeve (filled purple like collar, through and past plates) */}
+        <rect
+          x={handleLength + collarWidth} y={centerY - sleeveHeight / 2}
+          width={totalPlatesWidth + sleeveRight} height={sleeveHeight}
+          rx={1}
+          fill={stroke} fillOpacity={0.15} stroke={stroke} strokeWidth={0.75}
         />
 
         {/* Plates */}
