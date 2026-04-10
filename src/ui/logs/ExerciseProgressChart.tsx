@@ -27,7 +27,7 @@ export function ExerciseProgressChart({
   programs, programExercises, lastLoggedProgram,
   isShared, showAllAthletes,
 }: ExerciseProgressChartProps) {
-  const [chartType, setChartType] = useState<'bar' | 'line'>('bar')
+  const [chartType, setChartType] = useState<'bar' | 'line'>('line')
   const [selectedProgram, setSelectedProgram] = useState<string | null>(null)
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null)
   const [limit, setLimit] = useState(10)
