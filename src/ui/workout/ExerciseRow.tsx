@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { SetRow } from './SetRow'
+import { PlateCalculator } from './PlateCalculator'
 import type { WorkoutExercise } from '../../types'
 
 function ChevronRight() {
@@ -108,7 +109,8 @@ export function ExerciseRow({
               className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#3a3a5a]"
             >+</button>
           </div>
-          <div className="flex-1 text-center">
+          <div className="flex-1 flex flex-col items-center">
+            {summaryValue && <PlateCalculator weight={summaryValue} unit={unit} />}
             <input type="text" inputMode="decimal" value={summaryValue ?? ''}
               onChange={(e) => onUpdateAllSets('value', e.target.value ? Number(e.target.value) : null)}
               onFocus={(e) => e.target.select()}
