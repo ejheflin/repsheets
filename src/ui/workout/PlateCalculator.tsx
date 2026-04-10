@@ -1,4 +1,6 @@
-import { useState, useEffect, useRef, useCallback, useId } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+
+let idCounter = 0
 import { PlateSettingsModal, loadPlateSettings, type PlateSettingsData } from './PlateSettings'
 
 const LBS_PLATES = [55, 45, 35, 25, 15, 10, 5, 2.5]
@@ -123,7 +125,8 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
   const centerY = svgHeight / 2
   const stroke = '#6c63ff'
   const platesStartX = handleLength + collarWidth
-  const uid = useId().replace(/:/g, '')
+  const uidRef = useRef(`pc${++idCounter}`)
+  const uid = uidRef.current
 
   return (
     <>
