@@ -84,6 +84,7 @@ export function ExerciseRow({
               <div className="text-[10px] text-[#6c63ff] mt-0.5 truncate">▸ {exercise.notes}</div>
             )}
           </button>
+          {summaryValue ? <PlateCalculator weight={summaryValue} unit={unit} /> : null}
           <button data-tour={tourId ? 'exercise-checkbox' : undefined} onClick={onToggleExercise} className="ml-2">
             {allCompleted ? (
               <div className="w-[22px] h-[22px] bg-[#6c63ff] rounded-md flex items-center justify-center text-xs">✓</div>
@@ -109,8 +110,7 @@ export function ExerciseRow({
               className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#3a3a5a]"
             >+</button>
           </div>
-          <div className="flex-1 flex flex-col items-center">
-            {summaryValue && <PlateCalculator weight={summaryValue} unit={unit} />}
+          <div className="flex-1 text-center">
             <input type="text" inputMode="decimal" value={summaryValue ?? ''}
               onChange={(e) => onUpdateAllSets('value', e.target.value ? Number(e.target.value) : null)}
               onFocus={(e) => e.target.select()}
@@ -131,7 +131,8 @@ export function ExerciseRow({
       <div className="flex items-center mb-2">
         <button onClick={onToggleExpand} className="mr-1.5 flex items-center"><ChevronDown /></button>
         <button onClick={onToggleExpand} className="flex-1 text-left font-bold text-[15px]">{exercise.exercise}</button>
-        <button onClick={onToggleExercise}>
+        {summaryValue ? <PlateCalculator weight={summaryValue} unit={unit} /> : null}
+        <button onClick={onToggleExercise} className="ml-2">
           {allCompleted ? (
             <div className="w-[22px] h-[22px] bg-[#6c63ff] rounded-md flex items-center justify-center text-xs">✓</div>
           ) : (
