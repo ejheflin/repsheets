@@ -20,8 +20,8 @@ function SharedWithLine() {
       setTimeout(() => {
         setWordIndex((i) => (i + 1) % SHARED_WITH.length)
         setWordVisible(true)
-      }, 300)
-    }, 800)
+      }, 400)
+    }, 2000)
     return () => clearInterval(interval)
   }, [])
 
