@@ -124,7 +124,7 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
   const sleeveWidth = Math.max(sleeveMinWidth, totalPlatesWidth + sleeveNub)
   const svgWidth = handleLength + collarWidth + sleeveWidth
   const maxPlateH = Math.max(...plates.map((p) => plateHeight(p, unit)))
-  const svgHeight = maxPlateH + 4
+  const svgHeight = maxPlateH + 2
 
   const centerY = svgHeight / 2
   const stroke = '#6c63ff'
