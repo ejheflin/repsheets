@@ -1,32 +1,51 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import { ExerciseChipFilter } from './ExerciseChipFilter'
 import type { ExerciseHistoryPoint } from '../../data/useLogs'
 
 const CHART_COLORS = ['#6c63ff', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899']
+const LIMITS = [10, 20, 50, 0] // 0 = all
+const LIMIT_LABELS = ['10', '20', '50', 'All']
 
 interface ExerciseProgressChartProps {
   exerciseHistory: (name: string, limit?: number) => ExerciseHistoryPoint[]
+  exerciseHistoryByAthlete: (name: string, limit?: number) => {
+    dates: string[]
+    athletes: string[]
+    data: Record<string, string | number>[]
+  }
   uniqueExercises: string[]
   programs: string[]
   programExercises: Map<string, string[]>
+  lastLoggedProgram: string | null
+  isShared: boolean
+  showAllAthletes: boolean // true when "Everyone" chip is selected
 }
 
-export function ExerciseProgressChart({ exerciseHistory, uniqueExercises, programs, programExercises }: ExerciseProgressChartProps) {
+export function ExerciseProgressChart({
+  exerciseHistory, exerciseHistoryByAthlete, uniqueExercises,
+  programs, programExercises, lastLoggedProgram,
+  isShared, showAllAthletes,
+}: ExerciseProgressChartProps) {
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar')
   const [selectedProgram, setSelectedProgram] = useState<string | null>(null)
-  const [selected, setSelected] = useState<Set<string>>(() => {
-    return new Set(uniqueExercises.slice(0, 1))
-  })
+  const [selectedExercise, setSelectedExercise] = useState<string | null>(null)
+  const [limit, setLimit] = useState(10)
 
-  // Filter exercises: must have log data, and match selected program if any
+  // Pre-select last logged program
+  useEffect(() => {
+    if (!selectedProgram && lastLoggedProgram && programs.includes(lastLoggedProgram)) {
+      setSelectedProgram(lastLoggedProgram)
+    }
+  }, [lastLoggedProgram, programs, selectedProgram])
+
+  // Filter exercises by selected program
   const filteredExercises = useMemo(() => {
     if (!selectedProgram) return uniqueExercises
     const programExs = programExercises.get(selectedProgram) ?? []
     return uniqueExercises.filter((ex) => programExs.includes(ex))
   }, [selectedProgram, uniqueExercises, programExercises])
 
-  // Filter programs to only those with at least one logged exercise
   const filteredPrograms = useMemo(() => {
     return programs.filter((p) => {
       const exs = programExercises.get(p) ?? []
@@ -34,51 +53,48 @@ export function ExerciseProgressChart({ exerciseHistory, uniqueExercises, progra
     })
   }, [programs, programExercises, uniqueExercises])
 
+  // Auto-select first exercise when program changes
+  useEffect(() => {
+    if (filteredExercises.length > 0 && (!selectedExercise || !filteredExercises.includes(selectedExercise))) {
+      setSelectedExercise(filteredExercises[0])
+    }
+  }, [filteredExercises, selectedExercise])
+
   const toggleProgram = (program: string) => {
     if (selectedProgram === program) {
       setSelectedProgram(null)
     } else {
       setSelectedProgram(program)
-      // Clear exercise selections that aren't in the new program
-      const programExs = programExercises.get(program) ?? []
-      setSelected((prev) => {
-        const next = new Set<string>()
-        for (const ex of prev) {
-          if (programExs.includes(ex)) next.add(ex)
-        }
-        return next
-      })
+      setSelectedExercise(null) // reset exercise, useEffect will pick first
     }
   }
 
-  const toggle = (ex: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(ex)) next.delete(ex)
-      else next.add(ex)
-      return next
-    })
+  const selectExercise = (ex: string) => {
+    setSelectedExercise(ex)
   }
 
-  const { data, activeExercises } = useMemo(() => {
-    const active = [...selected]
-    const histories = active.map((ex) => ({
-      name: ex,
-      points: exerciseHistory(ex, 10),
-    }))
-    const allDates = new Set<string>()
-    histories.forEach((h) => h.points.forEach((p) => allDates.add(p.date)))
-    const sortedDates = [...allDates].sort()
-    const merged = sortedDates.map((date) => {
-      const entry: Record<string, string | number> = { date: date.slice(5) }
-      histories.forEach((h) => {
-        const point = h.points.find((p) => p.date === date)
-        entry[h.name] = point?.maxWeight ?? 0
-      })
-      return entry
-    })
-    return { data: merged, activeExercises: active }
-  }, [selected, exerciseHistory])
+  // Single exercise selected as a Set for the chip filter
+  const selectedSet = useMemo(() => {
+    return selectedExercise ? new Set([selectedExercise]) : new Set<string>()
+  }, [selectedExercise])
+
+  // Build chart data
+  const { data, series } = useMemo(() => {
+    if (!selectedExercise) return { data: [], series: [] as string[] }
+
+    const effectiveLimit = limit === 0 ? 9999 : limit
+
+    if (isShared && showAllAthletes) {
+      // Multi-athlete mode
+      const result = exerciseHistoryByAthlete(selectedExercise, effectiveLimit)
+      return { data: result.data, series: result.athletes }
+    }
+
+    // Single athlete mode
+    const points = exerciseHistory(selectedExercise, effectiveLimit)
+    const chartData = points.map((p) => ({ date: p.date.slice(5), weight: p.maxWeight }))
+    return { data: chartData, series: ['weight'] }
+  }, [selectedExercise, exerciseHistory, exerciseHistoryByAthlete, isShared, showAllAthletes, limit])
 
   if (uniqueExercises.length === 0) return null
 
@@ -86,19 +102,31 @@ export function ExerciseProgressChart({ exerciseHistory, uniqueExercises, progra
     <div className="bg-[#2a2a4a] rounded-[10px] p-3">
       <div className="flex justify-between items-center mb-2">
         <span className="text-sm font-semibold">Progress</span>
-        <div className="flex bg-[#1a1a2e] rounded-md p-0.5">
-          <button onClick={() => setChartType('bar')}
-            className={`px-2 py-1 rounded transition ${chartType === 'bar' ? 'bg-[#2a2a4a]' : ''}`}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke={chartType === 'bar' ? '#fff' : '#555'} strokeWidth="1.5" strokeLinecap="round">
-              <line x1="3" y1="14" x2="3" y2="6" /><line x1="8" y1="14" x2="8" y2="2" /><line x1="13" y1="14" x2="13" y2="9" />
-            </svg>
-          </button>
-          <button onClick={() => setChartType('line')}
-            className={`px-2 py-1 rounded transition ${chartType === 'line' ? 'bg-[#2a2a4a]' : ''}`}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke={chartType === 'line' ? '#fff' : '#555'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="1 12 5 6 9 9 15 3" />
-            </svg>
-          </button>
+        <div className="flex gap-1.5">
+          {/* Timeline selector */}
+          <div className="flex bg-[#1a1a2e] rounded-md p-0.5 text-[10px]">
+            {LIMITS.map((l, i) => (
+              <button key={l} onClick={() => setLimit(l)}
+                className={`px-1.5 py-0.5 rounded transition ${limit === l ? 'bg-[#2a2a4a] text-white' : 'text-gray-500'}`}>
+                {LIMIT_LABELS[i]}
+              </button>
+            ))}
+          </div>
+          {/* Chart type toggle */}
+          <div className="flex bg-[#1a1a2e] rounded-md p-0.5">
+            <button onClick={() => setChartType('bar')}
+              className={`px-2 py-1 rounded transition ${chartType === 'bar' ? 'bg-[#2a2a4a]' : ''}`}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke={chartType === 'bar' ? '#fff' : '#555'} strokeWidth="1.5" strokeLinecap="round">
+                <line x1="3" y1="14" x2="3" y2="6" /><line x1="8" y1="14" x2="8" y2="2" /><line x1="13" y1="14" x2="13" y2="9" />
+              </svg>
+            </button>
+            <button onClick={() => setChartType('line')}
+              className={`px-2 py-1 rounded transition ${chartType === 'line' ? 'bg-[#2a2a4a]' : ''}`}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke={chartType === 'line' ? '#fff' : '#555'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="1 12 5 6 9 9 15 3" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -117,44 +145,42 @@ export function ExerciseProgressChart({ exerciseHistory, uniqueExercises, progra
         </div>
       )}
 
-      <ExerciseChipFilter exercises={filteredExercises} selected={selected} onToggle={toggle} />
+      <ExerciseChipFilter exercises={filteredExercises} selected={selectedSet} onToggle={selectExercise} />
 
-      {activeExercises.length > 0 && data.length > 0 ? (
-        <ResponsiveContainer width="100%" height={200}>
-          {chartType === 'bar' ? (
-            <BarChart data={data} margin={{ top: 10, right: 5, bottom: 0, left: -15 }}>
-              <XAxis dataKey="date" tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #3a3a5a', borderRadius: 8, fontSize: 12 }}
-                labelStyle={{ color: '#888' }}
-                cursor={{ fill: 'transparent', stroke: '#6c63ff', strokeDasharray: '4 2', strokeWidth: 1 }}
-              />
-              {activeExercises.length > 1 && (
-                <Legend wrapperStyle={{ fontSize: 10, color: '#888' }} />
-              )}
-              {activeExercises.map((ex, i) => (
-                <Bar key={ex} dataKey={ex} fill={CHART_COLORS[i % CHART_COLORS.length]} radius={[3, 3, 0, 0]} barSize={16} />
-              ))}
-            </BarChart>
-          ) : (
-            <LineChart data={data} margin={{ top: 10, right: 5, bottom: 0, left: -15 }}>
-              <XAxis dataKey="date" tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #3a3a5a', borderRadius: 8, fontSize: 12 }}
-                labelStyle={{ color: '#888' }}
-              />
-              {activeExercises.length > 1 && (
-                <Legend wrapperStyle={{ fontSize: 10, color: '#888' }} />
-              )}
-              {activeExercises.map((ex, i) => (
-                <Line key={ex} type="monotone" dataKey={ex} stroke={CHART_COLORS[i % CHART_COLORS.length]}
-                  strokeWidth={2} dot={{ r: 3, fill: CHART_COLORS[i % CHART_COLORS.length] }} />
-              ))}
-            </LineChart>
-          )}
-        </ResponsiveContainer>
+      {selectedExercise && data.length > 0 ? (
+        <>
+          <ResponsiveContainer width="100%" height={200}>
+            {chartType === 'bar' ? (
+              <BarChart data={data} margin={{ top: 10, right: 5, bottom: 0, left: -15 }}>
+                <XAxis dataKey="date" tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #3a3a5a', borderRadius: 8, fontSize: 12 }}
+                  labelStyle={{ color: '#888' }}
+                  cursor={{ fill: 'transparent', stroke: '#6c63ff', strokeDasharray: '4 2', strokeWidth: 1 }}
+                />
+                {series.length > 1 && <Legend wrapperStyle={{ fontSize: 10, color: '#888' }} />}
+                {series.map((s, i) => (
+                  <Bar key={s} dataKey={s} fill={CHART_COLORS[i % CHART_COLORS.length]} radius={[3, 3, 0, 0]} barSize={16} />
+                ))}
+              </BarChart>
+            ) : (
+              <LineChart data={data} margin={{ top: 10, right: 5, bottom: 0, left: -15 }}>
+                <XAxis dataKey="date" tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #3a3a5a', borderRadius: 8, fontSize: 12 }}
+                  labelStyle={{ color: '#888' }}
+                />
+                {series.length > 1 && <Legend wrapperStyle={{ fontSize: 10, color: '#888' }} />}
+                {series.map((s, i) => (
+                  <Line key={s} type="monotone" dataKey={s} stroke={CHART_COLORS[i % CHART_COLORS.length]}
+                    strokeWidth={2} dot={{ r: 3, fill: CHART_COLORS[i % CHART_COLORS.length] }} />
+                ))}
+              </LineChart>
+            )}
+          </ResponsiveContainer>
+        </>
       ) : (
         <p className="text-gray-500 text-xs text-center py-8">Select an exercise to see progress</p>
       )}
