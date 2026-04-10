@@ -120,6 +120,39 @@ export function useLogs() {
       .map(([date, maxWeight]) => ({ date, maxWeight }))
   }, [logs])
 
+  // Per-athlete exercise history for multi-athlete chart
+  const exerciseHistoryByAthlete = useCallback((exerciseName: string, limit: number = 10) => {
+    // Group by date → athlete → max weight
+    const byDate = new Map<string, Map<string, number>>()
+    for (const log of allLogs) {
+      if (log.exercise !== exerciseName || log.value === null) continue
+      if (!byDate.has(log.date)) byDate.set(log.date, new Map())
+      const dateMap = byDate.get(log.date)!
+      const current = dateMap.get(log.athlete) ?? 0
+      if (log.value > current) dateMap.set(log.athlete, log.value)
+    }
+    const sortedDates = [...byDate.keys()].sort().slice(-limit)
+    const athleteNames = [...new Set(allLogs.filter((l) => l.exercise === exerciseName).map((l) => l.athlete))]
+    return {
+      dates: sortedDates,
+      athletes: athleteNames,
+      data: sortedDates.map((date) => {
+        const entry: Record<string, string | number> = { date: date.slice(5) }
+        const dateMap = byDate.get(date)!
+        for (const a of athleteNames) {
+          entry[a] = dateMap.get(a) ?? 0
+        }
+        return entry
+      }),
+    }
+  }, [allLogs])
+
+  // Last logged program (most recent log entry's program)
+  const lastLoggedProgram = useMemo(() => {
+    if (myLogs.length === 0) return null
+    return myLogs[myLogs.length - 1].program
+  }, [myLogs])
+
   const personalRecords = useMemo((): PersonalRecord[] => {
     const exercises = new Map<string, PersonalRecord>()
     for (const log of logs) {
@@ -208,7 +241,8 @@ export function useLogs() {
 
   return {
     logs, allLogs, myLogs, isLoading, refresh,
-    workoutDates, athleteDates, exerciseHistory, personalRecords, uniqueExercises,
+    workoutDates, athleteDates, exerciseHistory, exerciseHistoryByAthlete,
+    personalRecords, uniqueExercises, lastLoggedProgram,
     athletes, isShared, selectedAthlete, setSelectedAthlete,
     leaderboard, athleteStats,
   }
