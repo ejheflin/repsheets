@@ -89,11 +89,11 @@ export function LeaderboardChart({ allLogs, athletes }: LeaderboardChartProps) {
             tick={{ fill: '#ccc', fontSize: 11 }} axisLine={false} tickLine={false} />
           <Tooltip
             contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #3a3a5a', borderRadius: 8, fontSize: 12 }}
-            formatter={(value: number) => [formatValue(value), metric === 'workouts' ? 'Workouts' : metric === 'volume' ? 'Volume' : 'Max Weight']}
+            formatter={(value) => [formatValue(Number(value)), metric === 'workouts' ? 'Workouts' : metric === 'volume' ? 'Volume' : 'Max Weight']}
             cursor={{ fill: 'transparent', stroke: '#6c63ff', strokeDasharray: '4 2', strokeWidth: 1 }}
           />
           <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={24}
-            label={{ position: 'right', fill: '#888', fontSize: 10, formatter: formatValue }}>
+            label={{ position: 'right', fill: '#888', fontSize: 10, formatter: (v: unknown) => formatValue(Number(v)) }}>
             {data.map((entry, i) => (
               <Cell key={i} fill={entry.color} />
             ))}
