@@ -224,12 +224,10 @@ export function OnboardingTour() {
             </div>
             <div className="flex gap-2">
               <button onClick={dismiss} className="text-gray-500 text-[11px]">Skip</button>
-              {current.action === 'auto' && (
-                <button onClick={next}
-                  className="bg-[#6c63ff] rounded-md px-3 py-1 text-[11px] font-semibold">
-                  {step === STEPS.length - 1 ? 'Done' : 'Next'}
-                </button>
-              )}
+              <button onClick={next}
+                className="bg-[#6c63ff] rounded-md px-3 py-1 text-[11px] font-semibold">
+                {step === STEPS.length - 1 ? 'Done' : 'Next'}
+              </button>
             </div>
           </div>
         </div>
