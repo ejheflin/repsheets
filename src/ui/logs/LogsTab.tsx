@@ -4,9 +4,15 @@ import { useRoutines } from '../../data/useRoutines'
 import { CalendarView } from './CalendarView'
 import { ExerciseProgressChart } from './ExerciseProgressChart'
 import { PersonalRecords } from './PersonalRecords'
+import { AthleteFilter } from './AthleteFilter'
+import { Leaderboard } from './Leaderboard'
 
 export function LogsTab() {
-  const { isLoading, workoutDates, exerciseHistory, personalRecords, uniqueExercises } = useLogs()
+  const {
+    isLoading, workoutDates, exerciseHistory, personalRecords, uniqueExercises,
+    athletes, isShared, selectedAthlete, setSelectedAthlete,
+    leaderboard, athleteStats,
+  } = useLogs()
   const { allRows } = useRoutines(null)
 
   const allRoutines = useMemo(() => {
@@ -34,10 +40,18 @@ export function LogsTab() {
   return (
     <div>
       <h1 className="text-[20px] font-bold mb-3">Logs</h1>
+
+      {isShared && (
+        <div className="mb-3">
+          <AthleteFilter athletes={athletes} selected={selectedAthlete} onSelect={setSelectedAthlete} />
+        </div>
+      )}
+
       <div className="space-y-3">
         <CalendarView workoutDates={workoutDates} allRoutines={allRoutines} />
         <ExerciseProgressChart exerciseHistory={exerciseHistory} uniqueExercises={uniqueExercises} programs={programs} programExercises={programExercises} />
         <PersonalRecords records={personalRecords} />
+        {isShared && <Leaderboard leaderboard={leaderboard} athleteStats={athleteStats} />}
       </div>
     </div>
   )

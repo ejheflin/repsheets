@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { BottomNav, type TabId } from './BottomNav'
 import { SyncIndicator, type SyncStatus } from './SyncIndicator'
 
@@ -14,7 +14,21 @@ export function Layout({ children }: LayoutProps) {
     sessionStorage.setItem('repsheets_tab', tab)
     setActiveTabState(tab)
   }
-  const [syncStatus] = useState<SyncStatus>('synced')
+
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>(
+    navigator.onLine ? 'synced' : 'offline'
+  )
+
+  useEffect(() => {
+    const goOnline = () => setSyncStatus('synced')
+    const goOffline = () => setSyncStatus('offline')
+    window.addEventListener('online', goOnline)
+    window.addEventListener('offline', goOffline)
+    return () => {
+      window.removeEventListener('online', goOnline)
+      window.removeEventListener('offline', goOffline)
+    }
+  }, [])
 
   return (
     <div className="min-h-screen bg-[#1a1a2e] text-white font-sans">
@@ -24,10 +38,12 @@ export function Layout({ children }: LayoutProps) {
           <SyncIndicator status={syncStatus} />
         </div>
       </div>
-      <div className="pt-8 pb-20 px-4">
+      <div className="pt-8 pb-20 px-4 max-w-lg mx-auto">
         {children(activeTab, setActiveTab)}
       </div>
-      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <div className="max-w-lg mx-auto">
+        <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      </div>
     </div>
   )
 }
