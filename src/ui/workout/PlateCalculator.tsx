@@ -117,10 +117,12 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
   const collarHeight = 16
   const handleHeight = 6
   const collarWidth = 4
-  const sleeveRight = 6
+  const sleeveNub = 4
+  const sleeveMinWidth = 40
 
   const totalPlatesWidth = plates.length * (plateWidth + plateGap)
-  const svgWidth = handleLength + collarWidth + totalPlatesWidth + sleeveRight
+  const sleeveWidth = Math.max(sleeveMinWidth, totalPlatesWidth + sleeveNub)
+  const svgWidth = handleLength + collarWidth + sleeveWidth
   const maxPlateH = Math.max(...plates.map((p) => plateHeight(p, unit)))
   const svgHeight = maxPlateH + 4
 
@@ -176,7 +178,7 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
           {/* Sleeve (filled like collar) */}
           <rect
             x={handleLength + collarWidth} y={centerY - sleeveHeight / 2}
-            width={totalPlatesWidth + sleeveRight} height={sleeveHeight}
+            width={sleeveWidth} height={sleeveHeight}
             rx={1}
             fill={stroke} fillOpacity={0.15} stroke={stroke} strokeWidth={0.75}
           />
