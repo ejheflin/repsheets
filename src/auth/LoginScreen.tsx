@@ -1,49 +1,20 @@
 import { useAuth } from './useAuth'
 import { useState, useEffect } from 'react'
 
-const TAGLINES = [
-  'Free. Open source. Serverless.',
-  'Your data stays in your own Google Sheet.',
-  null, // shared with: rotation
-  'Check off sets. Track progress.',
-]
-
 const SHARED_WITH = ['no one', 'friends', 'clients', 'everyone']
 
-function RotatingTagline() {
-  const [index, setIndex] = useState(0)
-  const [visible, setVisible] = useState(true)
+const BULLETS = [
+  { type: 'text' as const, text: 'Private workout tracker' },
+  { type: 'text' as const, text: 'Free. Open source. Serverless.' },
+  { type: 'text' as const, text: 'Your data stays in your own Google Sheet.' },
+  { type: 'shared' as const, text: '' },
+]
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setVisible(false)
-      setTimeout(() => {
-        setIndex((i) => (i + 1) % TAGLINES.length)
-        setVisible(true)
-      }, 400)
-    }, 3000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const tagline = TAGLINES[index]
-
-  if (tagline === null) {
-    return <SharedWithRotation visible={visible} />
-  }
-
-  return (
-    <p className={`text-gray-400 text-center text-sm h-6 transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-0'}`}>
-      {tagline}
-    </p>
-  )
-}
-
-function SharedWithRotation({ visible }: { visible: boolean }) {
+function SharedWithLine() {
   const [wordIndex, setWordIndex] = useState(0)
   const [wordVisible, setWordVisible] = useState(true)
 
   useEffect(() => {
-    if (!visible) return
     const interval = setInterval(() => {
       setWordVisible(false)
       setTimeout(() => {
@@ -52,15 +23,40 @@ function SharedWithRotation({ visible }: { visible: boolean }) {
       }, 300)
     }, 800)
     return () => clearInterval(interval)
-  }, [visible])
+  }, [])
 
   return (
-    <p className={`text-gray-400 text-center text-sm h-6 transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-0'}`}>
+    <>
       Shared with:{' '}
       <span className={`text-[#6c63ff] font-semibold transition-opacity duration-200 ${wordVisible ? 'opacity-100' : 'opacity-0'}`}>
         {SHARED_WITH[wordIndex]}
       </span>
-    </p>
+    </>
+  )
+}
+
+function StaggeredBullets() {
+  const [visibleCount, setVisibleCount] = useState(0)
+
+  useEffect(() => {
+    if (visibleCount >= BULLETS.length) return
+    const timer = setTimeout(() => {
+      setVisibleCount((c) => c + 1)
+    }, 800)
+    return () => clearTimeout(timer)
+  }, [visibleCount])
+
+  return (
+    <div className="space-y-2">
+      {BULLETS.map((bullet, i) => (
+        <div key={i}
+          className={`text-gray-400 text-sm text-center transition-all duration-500 ${
+            i < visibleCount ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+          }`}>
+          {bullet.type === 'shared' ? <SharedWithLine /> : bullet.text}
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -68,8 +64,8 @@ export function LoginScreen() {
   const { login } = useAuth()
   return (
     <div className="min-h-screen bg-[#1a1a2e] flex flex-col items-center justify-center px-6 relative">
-      <h1 className="text-4xl font-bold text-white mb-3">repsheets</h1>
-      <RotatingTagline />
+      <h1 className="text-4xl font-bold text-white mb-6">repsheets</h1>
+      <StaggeredBullets />
       <div className="mt-10">
         <button onClick={login}
           className="bg-white text-gray-800 font-semibold px-6 py-3 rounded-lg flex items-center gap-3 hover:bg-gray-100 transition">
