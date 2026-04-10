@@ -103,7 +103,7 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
     }
   }, [])
 
-  if (!weight || !isWeightUnit(unit)) return null
+  if (!weight || isNaN(weight) || !isWeightUnit(unit)) return null
 
   const plates = getPlates(weight, unit, settings.availablePlates)
   if (plates.length === 0) return null
@@ -139,33 +139,31 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
         <svg width={svgWidth} height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           className="block" style={{ opacity: hidden ? 0 : 1, transition: 'opacity 0.3s' }}>
           <defs>
-            <pattern id={`knurl-${uid}`} width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-              <line x1="0" y1="0" x2="0" y2="3" stroke={stroke} strokeWidth="0.5" strokeOpacity="0.4" />
-            </pattern>
-            <pattern id={`knurl2-${uid}`} width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
-              <line x1="0" y1="0" x2="0" y2="3" stroke={stroke} strokeWidth="0.5" strokeOpacity="0.4" />
-            </pattern>
+            <clipPath id={`hc-${uid}`}>
+              <rect x={0} y={centerY - handleHeight / 2} width={handleLength} height={handleHeight} rx={1.5} />
+            </clipPath>
           </defs>
 
-          {/* Handle (knurled, thinner) */}
+          {/* Handle outline */}
           <rect
             x={0} y={centerY - handleHeight / 2}
             width={handleLength} height={handleHeight}
             rx={1.5}
             fill="none" stroke={stroke} strokeWidth={0.75}
           />
-          <rect
-            x={0} y={centerY - handleHeight / 2}
-            width={handleLength} height={handleHeight}
-            rx={1.5}
-            fill={`url(#knurl-${uid})`}
-          />
-          <rect
-            x={0} y={centerY - handleHeight / 2}
-            width={handleLength} height={handleHeight}
-            rx={1.5}
-            fill={`url(#knurl2-${uid})`}
-          />
+          {/* Knurling — crosshatch lines clipped to handle */}
+          <g clipPath={`url(#hc-${uid})`} opacity={0.4}>
+            {Array.from({ length: 10 }, (_, i) => {
+              const x = i * 2.5 - 4
+              const hh = handleHeight
+              return (
+                <g key={i}>
+                  <line x1={x} y1={centerY + hh} x2={x + hh * 2} y2={centerY - hh} stroke={stroke} strokeWidth={0.5} />
+                  <line x1={x} y1={centerY - hh} x2={x + hh * 2} y2={centerY + hh} stroke={stroke} strokeWidth={0.5} />
+                </g>
+              )
+            })}
+          </g>
 
           {/* Collar (solid fill) */}
           <rect
