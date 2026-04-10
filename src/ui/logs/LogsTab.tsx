@@ -9,6 +9,8 @@ import { PersonalRecords } from './PersonalRecords'
 import { AthleteFilter } from './AthleteFilter'
 import { LeaderboardChart } from './LeaderboardChart'
 import { LogsSettingsModal, loadPaneConfig, type LogsPaneConfig } from './LogsSettingsModal'
+import { flushSync } from '../../data/syncEngine'
+import { useSheetContext } from '../../data/useSheetContext'
 
 function SettingsIcon() {
   return (
@@ -32,6 +34,7 @@ export function LogsTab() {
   } = useLogs()
   const { allRows } = useRoutines(null)
   const { login } = useAuth()
+  const { spreadsheetId } = useSheetContext()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [panes, setPanes] = useState<LogsPaneConfig[]>(loadPaneConfig)
@@ -58,6 +61,8 @@ export function LogsTab() {
     setIsRefreshing(true)
     try {
       await refresh()
+      // Also flush any pending sync
+      if (spreadsheetId) flushSync(spreadsheetId)
     } catch (e) {
       if (e instanceof AuthExpiredError) {
         login()
