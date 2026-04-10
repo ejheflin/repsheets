@@ -29,7 +29,7 @@ function ShareIcon() {
 }
 
 export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
-  const { user, logout } = useAuth()
+  const { user, login, logout } = useAuth()
   const { spreadsheetId, setSpreadsheetId } = useSheetContext()
   const [sheets, setSheets] = useState<RepSheet[]>([])
   const [isLoading, setIsLoading] = useState(true)
