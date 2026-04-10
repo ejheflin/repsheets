@@ -14,6 +14,12 @@ interface CalendarViewProps {
 
 export function CalendarView({ workoutDates, athleteDates, allRoutines, allAthletes = [] }: CalendarViewProps) {
   const [currentMonth, setCurrentMonth] = useState(() => {
+    // Default to the month of the latest workout, or current month
+    const dates = [...workoutDates.keys()].sort()
+    if (dates.length > 0) {
+      const latest = new Date(dates[dates.length - 1])
+      return { year: latest.getFullYear(), month: latest.getMonth() }
+    }
     const now = new Date()
     return { year: now.getFullYear(), month: now.getMonth() }
   })

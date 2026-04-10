@@ -176,7 +176,7 @@ export function ExerciseProgressChart({
                 {series.map((s, i) => (
                   <Line key={s} type="monotone" dataKey={s} stroke={CHART_COLORS[i % CHART_COLORS.length]}
                     strokeWidth={2} dot={{ r: 3, fill: CHART_COLORS[i % CHART_COLORS.length] }}
-                    connectNulls={false} />
+                    connectNulls={true} />
                 ))}
               </LineChart>
             )}
