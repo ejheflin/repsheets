@@ -27,7 +27,7 @@ export function SetRow({
         <input type="text" inputMode="numeric" value={reps ?? ''}
           onChange={(e) => onRepsChange(e.target.value ? Number(e.target.value) : null)}
           onFocus={(e) => e.target.select()}
-          className={`w-10 bg-[#1a1a2e] rounded text-center text-sm font-semibold py-1 outline-none [appearance:textfield] ${repsFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
+          className={`w-12 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${repsFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
           placeholder="—" />
         <button
           onClick={() => onRepsChange((reps ?? 0) + 1)}
@@ -38,7 +38,7 @@ export function SetRow({
         <input type="text" inputMode="decimal" value={value ?? ''}
           onChange={(e) => onValueChange(e.target.value ? Number(e.target.value) : null)}
           onFocus={(e) => e.target.select()}
-          className={`w-16 bg-[#1a1a2e] rounded text-center text-sm font-semibold py-1 outline-none [appearance:textfield] ${valueFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
+          className={`w-16 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
           placeholder="—" />
       </div>
       <div className="w-7 text-center">
