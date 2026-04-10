@@ -110,9 +110,6 @@ export function PlateCalculator({ weight, unit }: PlateCalculatorProps) {
         const h = plateHeight(plate, unit)
         const x = platesStartX + i * (plateWidth + plateGap)
         const y = centerY - h / 2
-        const label = plate % 1 === 0 ? String(plate) : plate.toFixed(1)
-        const fontSize = plate < 10 ? 5 : 5.5
-
         return (
           <rect key={i}
             x={x} y={y}
