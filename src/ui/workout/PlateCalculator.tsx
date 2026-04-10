@@ -65,6 +65,8 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
   const [showSettings, setShowSettings] = useState(false)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const didLongPress = useRef(false)
+  const uidRef = useRef(`pc${++idCounter}`)
+  const uid = uidRef.current
 
   useEffect(() => {
     setHidden(getHiddenExercises().has(exercise))
@@ -125,8 +127,6 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
   const centerY = svgHeight / 2
   const stroke = '#6c63ff'
   const platesStartX = handleLength + collarWidth
-  const uidRef = useRef(`pc${++idCounter}`)
-  const uid = uidRef.current
 
   return (
     <>
