@@ -26,8 +26,8 @@ function SharedWithLine() {
   }, [])
 
   return (
-    <span className="inline-flex items-center">
-      <span className="ml-3">Share with</span>
+    <span className="inline-flex items-center pl-5">
+      <span>Share with</span>
       <span className={`inline-block w-20 text-left ml-1.5 text-[#6c63ff] font-semibold transition-opacity duration-200 ${wordVisible ? 'opacity-100' : 'opacity-0'}`}>
         {SHARED_WITH[wordIndex]}
       </span>
