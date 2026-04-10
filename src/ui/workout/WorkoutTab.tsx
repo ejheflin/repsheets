@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { ExerciseRow } from './ExerciseRow'
 import { SupersetGroup } from './SupersetGroup'
 import { FinishWorkoutSheet } from './FinishWorkoutSheet'
+import { RoutineUpdatePrompt } from './RoutineUpdatePrompt'
 import { useWorkout } from '../../data/useWorkout'
+import type { WorkoutExercise } from '../../types'
 
 interface WorkoutTabProps {
   onGoToRoutines: () => void
@@ -16,6 +18,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const [showFinish, setShowFinish] = useState(false)
   const [showDiscard, setShowDiscard] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [routineUpdateExercises, setRoutineUpdateExercises] = useState<WorkoutExercise[] | null>(null)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20)
@@ -34,9 +37,17 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
 
   const allChecked = workout.exercises.every((ex) => ex.sets.every((s) => s.completed))
 
+  const doFinish = async (logOnlyCompleted: boolean) => {
+    const result = await finishWorkout(logOnlyCompleted)
+    setShowFinish(false)
+    if (result && result.exercisesWithAddedSets.length > 0) {
+      setRoutineUpdateExercises(result.exercisesWithAddedSets)
+    }
+  }
+
   const handleFinish = () => {
     if (allChecked) {
-      finishWorkout(false)
+      doFinish(false)
     } else {
       setShowFinish(true)
     }
@@ -99,9 +110,16 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
       {showFinish && (
         <FinishWorkoutSheet
           uncheckedCount={workout.exercises.filter((ex) => !ex.sets.every((s) => s.completed)).length}
-          onLogCompleted={() => { finishWorkout(true); setShowFinish(false) }}
-          onCompleteAll={() => { finishWorkout(false); setShowFinish(false) }}
+          onLogCompleted={() => doFinish(true)}
+          onCompleteAll={() => doFinish(false)}
           onCancel={() => setShowFinish(false)} />
+      )}
+
+      {routineUpdateExercises && (
+        <RoutineUpdatePrompt
+          exercises={routineUpdateExercises}
+          onUpdate={() => setRoutineUpdateExercises(null)}
+          onDismiss={() => setRoutineUpdateExercises(null)} />
       )}
 
       {showDiscard && (

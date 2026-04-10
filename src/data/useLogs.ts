@@ -8,6 +8,7 @@ import type { LogEntry } from '../types'
 export interface ExerciseHistoryPoint {
   date: string
   maxWeight: number
+  athlete?: string
 }
 
 export interface PersonalRecord {
@@ -17,11 +18,19 @@ export interface PersonalRecord {
   maxVolume: { value: number; date: string } | null
 }
 
+export interface AthleteStats {
+  name: string
+  workoutsPerWeek: number
+  totalWorkouts: number
+  currentStreak: number
+}
+
 export function useLogs() {
   const { user } = useAuth()
   const { spreadsheetId } = useSheetContext()
   const [allLogs, setAllLogs] = useState<LogEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedAthlete, setSelectedAthlete] = useState<string | null>(null) // null = me
 
   const refresh = useCallback(async () => {
     if (!spreadsheetId) return
@@ -56,11 +65,26 @@ export function useLogs() {
     return `${parts[0]} ${parts[parts.length - 1][0]}`
   }, [user])
 
-  const logs = useMemo(() => {
+  // All distinct athletes in the log
+  const athletes = useMemo(() => {
+    return [...new Set(allLogs.map((l) => l.athlete))].filter(Boolean)
+  }, [allLogs])
+
+  // Is this a shared sheet? (more than one athlete)
+  const isShared = useMemo(() => athletes.length > 1, [athletes])
+
+  // My logs only (for autofill, personal use)
+  const myLogs = useMemo(() => {
     if (!user) return allLogs
-    // Match by formatted name or email (backwards compat with old entries)
     return allLogs.filter((l) => l.athlete === athleteName || l.athlete === user.email)
   }, [allLogs, user, athleteName])
+
+  // Filtered logs based on selected athlete
+  const logs = useMemo(() => {
+    if (selectedAthlete === null) return myLogs
+    if (selectedAthlete === '__all__') return allLogs
+    return allLogs.filter((l) => l.athlete === selectedAthlete)
+  }, [allLogs, myLogs, selectedAthlete])
 
   const workoutDates = useMemo(() => {
     const map = new Map<string, string[]>()
@@ -70,22 +94,6 @@ export function useLogs() {
       if (!routines.includes(log.routine)) routines.push(log.routine)
     }
     return map
-  }, [logs])
-
-  const routineFrequency = useCallback((weeks: number) => {
-    const cutoff = new Date()
-    cutoff.setDate(cutoff.getDate() - weeks * 7)
-    const cutoffStr = cutoff.toISOString().split('T')[0]
-    const freq = new Map<string, number>()
-    const seen = new Set<string>()
-    for (const log of logs) {
-      if (log.date < cutoffStr) continue
-      const key = `${log.date}|${log.routine}`
-      if (seen.has(key)) continue
-      seen.add(key)
-      freq.set(log.routine, (freq.get(log.routine) ?? 0) + 1)
-    }
-    return freq
   }, [logs])
 
   const exerciseHistory = useCallback((exerciseName: string, limit: number = 10): ExerciseHistoryPoint[] => {
@@ -129,8 +137,74 @@ export function useLogs() {
     return [...new Set(logs.map((l) => l.exercise))]
   }, [logs])
 
+  // Leaderboard: per-exercise max weight across all athletes
+  const leaderboard = useMemo(() => {
+    if (!isShared) return []
+    const board = new Map<string, Map<string, number>>() // exercise -> athlete -> maxWeight
+    for (const log of allLogs) {
+      if (log.value === null) continue
+      if (!board.has(log.exercise)) board.set(log.exercise, new Map())
+      const exerciseBoard = board.get(log.exercise)!
+      const current = exerciseBoard.get(log.athlete) ?? 0
+      if (log.value > current) exerciseBoard.set(log.athlete, log.value)
+    }
+    return Array.from(board.entries()).map(([exercise, athletes]) => ({
+      exercise,
+      rankings: Array.from(athletes.entries())
+        .map(([athlete, maxWeight]) => ({ athlete, maxWeight }))
+        .sort((a, b) => b.maxWeight - a.maxWeight),
+    }))
+  }, [allLogs, isShared])
+
+  // Athlete stats for shared sheets
+  const athleteStats = useMemo((): AthleteStats[] => {
+    if (!isShared) return []
+    const stats = new Map<string, { dates: Set<string>; sortedDates: string[] }>()
+    for (const log of allLogs) {
+      if (!stats.has(log.athlete)) stats.set(log.athlete, { dates: new Set(), sortedDates: [] })
+      const s = stats.get(log.athlete)!
+      if (!s.dates.has(log.date)) {
+        s.dates.add(log.date)
+        s.sortedDates.push(log.date)
+      }
+    }
+    const now = new Date()
+    const fourWeeksAgo = new Date(now)
+    fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28)
+    const cutoff = fourWeeksAgo.toISOString().split('T')[0]
+
+    return Array.from(stats.entries()).map(([name, { dates, sortedDates }]) => {
+      const recentDates = [...dates].filter((d) => d >= cutoff)
+      const workoutsPerWeek = Math.round(recentDates.length / 4 * 10) / 10
+
+      // Calculate streak
+      let streak = 0
+      const sorted = sortedDates.sort((a, b) => b.localeCompare(a))
+      const today = now.toISOString().split('T')[0]
+      let checkDate = today
+      for (const d of sorted) {
+        if (d === checkDate || d === getPrevDay(checkDate)) {
+          streak++
+          checkDate = d
+        } else if (d < checkDate) {
+          break
+        }
+      }
+
+      return { name, workoutsPerWeek, totalWorkouts: dates.size, currentStreak: streak }
+    }).sort((a, b) => b.workoutsPerWeek - a.workoutsPerWeek)
+  }, [allLogs, isShared])
+
   return {
-    logs, isLoading, refresh, workoutDates, routineFrequency,
-    exerciseHistory, personalRecords, uniqueExercises,
+    logs, allLogs, myLogs, isLoading, refresh,
+    workoutDates, exerciseHistory, personalRecords, uniqueExercises,
+    athletes, isShared, selectedAthlete, setSelectedAthlete,
+    leaderboard, athleteStats,
   }
+}
+
+function getPrevDay(dateStr: string): string {
+  const d = new Date(dateStr)
+  d.setDate(d.getDate() - 1)
+  return d.toISOString().split('T')[0]
 }
