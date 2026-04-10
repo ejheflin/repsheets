@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react'
+
 const LBS_PLATES = [45, 35, 25, 10, 5, 2.5]
 const KG_PLATES = [25, 20, 15, 10, 5, 2.5, 1.25]
 const BAR_WEIGHT_LBS = 45
@@ -22,9 +24,23 @@ const PLATE_COLORS_KG: Record<number, string> = {
   1.25: 'rgba(168,162,158,0.2)',
 }
 
+const HIDDEN_KEY = 'repsheets_plate_hidden'
+
+function getHiddenExercises(): Set<string> {
+  try {
+    const stored = localStorage.getItem(HIDDEN_KEY)
+    return stored ? new Set(JSON.parse(stored)) : new Set()
+  } catch { return new Set() }
+}
+
+function setHiddenExercises(set: Set<string>) {
+  localStorage.setItem(HIDDEN_KEY, JSON.stringify([...set]))
+}
+
 interface PlateCalculatorProps {
   weight: number
   unit: string
+  exercise: string
 }
 
 function getPlates(weight: number, unit: string): number[] {
@@ -64,11 +80,28 @@ function getPlateColor(weight: number, unit: string): string {
   return colors[weight] ?? 'rgba(108,99,255,0.2)'
 }
 
-export function PlateCalculator({ weight, unit }: PlateCalculatorProps) {
+export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps) {
+  const [hidden, setHidden] = useState(() => getHiddenExercises().has(exercise))
+
+  useEffect(() => {
+    setHidden(getHiddenExercises().has(exercise))
+  }, [exercise])
+
   if (!weight || !isWeightUnit(unit)) return null
 
   const plates = getPlates(weight, unit)
   if (plates.length === 0) return null
+
+  const toggle = () => {
+    const set = getHiddenExercises()
+    if (hidden) {
+      set.delete(exercise)
+    } else {
+      set.add(exercise)
+    }
+    setHiddenExercises(set)
+    setHidden(!hidden)
+  }
 
   const plateWidth = 8
   const plateGap = 1
@@ -87,59 +120,70 @@ export function PlateCalculator({ weight, unit }: PlateCalculatorProps) {
   const stroke = '#6c63ff'
   const platesStartX = handleLength + collarWidth
 
-  // Knurling marks on the handle
-  const knurlSpacing = 2.5
-  const knurlCount = Math.floor((handleLength - 4) / knurlSpacing)
-
   return (
-    <svg width={svgWidth} height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="block">
-      {/* Handle (thin bar with knurling) */}
-      <line
-        x1={0} y1={centerY}
-        x2={handleLength} y2={centerY}
-        stroke={stroke} strokeWidth={handleHeight} strokeLinecap="round"
-      />
-      {/* Knurling marks */}
-      {Array.from({ length: knurlCount }, (_, i) => {
-        const x = 2 + i * knurlSpacing
-        return (
-          <line key={`k${i}`}
-            x1={x} y1={centerY - handleHeight / 2 - 0.5}
-            x2={x} y2={centerY + handleHeight / 2 + 0.5}
-            stroke={stroke} strokeWidth={0.4} strokeOpacity={0.5}
-          />
-        )
-      })}
+    <button onClick={toggle} className="flex-shrink-0">
+      <svg width={svgWidth} height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+        className="block" style={{ opacity: hidden ? 0.15 : 1, transition: 'opacity 0.3s' }}>
+        <defs>
+          <pattern id="knurl" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="3" stroke={stroke} strokeWidth="0.5" strokeOpacity="0.4" />
+          </pattern>
+          <pattern id="knurl2" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+            <line x1="0" y1="0" x2="0" y2="3" stroke={stroke} strokeWidth="0.5" strokeOpacity="0.4" />
+          </pattern>
+        </defs>
 
-      {/* Collar */}
-      <rect
-        x={handleLength} y={centerY - 5}
-        width={collarWidth} height={10}
-        rx={1}
-        fill={stroke} fillOpacity={0.15} stroke={stroke} strokeWidth={0.75}
-      />
+        {/* Handle outline */}
+        <rect
+          x={0} y={centerY - handleHeight}
+          width={handleLength} height={handleHeight * 2}
+          rx={1.5}
+          fill="none" stroke={stroke} strokeWidth={0.75}
+        />
+        {/* Knurling crosshatch fill */}
+        <rect
+          x={0} y={centerY - handleHeight}
+          width={handleLength} height={handleHeight * 2}
+          rx={1.5}
+          fill="url(#knurl)"
+        />
+        <rect
+          x={0} y={centerY - handleHeight}
+          width={handleLength} height={handleHeight * 2}
+          rx={1.5}
+          fill="url(#knurl2)"
+        />
 
-      {/* Sleeve (thicker bar through and past plates) */}
-      <line
-        x1={handleLength + collarWidth} y1={centerY}
-        x2={svgWidth} y2={centerY}
-        stroke={stroke} strokeWidth={sleeveHeight} strokeLinecap="round"
-      />
+        {/* Collar */}
+        <rect
+          x={handleLength} y={centerY - 5}
+          width={collarWidth} height={10}
+          rx={1}
+          fill={stroke} fillOpacity={0.15} stroke={stroke} strokeWidth={0.75}
+        />
 
-      {/* Plates */}
-      {plates.map((plate, i) => {
-        const h = plateHeight(plate, unit)
-        const x = platesStartX + i * (plateWidth + plateGap)
-        const y = centerY - h / 2
-        return (
-          <rect key={i}
-            x={x} y={y}
-            width={plateWidth} height={h}
-            rx={1.5}
-            fill={getPlateColor(plate, unit)} stroke={stroke} strokeWidth={0.75}
-          />
-        )
-      })}
-    </svg>
+        {/* Sleeve (thicker bar through and past plates) */}
+        <line
+          x1={handleLength + collarWidth} y1={centerY}
+          x2={svgWidth} y2={centerY}
+          stroke={stroke} strokeWidth={sleeveHeight} strokeLinecap="round"
+        />
+
+        {/* Plates */}
+        {plates.map((plate, i) => {
+          const h = plateHeight(plate, unit)
+          const x = platesStartX + i * (plateWidth + plateGap)
+          const y = centerY - h / 2
+          return (
+            <rect key={i}
+              x={x} y={y}
+              width={plateWidth} height={h}
+              rx={1.5}
+              fill={getPlateColor(plate, unit)} stroke={stroke} strokeWidth={0.75}
+            />
+          )
+        })}
+      </svg>
+    </button>
   )
 }
