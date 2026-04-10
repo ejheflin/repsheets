@@ -8,10 +8,11 @@ import { ExerciseProgressChart } from './ExerciseProgressChart'
 import { PersonalRecords } from './PersonalRecords'
 import { AthleteFilter } from './AthleteFilter'
 import { Leaderboard } from './Leaderboard'
+import { LeaderboardChart } from './LeaderboardChart'
 
 export function LogsTab() {
   const {
-    isLoading, refresh, workoutDates, athleteDates,
+    isLoading, refresh, allLogs, workoutDates, athleteDates,
     exerciseHistory, exerciseHistoryByAthlete, personalRecords,
     uniqueExercises, lastLoggedProgram,
     athletes, isShared, selectedAthlete, setSelectedAthlete,
@@ -88,6 +89,7 @@ export function LogsTab() {
           showAllAthletes={selectedAthlete === '__all__'}
         />
         <PersonalRecords records={personalRecords} />
+        {isShared && <LeaderboardChart allLogs={allLogs} athletes={athletes} />}
         {isShared && <Leaderboard leaderboard={leaderboard} athleteStats={athleteStats} />}
       </div>
     </div>
