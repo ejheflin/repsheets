@@ -158,13 +158,13 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
             x={0} y={centerY - handleHeight / 2}
             width={handleLength} height={handleHeight}
             rx={1.5}
-            fill={`url(#knurl-${exercise})`}
+            fill={`url(#knurl-${uid})`}
           />
           <rect
             x={0} y={centerY - handleHeight / 2}
             width={handleLength} height={handleHeight}
             rx={1.5}
-            fill={`url(#knurl2-${exercise})`}
+            fill={`url(#knurl2-${uid})`}
           />
 
           {/* Collar (solid fill) */}
