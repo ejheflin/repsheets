@@ -11,7 +11,7 @@ import { Leaderboard } from './Leaderboard'
 
 export function LogsTab() {
   const {
-    isLoading, refresh, workoutDates, exerciseHistory, personalRecords, uniqueExercises,
+    isLoading, refresh, workoutDates, athleteDates, exerciseHistory, personalRecords, uniqueExercises,
     athletes, isShared, selectedAthlete, setSelectedAthlete,
     leaderboard, athleteStats,
   } = useLogs()
@@ -74,7 +74,7 @@ export function LogsTab() {
       )}
 
       <div className="space-y-3">
-        <CalendarView workoutDates={workoutDates} allRoutines={allRoutines} />
+        <CalendarView workoutDates={workoutDates} athleteDates={athleteDates} allRoutines={allRoutines} allAthletes={athletes} />
         <ExerciseProgressChart exerciseHistory={exerciseHistory} uniqueExercises={uniqueExercises} programs={programs} programExercises={programExercises} />
         <PersonalRecords records={personalRecords} />
         {isShared && <Leaderboard leaderboard={leaderboard} athleteStats={athleteStats} />}
