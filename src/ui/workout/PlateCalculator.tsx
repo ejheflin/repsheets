@@ -109,7 +109,7 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
   const plateWidth = 8
   const plateGap = 1
   const handleLength = 16
-  const collarHeight = 10
+  const collarHeight = 14
   const sleeveHeight = collarHeight
   const handleHeight = Math.round(sleeveHeight * 2 / 3)
   const collarWidth = 4
@@ -133,7 +133,7 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
         className="flex-shrink-0 select-none"
       >
         <svg width={svgWidth} height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-          className="block" style={{ opacity: hidden ? 0.15 : 1, transition: 'opacity 0.3s' }}>
+          className="block" style={{ opacity: hidden ? 0 : 1, transition: 'opacity 0.3s' }}>
           <defs>
             <pattern id={`knurl-${exercise}`} width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <line x1="0" y1="0" x2="0" y2="3" stroke={stroke} strokeWidth="0.5" strokeOpacity="0.4" />

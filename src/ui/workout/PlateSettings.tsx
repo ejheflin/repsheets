@@ -55,7 +55,7 @@ export function loadPlateSettings(): PlateSettingsData {
     if (stored) return JSON.parse(stored)
   } catch {}
   return {
-    availablePlates: [...LBS_PLATE_OPTIONS],
+    availablePlates: LBS_PLATE_OPTIONS.filter((p) => p !== 55),
     colorMap: { ...DEFAULT_LBS_COLORS, ...DEFAULT_KG_COLORS },
   }
 }
@@ -90,7 +90,7 @@ export function PlateSettingsModal({ onClose, onChange }: PlateSettingsModalProp
     setEditingPlate(null)
   }
 
-  const handleSave = () => {
+  const handleClose = () => {
     savePlateSettings(settings)
     onChange(settings)
     onClose()
@@ -99,7 +99,7 @@ export function PlateSettingsModal({ onClose, onChange }: PlateSettingsModalProp
   const allPlates = LBS_PLATE_OPTIONS
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-end z-50" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/60 flex items-end z-50" onClick={handleClose}>
       <div className="w-full bg-[#1a1a2e] rounded-t-2xl p-5 max-h-[80vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}>
         <h2 className="text-base font-bold text-center mb-1">Plate Settings</h2>
@@ -145,14 +145,6 @@ export function PlateSettingsModal({ onClose, onChange }: PlateSettingsModalProp
           })}
         </div>
 
-        <button onClick={handleSave}
-          className="w-full bg-[#6c63ff] rounded-[10px] p-3 text-center font-semibold text-sm mt-4">
-          Save
-        </button>
-        <button onClick={onClose}
-          className="w-full p-3 text-center text-gray-400 font-semibold text-sm mt-1">
-          Cancel
-        </button>
       </div>
     </div>
   )
