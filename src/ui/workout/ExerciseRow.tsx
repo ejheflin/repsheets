@@ -101,7 +101,7 @@ export function ExerciseRow({
             <input type="text" inputMode="numeric" value={summaryReps ?? ''}
               onChange={(e) => onUpdateAllSets('reps', e.target.value ? Number(e.target.value) : null)}
               onFocus={(e) => e.target.select()}
-              className={`w-10 bg-[#1a1a2e] rounded text-center text-sm font-semibold py-1 outline-none [appearance:textfield] ${repsHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
+              className={`w-12 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${repsHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
               placeholder="—" />
             <button
               onClick={() => onUpdateAllSets('reps', (summaryReps ?? 0) + 1)}
@@ -112,7 +112,7 @@ export function ExerciseRow({
             <input type="text" inputMode="decimal" value={summaryValue ?? ''}
               onChange={(e) => onUpdateAllSets('value', e.target.value ? Number(e.target.value) : null)}
               onFocus={(e) => e.target.select()}
-              className={`w-16 bg-[#1a1a2e] rounded text-center text-sm font-semibold py-1 outline-none [appearance:textfield] ${valueHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
+              className={`w-16 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
               placeholder="—" />
           </div>
           <button onClick={() => setShowNotes(!showNotes)} className="w-7 flex items-center justify-center">
