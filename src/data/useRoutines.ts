@@ -3,6 +3,7 @@ import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from './useSheetContext'
 import { fetchRoutineRows } from '../sheets/sheetsApi'
 import { saveRoutines, getRoutines } from './db'
+import { AuthExpiredError } from '../auth/authFetch'
 import type { RoutineRow } from '../types'
 
 const REFRESH_TIMEOUT_MS = 5000
@@ -28,8 +29,10 @@ export function useRoutines(selectedProgram: string | null) {
         await saveRoutines(spreadsheetId, rows)
         setAllRows(rows)
       }
-    } catch {
-      // Timeout or error — fall back to cache
+    } catch (e) {
+      // Let auth errors propagate to trigger re-auth
+      if (e instanceof AuthExpiredError) throw e
+      // Timeout or other error — fall back to cache
       const cached = await getRoutines(spreadsheetId)
       if (cached.length > 0) {
         setAllRows(cached)
@@ -52,7 +55,7 @@ export function useRoutines(selectedProgram: string | null) {
       }
       // Then refresh from API in background
       if (user) {
-        refresh()
+        refresh().catch(() => {}) // silently fall back to cache on mount
       }
     }
     load()
