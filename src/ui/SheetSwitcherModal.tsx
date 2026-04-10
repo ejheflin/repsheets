@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from '../data/useSheetContext'
 import { listRepSheets, renameSheet } from '../sheets/driveApi'
+import { AuthExpiredError } from '../auth/authFetch'
 import { ShareSheetModal } from './sharing/ShareSheetModal'
 import type { RepSheet } from '../types'
 
@@ -41,8 +42,14 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
     listRepSheets().then((s) => {
       setSheets(s)
       setIsLoading(false)
-    }).catch(() => setIsLoading(false))
-  }, [user])
+    }).catch((e) => {
+      if (e instanceof AuthExpiredError) {
+        // Re-auth is safe here since the modal was opened via user tap
+        login()
+      }
+      setIsLoading(false)
+    })
+  }, [user, login])
 
   const handleSelect = (id: string) => {
     if (renamingId) return
