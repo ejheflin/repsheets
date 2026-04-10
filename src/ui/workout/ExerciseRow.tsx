@@ -85,7 +85,7 @@ export function ExerciseRow({
             )}
           </button>
           {summaryValue ? (
-            <div className="flex-shrink-0 flex items-center">
+            <div className="flex-shrink-0 flex items-center mr-4">
               <PlateCalculator weight={summaryValue} unit={unit} />
             </div>
           ) : null}
