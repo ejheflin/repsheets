@@ -3,24 +3,23 @@ const KG_PLATES = [25, 20, 15, 10, 5, 2.5, 1.25]
 const BAR_WEIGHT_LBS = 45
 const BAR_WEIGHT_KG = 20
 
-// Subtle fills that stay within the dark theme — low opacity purple tints
 const PLATE_COLORS_LBS: Record<number, string> = {
-  45: 'rgba(108,99,255,0.35)',   // deep purple
-  35: 'rgba(234,179,8,0.3)',     // amber
-  25: 'rgba(34,197,94,0.3)',     // green
-  10: 'rgba(239,68,68,0.3)',     // red
-  5:  'rgba(6,182,212,0.3)',     // cyan
-  2.5:'rgba(168,162,158,0.25)',  // gray
+  45: 'rgba(108,99,255,0.35)',
+  35: 'rgba(234,179,8,0.3)',
+  25: 'rgba(34,197,94,0.3)',
+  10: 'rgba(239,68,68,0.3)',
+  5:  'rgba(6,182,212,0.3)',
+  2.5:'rgba(168,162,158,0.25)',
 }
 
 const PLATE_COLORS_KG: Record<number, string> = {
-  25:   'rgba(239,68,68,0.3)',     // red
-  20:   'rgba(108,99,255,0.35)',   // blue
-  15:   'rgba(234,179,8,0.3)',     // yellow
-  10:   'rgba(34,197,94,0.3)',     // green
-  5:    'rgba(168,162,158,0.25)',   // white/gray
-  2.5:  'rgba(6,182,212,0.3)',     // cyan
-  1.25: 'rgba(168,162,158,0.2)',   // light gray
+  25:   'rgba(239,68,68,0.3)',
+  20:   'rgba(108,99,255,0.35)',
+  15:   'rgba(234,179,8,0.3)',
+  10:   'rgba(34,197,94,0.3)',
+  5:    'rgba(168,162,158,0.25)',
+  2.5:  'rgba(6,182,212,0.3)',
+  1.25: 'rgba(168,162,158,0.2)',
 }
 
 interface PlateCalculatorProps {
@@ -73,36 +72,58 @@ export function PlateCalculator({ weight, unit }: PlateCalculatorProps) {
 
   const plateWidth = 8
   const plateGap = 1
-  const barExtendLeft = 12   // bar sticking out on the left
-  const barHeight = 4
+  const handleLength = 16
+  const handleHeight = 3
+  const sleeveHeight = 5
   const collarWidth = 4
-  const barExtendRight = 5   // nub past the last plate
+  const sleeveRight = 6
 
   const totalPlatesWidth = plates.length * (plateWidth + plateGap)
-  const svgWidth = barExtendLeft + collarWidth + totalPlatesWidth + barExtendRight
+  const svgWidth = handleLength + collarWidth + totalPlatesWidth + sleeveRight
   const maxPlateH = Math.max(...plates.map((p) => plateHeight(p, unit)))
   const svgHeight = maxPlateH + 4
 
   const centerY = svgHeight / 2
   const stroke = '#6c63ff'
+  const platesStartX = handleLength + collarWidth
 
-  const platesStartX = barExtendLeft + collarWidth
+  // Knurling marks on the handle
+  const knurlSpacing = 2.5
+  const knurlCount = Math.floor((handleLength - 4) / knurlSpacing)
 
   return (
-    <svg width={svgWidth} height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="block mx-auto mb-0.5">
-      {/* Bar — full length */}
+    <svg width={svgWidth} height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="block">
+      {/* Handle (thin bar with knurling) */}
       <line
         x1={0} y1={centerY}
-        x2={svgWidth} y2={centerY}
-        stroke={stroke} strokeWidth={barHeight} strokeLinecap="round"
+        x2={handleLength} y2={centerY}
+        stroke={stroke} strokeWidth={handleHeight} strokeLinecap="round"
       />
+      {/* Knurling marks */}
+      {Array.from({ length: knurlCount }, (_, i) => {
+        const x = 2 + i * knurlSpacing
+        return (
+          <line key={`k${i}`}
+            x1={x} y1={centerY - handleHeight / 2 - 0.5}
+            x2={x} y2={centerY + handleHeight / 2 + 0.5}
+            stroke={stroke} strokeWidth={0.4} strokeOpacity={0.5}
+          />
+        )
+      })}
 
       {/* Collar */}
       <rect
-        x={barExtendLeft} y={centerY - 5}
+        x={handleLength} y={centerY - 5}
         width={collarWidth} height={10}
         rx={1}
         fill={stroke} fillOpacity={0.15} stroke={stroke} strokeWidth={0.75}
+      />
+
+      {/* Sleeve (thicker bar through and past plates) */}
+      <line
+        x1={handleLength + collarWidth} y1={centerY}
+        x2={svgWidth} y2={centerY}
+        stroke={stroke} strokeWidth={sleeveHeight} strokeLinecap="round"
       />
 
       {/* Plates */}
