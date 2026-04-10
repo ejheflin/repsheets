@@ -85,7 +85,7 @@ export function ExerciseRow({
             )}
           </button>
           {summaryValue ? (
-            <div className="flex-shrink-0 flex items-center mr-6">
+            <div className="flex-shrink-0 flex items-center mr-10">
               <PlateCalculator weight={summaryValue} unit={unit} exercise={exercise.exercise} />
             </div>
           ) : null}
@@ -136,7 +136,7 @@ export function ExerciseRow({
         <button onClick={onToggleExpand} className="mr-1.5 flex items-center"><ChevronDown /></button>
         <button onClick={onToggleExpand} className="flex-1 text-left font-bold text-[15px]">{exercise.exercise}</button>
         {summaryValue ? (
-          <div className="flex-shrink-0 flex items-center mr-6">
+          <div className="flex-shrink-0 flex items-center mr-10">
             <PlateCalculator weight={summaryValue} unit={unit} exercise={exercise.exercise} />
           </div>
         ) : null}
