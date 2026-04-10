@@ -11,7 +11,7 @@ import { Leaderboard } from './Leaderboard'
 
 export function LogsTab() {
   const {
-    isLoading, workoutDates, exerciseHistory, personalRecords, uniqueExercises,
+    isLoading, refresh, workoutDates, exerciseHistory, personalRecords, uniqueExercises,
     athletes, isShared, selectedAthlete, setSelectedAthlete,
     leaderboard, athleteStats,
   } = useLogs()
