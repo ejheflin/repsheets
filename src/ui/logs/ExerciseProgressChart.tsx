@@ -30,7 +30,7 @@ export function ExerciseProgressChart({
   const [chartType, setChartType] = useState<'bar' | 'line'>('line')
   const [selectedProgram, setSelectedProgram] = useState<string | null>(null)
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null)
-  const [limit, setLimit] = useState(10)
+  const [limit, setLimit] = useState(50)
 
   // Pre-select last logged program
   useEffect(() => {
