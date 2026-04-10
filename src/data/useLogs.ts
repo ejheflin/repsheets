@@ -96,16 +96,16 @@ export function useLogs() {
     return map
   }, [logs])
 
-  // All athletes' workout dates (for calendar "By Athlete" mode)
+  // Athlete workout dates — respects the athlete filter
   const athleteDates = useMemo(() => {
     const map = new Map<string, string[]>()
-    for (const log of allLogs) {
+    for (const log of logs) {
       if (!map.has(log.date)) map.set(log.date, [])
       const athletes = map.get(log.date)!
       if (!athletes.includes(log.athlete)) athletes.push(log.athlete)
     }
     return map
-  }, [allLogs])
+  }, [logs])
 
   const exerciseHistory = useCallback((exerciseName: string, limit: number = 10): ExerciseHistoryPoint[] => {
     const byDate = new Map<string, number>()
