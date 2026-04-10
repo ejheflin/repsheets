@@ -46,7 +46,7 @@ export async function getRoutines(spreadsheetId: string): Promise<RoutineRow[]> 
 }
 
 export async function saveLogs(spreadsheetId: string, entries: LogEntry[]) {
-  await db.logs.where({ spreadsheetId, synced: 1 }).delete()
+  await db.logs.where({ spreadsheetId }).filter((l) => l.synced).delete()
   await db.logs.bulkAdd(
     entries.map((e) => ({ ...e, spreadsheetId, synced: true }))
   )
@@ -63,7 +63,7 @@ export async function queueLogEntries(spreadsheetId: string, entries: LogEntry[]
 }
 
 export async function getUnsyncedLogs(spreadsheetId: string): Promise<StoredLog[]> {
-  return db.logs.where({ spreadsheetId, synced: 0 }).toArray()
+  return db.logs.where({ spreadsheetId }).filter((l) => !l.synced).toArray()
 }
 
 export async function markLogsSynced(ids: number[]) {

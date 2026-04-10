@@ -3,6 +3,7 @@ import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from '../data/useSheetContext'
 import { listRepSheets, renameSheet } from '../sheets/driveApi'
 import { AuthExpiredError } from '../auth/authFetch'
+import { flushSync } from '../data/syncEngine'
 import { ShareSheetModal } from './sharing/ShareSheetModal'
 import type { RepSheet } from '../types'
 
@@ -42,6 +43,8 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
     listRepSheets().then((s) => {
       setSheets(s)
       setIsLoading(false)
+      // Flush any pending sync after successful auth
+      if (spreadsheetId) flushSync(spreadsheetId)
     }).catch((e) => {
       if (e instanceof AuthExpiredError) {
         // Re-auth is safe here since the modal was opened via user tap
