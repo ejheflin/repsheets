@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from '../data/useSheetContext'
-import { listRepSheets, renameSheet } from '../sheets/driveApi'
+import { listRepSheets, renameSheet, getFolderUrl } from '../sheets/driveApi'
 import { AuthExpiredError } from '../auth/authFetch'
 import { flushSync } from '../data/syncEngine'
 import { ShareSheetModal } from './sharing/ShareSheetModal'
@@ -94,7 +94,18 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
     <div className="fixed inset-0 bg-black/60 flex items-end z-50" onClick={onClose}>
       <div className="w-full bg-[#1a1a2e] rounded-t-2xl p-5 max-h-[70vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-base font-bold text-center mb-1">Switch Sheet</h2>
+        <div className="flex justify-between items-center mb-1">
+          <span />
+          <h2 className="text-base font-bold">Switch Sheet</h2>
+          {getFolderUrl() ? (
+            <a href={getFolderUrl()!} target="_blank" rel="noopener noreferrer"
+              className="text-gray-500 p-1 active:text-[#6c63ff]">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+              </svg>
+            </a>
+          ) : <span />}
+        </div>
         <p className="text-xs text-gray-400 text-center mb-4">Select a repsheets spreadsheet</p>
 
         {isLoading ? (
