@@ -114,21 +114,12 @@ export function PlateCalculator({ weight, unit }: PlateCalculatorProps) {
         const fontSize = plate < 10 ? 5 : 5.5
 
         return (
-          <g key={i}>
-            <rect
-              x={x} y={y}
-              width={plateWidth} height={h}
-              rx={1.5}
-              fill={getPlateColor(plate, unit)} stroke={stroke} strokeWidth={0.75}
-            />
-            <text
-              x={x + plateWidth / 2} y={centerY}
-              textAnchor="middle" dominantBaseline="central"
-              fill={stroke} fontSize={fontSize} fontWeight="600"
-            >
-              {label}
-            </text>
-          </g>
+          <rect key={i}
+            x={x} y={y}
+            width={plateWidth} height={h}
+            rx={1.5}
+            fill={getPlateColor(plate, unit)} stroke={stroke} strokeWidth={0.75}
+          />
         )
       })}
     </svg>
