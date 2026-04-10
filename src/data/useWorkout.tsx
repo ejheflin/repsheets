@@ -5,6 +5,7 @@ import { expandRoutine } from '../workout/setInference'
 import { resolveSetValues } from '../workout/autofill'
 import { fetchRoutineRows, fetchLogEntries, appendLogEntries } from '../sheets/sheetsApi'
 import { saveWorkout, getWorkout, clearWorkout, saveLogs, getLogs, queueLogEntries } from './db'
+import { checkPendingSync } from './syncEngine'
 import type { RoutineRow, WorkoutState, WorkoutExercise, LogEntry } from '../types'
 
 function formatAthleteName(name: string): string {
@@ -285,6 +286,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     } catch {
       await queueLogEntries(spreadsheetId, entries)
     }
+    await checkPendingSync(spreadsheetId)
 
     const exercisesWithAddedSets = workout.exercises.filter((ex) =>
       ex.sets.some((s) => s.isAdded)

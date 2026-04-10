@@ -16,6 +16,7 @@ import { DemoProvider, useDemo } from './demo/DemoProvider'
 import { DemoApp } from './demo/DemoApp'
 import { useState, useEffect } from 'react'
 import { AuthExpiredError } from './auth/authFetch'
+import { initSyncListeners, flushSync } from './data/syncEngine'
 
 function getUrlParam(name: string): string | null {
   return new URLSearchParams(window.location.search).get(name)
@@ -73,6 +74,12 @@ function JoinHandler({ sheetId, onDone }: { sheetId: string; onDone: () => void 
 
 function MainApp() {
   const { spreadsheetId } = useSheetContext()
+
+  // Initialize sync engine — flush pending entries on connectivity change
+  useEffect(() => {
+    initSyncListeners(() => spreadsheetId)
+    if (spreadsheetId) flushSync(spreadsheetId)
+  }, [spreadsheetId])
 
   if (!spreadsheetId) {
     return <SheetSelector />
