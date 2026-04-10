@@ -4,6 +4,8 @@ import { SupersetGroup } from './SupersetGroup'
 import { FinishWorkoutSheet } from './FinishWorkoutSheet'
 import { RoutineUpdatePrompt } from './RoutineUpdatePrompt'
 import { useWorkout } from '../../data/useWorkout'
+import { useSheetContext } from '../../data/useSheetContext'
+import { listRepSheets } from '../../sheets/driveApi'
 import type { WorkoutExercise } from '../../types'
 
 interface WorkoutTabProps {
@@ -15,6 +17,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
     workout, toggleSet, toggleExercise, updateSet, updateAllSets, updateNotes,
     toggleExpanded, addSet, finishWorkout, discardWorkout,
   } = useWorkout()
+  const { spreadsheetId } = useSheetContext()
   const [showFinish, setShowFinish] = useState(false)
   const [showDiscard, setShowDiscard] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -40,8 +43,17 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const doFinish = async (logOnlyCompleted: boolean) => {
     const result = await finishWorkout(logOnlyCompleted)
     setShowFinish(false)
-    if (result && result.exercisesWithAddedSets.length > 0) {
-      setRoutineUpdateExercises(result.exercisesWithAddedSets)
+    if (result && result.exercisesWithAddedSets.length > 0 && spreadsheetId) {
+      // Only prompt to update routine if the user owns the sheet
+      try {
+        const sheets = await listRepSheets()
+        const activeSheet = sheets.find((s) => s.spreadsheetId === spreadsheetId)
+        if (activeSheet?.isOwner) {
+          setRoutineUpdateExercises(result.exercisesWithAddedSets)
+        }
+      } catch {
+        // If we can't check, skip the prompt
+      }
     }
   }
 
