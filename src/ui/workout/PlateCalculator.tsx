@@ -123,6 +123,7 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
   const centerY = svgHeight / 2
   const stroke = '#6c63ff'
   const platesStartX = handleLength + collarWidth
+  const safeId = exercise.replace(/[^a-zA-Z0-9]/g, '_')
 
   return (
     <>
@@ -135,10 +136,10 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
         <svg width={svgWidth} height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           className="block" style={{ opacity: hidden ? 0 : 1, transition: 'opacity 0.3s' }}>
           <defs>
-            <pattern id={`knurl-${exercise}`} width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <pattern id={`knurl-${safeId}`} width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <line x1="0" y1="0" x2="0" y2="3" stroke={stroke} strokeWidth="0.5" strokeOpacity="0.4" />
             </pattern>
-            <pattern id={`knurl2-${exercise}`} width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+            <pattern id={`knurl2-${safeId}`} width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
               <line x1="0" y1="0" x2="0" y2="3" stroke={stroke} strokeWidth="0.5" strokeOpacity="0.4" />
             </pattern>
           </defs>
