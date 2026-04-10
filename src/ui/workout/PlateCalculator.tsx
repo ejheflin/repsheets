@@ -109,9 +109,9 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
   const plateWidth = 8
   const plateGap = 1
   const handleLength = 16
-  const collarHeight = 14
-  const sleeveHeight = collarHeight
-  const handleHeight = Math.round(sleeveHeight * 2 / 3)
+  const sleeveHeight = 10
+  const collarHeight = 16
+  const handleHeight = 6
   const collarWidth = 4
   const sleeveRight = 6
 
