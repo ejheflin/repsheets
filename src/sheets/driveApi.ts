@@ -83,6 +83,66 @@ function sheetTitle(programNames?: string[]): string {
 
 const ROUTINE_HEADERS = ['Program', 'Routine', 'Exercise', 'Sets', 'Reps', 'Value', 'Unit', 'Notes']
 const LOG_HEADERS = ['Date', 'Athlete', 'Program', 'Routine', 'Exercise', 'Set', 'Reps', 'Value', 'Unit', 'Notes']
+const FOLDER_PREF_KEY = 'repsheets_folder_id'
+
+async function getOrCreateFolder(): Promise<string> {
+  // Check if we already have a folder ID stored
+  const stored = localStorage.getItem(FOLDER_PREF_KEY)
+  if (stored) {
+    // Verify it still exists
+    try {
+      const res = await authFetch(`${DRIVE_BASE}/files/${stored}?fields=id,trashed`)
+      if (res.ok) {
+        const data = await res.json()
+        if (!data.trashed) return stored
+      }
+    } catch {}
+  }
+
+  // Search for existing repsheets folder
+  const query = "mimeType='application/vnd.google-apps.folder' and name='repsheets' and trashed=false"
+  const searchRes = await authFetch(`${DRIVE_BASE}/files?q=${encodeURIComponent(query)}&fields=files(id)&pageSize=1`)
+  if (searchRes.ok) {
+    const data = await searchRes.json()
+    if (data.files?.length > 0) {
+      localStorage.setItem(FOLDER_PREF_KEY, data.files[0].id)
+      return data.files[0].id
+    }
+  }
+
+  // Create the folder
+  const createRes = await authFetch(`${DRIVE_BASE}/files`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: 'repsheets',
+      mimeType: 'application/vnd.google-apps.folder',
+    }),
+  })
+  if (!createRes.ok) throw new Error('Failed to create repsheets folder')
+  const folder = await createRes.json()
+  localStorage.setItem(FOLDER_PREF_KEY, folder.id)
+  return folder.id
+}
+
+async function moveToFolder(fileId: string, folderId: string) {
+  try {
+    // Get current parents
+    const getRes = await authFetch(`${DRIVE_BASE}/files/${fileId}?fields=parents`)
+    if (!getRes.ok) return
+    const data = await getRes.json()
+    const prevParents = (data.parents ?? []).join(',')
+    // Move to folder
+    await authFetch(`${DRIVE_BASE}/files/${fileId}?addParents=${folderId}&removeParents=${prevParents}`, {
+      method: 'PATCH',
+    })
+  } catch {}
+}
+
+export function getFolderUrl(): string | null {
+  const id = localStorage.getItem(FOLDER_PREF_KEY)
+  return id ? `https://drive.google.com/drive/folders/${id}` : null
+}
 
 export async function createExampleSheet(programRows: RoutineRow[]): Promise<string> {
   const createRes = await authFetch(SHEETS_BASE, {
@@ -109,6 +169,13 @@ export async function createExampleSheet(programRows: RoutineRow[]): Promise<str
   ]
   await writeRange(spreadsheetId, 'Routines!A1', routineValues)
   await writeRange(spreadsheetId, 'Log!A1', [LOG_HEADERS])
+
+  // Move to repsheets folder
+  try {
+    const folderId = await getOrCreateFolder()
+    await moveToFolder(spreadsheetId, folderId)
+  } catch {}
+
   return spreadsheetId
 }
 
@@ -151,6 +218,12 @@ export async function createSharedTemplate(
     body: JSON.stringify({ role: 'reader', type: 'anyone' }),
   })
 
+  // Move to repsheets folder
+  try {
+    const folderId = await getOrCreateFolder()
+    await moveToFolder(spreadsheetId, folderId)
+  } catch {}
+
   const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`
   return { spreadsheetId, url }
 }
@@ -184,6 +257,13 @@ export async function createCompeteSheet(
   ]
   await writeRange(spreadsheetId, 'Routines!A1', routineValues)
   await writeRange(spreadsheetId, 'Log!A1', [LOG_HEADERS])
+
+  // Move to repsheets folder
+  try {
+    const folderId = await getOrCreateFolder()
+    await moveToFolder(spreadsheetId, folderId)
+  } catch {}
+
   return spreadsheetId
 }
 
