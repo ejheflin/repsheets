@@ -85,8 +85,8 @@ export function ExerciseRow({
             )}
           </button>
           {summaryValue ? (
-            <div className="flex-shrink-0 flex items-center mr-4">
-              <PlateCalculator weight={summaryValue} unit={unit} />
+            <div className="flex-shrink-0 flex items-center mr-6">
+              <PlateCalculator weight={summaryValue} unit={unit} exercise={exercise.exercise} />
             </div>
           ) : null}
           <button data-tour={tourId ? 'exercise-checkbox' : undefined} onClick={onToggleExercise} className="ml-2">
