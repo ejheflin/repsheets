@@ -103,7 +103,7 @@ export function LeaderboardChart({ allLogs, athletes }: LeaderboardChartProps) {
               formatter: (v: unknown) => {
                 const val = Number(v)
                 const label = formatValue(val)
-                return val === topValue && val > 0 ? `${label} 🏆` : label
+                return label
               },
             }}
           />
