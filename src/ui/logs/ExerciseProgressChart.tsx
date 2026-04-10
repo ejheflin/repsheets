@@ -167,7 +167,8 @@ export function ExerciseProgressChart({
             ) : (
               <LineChart data={data} margin={{ top: 10, right: 5, bottom: 0, left: -15 }}>
                 <XAxis dataKey="date" tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false}
+                  domain={[(min: number) => Math.floor(min * 0.9), (max: number) => Math.ceil(max * 1.05)]} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #3a3a5a', borderRadius: 8, fontSize: 12 }}
                   labelStyle={{ color: '#888' }}
