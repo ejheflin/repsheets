@@ -115,11 +115,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
           className="w-12 rounded-[10px] bg-[#2a2a4a] border border-[#3a3a5a] flex items-center justify-center flex-shrink-0 active:opacity-80">
           <SheetIcon />
         </button>
-        {programs.length > 1 ? (
-          <ProgramSelector programs={programs} selected={selectedProgram} onSelect={setSelectedProgram} />
-        ) : (
-          <h1 className="text-[20px] font-bold flex-1">Routines</h1>
-        )}
+        <ProgramSelector programs={programs} selected={selectedProgram} onSelect={setSelectedProgram} />
         <button onClick={handleRefresh} disabled={isRefreshing}
           className={`w-12 rounded-[10px] bg-[#2a2a4a] border border-[#3a3a5a] flex items-center justify-center flex-shrink-0 active:opacity-80 ${isRefreshing ? 'animate-spin' : ''}`}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
