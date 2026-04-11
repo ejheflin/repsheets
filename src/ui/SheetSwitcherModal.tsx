@@ -137,15 +137,58 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
           scope: SCOPES,
           callback: async (response: { access_token: string; error?: string }) => {
             if (response.error) {
-              setAuthFailed(true)
-              setIsLoading(false)
+              // Silent failed — try interactive
+              console.log('Silent auto-refresh failed, trying interactive...')
+              try {
+                const client2 = window.google.accounts.oauth2.initTokenClient({
+                  client_id: GOOGLE_CLIENT_ID,
+                  scope: SCOPES,
+                  callback: async (resp2: { access_token: string; error?: string }) => {
+                    if (resp2.error) {
+                      setAuthFailed(true)
+                      setIsLoading(false)
+                      return
+                    }
+                    await saveTokenAndRetry(resp2.access_token)
+                  },
+                  error_callback: () => {
+                    setAuthFailed(true)
+                    setIsLoading(false)
+                  },
+                })
+                client2.requestAccessToken()
+              } catch {
+                setAuthFailed(true)
+                setIsLoading(false)
+              }
               return
             }
             await saveTokenAndRetry(response.access_token)
           },
           error_callback: () => {
-            setAuthFailed(true)
-            setIsLoading(false)
+            // Silent error — try interactive
+            try {
+              const client2 = window.google.accounts.oauth2.initTokenClient({
+                client_id: GOOGLE_CLIENT_ID,
+                scope: SCOPES,
+                callback: async (resp2: { access_token: string; error?: string }) => {
+                  if (resp2.error) {
+                    setAuthFailed(true)
+                    setIsLoading(false)
+                    return
+                  }
+                  await saveTokenAndRetry(resp2.access_token)
+                },
+                error_callback: () => {
+                  setAuthFailed(true)
+                  setIsLoading(false)
+                },
+              })
+              client2.requestAccessToken()
+            } catch {
+              setAuthFailed(true)
+              setIsLoading(false)
+            }
           },
         })
         client.requestAccessToken({ prompt: '' })
