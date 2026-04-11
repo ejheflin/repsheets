@@ -17,6 +17,7 @@ import { DemoApp } from './demo/DemoApp'
 import { useState, useEffect } from 'react'
 import { AuthExpiredError } from './auth/authFetch'
 import { initSyncListeners, flushSync } from './data/syncEngine'
+import { AuthTest } from './ui/AuthTest'
 
 function getUrlParam(name: string): string | null {
   return new URLSearchParams(window.location.search).get(name)
@@ -110,6 +111,9 @@ function AppContent() {
   const { importSheetId, clearImport } = useImportParam()
   const { joinSheetId, clearJoin } = useJoinParam()
   const { showReAuth, clearReAuth } = useAuthExpiredHandler()
+
+  // Auth test page — accessible at ?test=auth
+  if (getUrlParam('test') === 'auth') return <AuthTest />
 
   if (isLoading) {
     return (
