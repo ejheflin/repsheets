@@ -2,26 +2,6 @@ import { useState } from 'react'
 import { GOOGLE_CLIENT_ID, SCOPES } from '../config'
 import { getStoredUser } from '../auth/googleAuth'
 
-declare global {
-  interface Window {
-    google: {
-      accounts: {
-        oauth2: {
-          initTokenClient: (config: {
-            client_id: string
-            scope: string
-            callback: (response: { access_token: string; error?: string }) => void
-            error_callback?: (error: { type: string; message?: string }) => void
-          }) => {
-            requestAccessToken: (opts?: { prompt?: string }) => void
-          }
-          revoke: (token: string, callback: () => void) => void
-        }
-      }
-    }
-  }
-}
-
 export function AuthTest() {
   const [results, setResults] = useState<string[]>([])
 
@@ -71,7 +51,7 @@ export function AuthTest() {
           }
         },
         error_callback: (error) => {
-          log(`Test 2: FAIL — error_callback: ${error.type} ${error.message ?? ''}`)
+          log(`Test 2: FAIL — error_callback: ${error.type} ${(error as Record<string, unknown>).message ?? ''}`)
         },
       })
       client.requestAccessToken({ prompt: '' })
@@ -101,7 +81,7 @@ export function AuthTest() {
           }
         },
         error_callback: (error) => {
-          log(`Test 3: FAIL — error_callback: ${error.type} ${error.message ?? ''}`)
+          log(`Test 3: FAIL — error_callback: ${error.type} ${(error as Record<string, unknown>).message ?? ''}`)
         },
       })
       client.requestAccessToken()
@@ -131,7 +111,7 @@ export function AuthTest() {
           }
         },
         error_callback: (error) => {
-          log(`Test 4: FAIL — error_callback: ${error.type} ${error.message ?? ''}`)
+          log(`Test 4: FAIL — error_callback: ${error.type} ${(error as Record<string, unknown>).message ?? ''}`)
         },
       })
       client.requestAccessToken({ prompt: 'consent' })
@@ -161,7 +141,7 @@ export function AuthTest() {
           }
         },
         error_callback: (error) => {
-          log(`Test 5: FAIL — error_callback: ${error.type} ${error.message ?? ''}`)
+          log(`Test 5: FAIL — error_callback: ${error.type} ${(error as Record<string, unknown>).message ?? ''}`)
         },
       })
       client.requestAccessToken({ prompt: 'select_account' })
