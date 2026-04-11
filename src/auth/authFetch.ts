@@ -1,4 +1,5 @@
-import { getStoredUser } from './googleAuth'
+import { getStoredUser, silentRefresh } from './googleAuth'
+import { AUTH_WORKER_URL } from '../config'
 
 export class AuthExpiredError extends Error {
   constructor() {
@@ -9,7 +10,8 @@ export class AuthExpiredError extends Error {
 
 /**
  * Fetch wrapper that uses the stored token.
- * Throws AuthExpiredError on 401 so the UI can prompt re-auth.
+ * If worker is configured, auto-refreshes on 401 using the refresh token.
+ * Otherwise throws AuthExpiredError for the UI to handle.
  */
 export async function authFetch(url: string, init?: RequestInit): Promise<Response> {
   const user = getStoredUser()
@@ -19,6 +21,15 @@ export async function authFetch(url: string, init?: RequestInit): Promise<Respon
   headers.set('Authorization', `Bearer ${user.accessToken}`)
 
   const res = await fetch(url, { ...init, headers })
+
+  if (res.status === 401 && AUTH_WORKER_URL) {
+    // Try silent refresh with the worker
+    const refreshed = await silentRefresh()
+    if (refreshed) {
+      headers.set('Authorization', `Bearer ${refreshed.accessToken}`)
+      return fetch(url, { ...init, headers })
+    }
+  }
 
   if (res.status === 401) {
     throw new AuthExpiredError()
