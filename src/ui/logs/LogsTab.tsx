@@ -9,6 +9,7 @@ import { PersonalRecords } from './PersonalRecords'
 import { AthleteFilter } from './AthleteFilter'
 import { LeaderboardChart } from './LeaderboardChart'
 import { LogsSettingsModal, loadPaneConfig, type LogsPaneConfig } from './LogsSettingsModal'
+import { ImportHevyModal } from './ImportHevyModal'
 import { flushSync } from '../../data/syncEngine'
 import { useSheetContext } from '../../data/useSheetContext'
 
@@ -37,6 +38,7 @@ export function LogsTab() {
   const { spreadsheetId } = useSheetContext()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showHevyImport, setShowHevyImport] = useState(false)
   const [panes, setPanes] = useState<LogsPaneConfig[]>(loadPaneConfig)
 
   const allRoutines = useMemo(() => {
@@ -138,8 +140,16 @@ export function LogsTab() {
         {panes.map((pane) => renderPane(pane.id))}
       </div>
 
+      <button onClick={() => setShowHevyImport(true)}
+        className="block text-center text-xs text-[#6c63ff] mt-4 py-2 w-full">
+        Import from HEVY
+      </button>
+
       {showSettings && (
         <LogsSettingsModal panes={panes} onChange={setPanes} onClose={() => setShowSettings(false)} />
+      )}
+      {showHevyImport && (
+        <ImportHevyModal onClose={() => setShowHevyImport(false)} onDone={refresh} />
       )}
     </div>
   )
