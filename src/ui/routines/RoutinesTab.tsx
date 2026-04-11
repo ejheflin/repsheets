@@ -3,6 +3,8 @@ import { ProgramSelector } from './ProgramSelector'
 import { RoutineCard } from './RoutineCard'
 import { useRoutines } from '../../data/useRoutines'
 import { useWorkout } from '../../data/useWorkout'
+import { useAuth } from '../../auth/useAuth'
+import { AuthExpiredError } from '../../auth/authFetch'
 import { getPreference, setPreference } from '../../data/db'
 import { useSheetContext } from '../../data/useSheetContext'
 import { SheetSwitcherModal } from '../SheetSwitcherModal'
@@ -44,11 +46,13 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     setSelectedProgramState(program)
     setPreference('activeProgram', program)
   }, [])
-  const { routineList, programs, isLoading } = useRoutines(selectedProgram || null)
+  const { routineList, programs, isLoading, refresh } = useRoutines(selectedProgram || null)
   const { workout, startWorkout, discardWorkout } = useWorkout()
   const { spreadsheetId } = useSheetContext()
+  const { login } = useAuth()
   const [showSheetSwitcher, setShowSheetSwitcher] = useState(false)
   const [showShare, setShowShare] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState<{
     program: string; routine: string; rows: RoutineRow[]
   } | null>(null)
@@ -90,6 +94,16 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     onStartWorkout()
   }
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      await refresh()
+    } catch (e) {
+      if (e instanceof AuthExpiredError) login()
+    }
+    setIsRefreshing(false)
+  }
+
   if (isLoading) {
     return <div className="text-gray-400 text-center mt-10">Loading routines...</div>
   }
@@ -111,7 +125,17 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
           <ShareIcon />
         </button>
       </div>
-      {programs.length > 1 && <h1 className="text-[20px] font-bold mb-3">Routines</h1>}
+      <div className="flex justify-between items-center mb-3">
+        <h1 className="text-[20px] font-bold">Routines</h1>
+        <button onClick={handleRefresh} disabled={isRefreshing}
+          className={`text-gray-500 p-1.5 active:text-[#6c63ff] transition ${isRefreshing ? 'animate-spin' : ''}`}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+          </svg>
+        </button>
+      </div>
       {routineList.length === 0 ? (
         <p className="text-gray-500 text-sm">No routines found for this program.</p>
       ) : (
