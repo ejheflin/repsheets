@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from '../data/useSheetContext'
 import { listRepSheets, renameSheet, cloneSheet, createExampleSheet, getFolderUrl } from '../sheets/driveApi'
+import { shareOrCopy } from './sharing/shareLink'
 import { AuthExpiredError } from '../auth/authFetch'
 import { flushSync } from '../data/syncEngine'
 import { ShareSheetModal } from './sharing/ShareSheetModal'
@@ -243,12 +244,9 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
               className="block w-full bg-[#2a2a4a] rounded-[10px] p-3 text-center text-sm text-[#6c63ff] font-semibold mb-2">
               Open in Google Sheets
             </a>
-            <button onClick={() => {
-              const url = `https://docs.google.com/spreadsheets/d/${createdSheetId}/edit`
-              try { navigator.clipboard.writeText(url) } catch {}
-            }}
+            <button onClick={() => shareOrCopy(`https://docs.google.com/spreadsheets/d/${createdSheetId}/edit`, 'repsheets')}
               className="w-full bg-[#2a2a4a] rounded-[10px] p-3 text-center text-sm text-gray-400 font-semibold mb-2">
-              Copy Link
+              {navigator.share ? 'Share Link' : 'Copy Link'}
             </button>
             <button onClick={onClose}
               className="w-full p-3 text-center text-gray-400 font-semibold text-sm mt-1">
