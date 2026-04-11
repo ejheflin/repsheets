@@ -246,7 +246,7 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
             </a>
             <button onClick={() => shareOrCopy(`https://docs.google.com/spreadsheets/d/${createdSheetId}/edit`, 'repsheets')}
               className="w-full bg-[#2a2a4a] rounded-[10px] p-3 text-center text-sm text-gray-400 font-semibold mb-2">
-              {navigator.share ? 'Share Link' : 'Copy Link'}
+              {'share' in navigator ? 'Share Link' : 'Copy Link'}
             </button>
             <button onClick={onClose}
               className="w-full p-3 text-center text-gray-400 font-semibold text-sm mt-1">
