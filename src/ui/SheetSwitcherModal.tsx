@@ -61,7 +61,9 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
       setIsLoading(false)
       if (spreadsheetId) flushSync(spreadsheetId)
     }).catch((e) => {
-      if (e instanceof AuthExpiredError) login()
+      console.error('Sheet list failed:', e)
+      // Any failure when listing sheets likely means expired token
+      login()
       setIsLoading(false)
     })
   }, [user, login])
