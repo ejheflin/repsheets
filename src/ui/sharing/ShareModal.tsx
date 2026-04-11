@@ -1,20 +1,21 @@
 import { useState } from 'react'
 import { useRoutines } from '../../data/useRoutines'
 import { createSharedTemplate } from '../../sheets/driveApi'
+import { shareOrCopy } from './shareLink'
 
 type CopyMode = 'confirm' | 'done'
 
 interface ShareCopyModalProps {
   program: string
-  sheetLevel?: boolean  // when true, share all programs
+  sheetLevel?: boolean
   onClose: () => void
 }
 
-/** Share a read-only copy of routines (safe for strangers) */
 export function ShareCopyModal({ program, sheetLevel, onClose }: ShareCopyModalProps) {
   const { allRows } = useRoutines(null)
   const [mode, setMode] = useState<CopyMode>('confirm')
   const [resultUrl, setResultUrl] = useState('')
+  const [usedNativeShare, setUsedNativeShare] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
@@ -28,14 +29,15 @@ export function ShareCopyModal({ program, sheetLevel, onClose }: ShareCopyModalP
 
   const label = sheetLevel ? 'all programs' : `"${program}"`
 
-  const handleCopy = async () => {
+  const handleShare = async () => {
     setIsLoading(true)
     setError('')
     try {
       const { url } = await createSharedTemplate(programRows, programNames)
       const importUrl = `${window.location.origin}${window.location.pathname}?import=${url.split('/d/')[1]?.split('/')[0] ?? ''}`
       setResultUrl(importUrl)
-      try { await navigator.clipboard.writeText(importUrl) } catch {}
+      const native = await shareOrCopy(importUrl, `repsheets - ${programNames.join(', ')}`)
+      setUsedNativeShare(native)
       setMode('done')
     } catch (e) {
       console.error('Share copy failed:', e)
@@ -58,9 +60,9 @@ export function ShareCopyModal({ program, sheetLevel, onClose }: ShareCopyModalP
               Looking to invite them to work out together? Share the sheet instead.
             </p>
             {error && <p className="text-red-400 text-xs text-center mb-3">{error}</p>}
-            <button onClick={handleCopy} disabled={isLoading}
+            <button onClick={handleShare} disabled={isLoading}
               className="w-full bg-[#6c63ff] rounded-[10px] p-3 text-center font-semibold text-sm mb-2 disabled:opacity-50">
-              {isLoading ? 'Creating...' : 'Create Share Link'}
+              {isLoading ? 'Creating...' : 'Share'}
             </button>
             <button onClick={onClose} className="w-full p-3 text-center text-gray-400 font-semibold text-sm">
               Cancel
@@ -70,15 +72,21 @@ export function ShareCopyModal({ program, sheetLevel, onClose }: ShareCopyModalP
 
         {mode === 'done' && (
           <>
-            <h2 className="text-base font-bold text-center mb-2">Link Created!</h2>
-            <p className="text-xs text-gray-400 text-center mb-3">Link copied to clipboard</p>
-            <div className="bg-[#2a2a4a] rounded-[10px] p-3 mb-3">
-              <p className="text-[11px] text-gray-400 break-all">{resultUrl}</p>
-            </div>
-            <button onClick={() => { try { navigator.clipboard.writeText(resultUrl) } catch {} }}
-              className="w-full bg-[#2a2a4a] rounded-[10px] p-3 text-center text-[#6c63ff] font-semibold text-sm mb-2">
-              Copy Link Again
-            </button>
+            <h2 className="text-base font-bold text-center mb-2">
+              {usedNativeShare ? 'Shared!' : 'Link Copied!'}
+            </h2>
+            {!usedNativeShare && (
+              <>
+                <p className="text-xs text-gray-400 text-center mb-3">Link copied to clipboard</p>
+                <div className="bg-[#2a2a4a] rounded-[10px] p-3 mb-3">
+                  <p className="text-[11px] text-gray-400 break-all">{resultUrl}</p>
+                </div>
+                <button onClick={() => shareOrCopy(resultUrl)}
+                  className="w-full bg-[#2a2a4a] rounded-[10px] p-3 text-center text-[#6c63ff] font-semibold text-sm mb-2">
+                  Copy Link Again
+                </button>
+              </>
+            )}
             <button onClick={onClose} className="w-full p-3 text-center text-gray-400 font-semibold text-sm">
               Done
             </button>
