@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from '../data/useSheetContext'
 import { listRepSheets, renameSheet, cloneSheet, createExampleSheet, getFolderUrl } from '../sheets/driveApi'
+import { GOOGLE_CLIENT_ID, SCOPES } from '../config'
+import { getStoredUser } from '../auth/googleAuth'
 import { shareOrCopy } from './sharing/shareLink'
 import { flushSync } from '../data/syncEngine'
 import { ShareSheetModal } from './sharing/ShareSheetModal'
@@ -53,6 +55,46 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
   const [isCreating, setIsCreating] = useState(false)
   const [createdSheetId, setCreatedSheetId] = useState<string | null>(null)
 
+  const [authFailed, setAuthFailed] = useState(false)
+
+  const retryWithFreshToken = () => {
+    // Use interactive refresh (Test 3 — proven to work on iOS)
+    try {
+      const client = window.google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: SCOPES,
+        callback: async (response: { access_token: string; error?: string }) => {
+          if (response.error) {
+            console.error('Re-auth failed:', response.error)
+            return
+          }
+          // Save new token
+          const storedUser = getStoredUser()
+          if (storedUser) {
+            storedUser.accessToken = response.access_token
+            localStorage.setItem('repsheets_user', JSON.stringify(storedUser))
+            localStorage.setItem('repsheets_token', response.access_token)
+          }
+          // Retry listing sheets
+          setAuthFailed(false)
+          setIsLoading(true)
+          try {
+            const s = await listRepSheets()
+            setSheets(s)
+          } catch {}
+          setIsLoading(false)
+        },
+        error_callback: (error: { type: string }) => {
+          console.error('Re-auth error:', error.type)
+        },
+      })
+      client.requestAccessToken()
+    } catch (e) {
+      console.error('GIS not available:', e)
+      login()
+    }
+  }
+
   useEffect(() => {
     if (!user) return
     listRepSheets().then((s) => {
@@ -61,8 +103,7 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
       if (spreadsheetId) flushSync(spreadsheetId)
     }).catch((e) => {
       console.error('Sheet list failed:', e)
-      // Any failure when listing sheets likely means expired token
-      login()
+      setAuthFailed(true)
       setIsLoading(false)
     })
   }, [user, login])
@@ -142,6 +183,16 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
             </div>
             <p className="text-xs text-gray-400 text-center mb-4">Select a repsheets spreadsheet</p>
 
+            {authFailed && (
+              <div className="bg-[#2a2a4a] rounded-[10px] p-4 mb-3 text-center">
+                <p className="text-xs text-gray-400 mb-3">Session expired. Tap to re-authenticate.</p>
+                <button onClick={retryWithFreshToken}
+                  className="w-full bg-[#6c63ff] rounded-[10px] p-3 text-center font-semibold text-sm">
+                  Re-authenticate
+                </button>
+              </div>
+            )}
+
             {isLoading ? (
               <p className="text-gray-400 text-center py-4 text-sm">Loading sheets...</p>
             ) : (
@@ -208,7 +259,7 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
             <div className="mt-4 pt-3 border-t border-[#3a3a5a]">
               <div className="text-[11px] text-gray-500 text-center mb-2">{user?.email}</div>
               <button onClick={() => { logout(); onClose() }}
-                className="w-full p-2 text-center text-red-400 text-xs font-semibold">
+                className="w-full p-2 text-center text-red-400 text-xs font-semibold mb-1">
                 Log Out
               </button>
             </div>
