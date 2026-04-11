@@ -220,7 +220,7 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
               onChange={(e) => setNewSheetName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
               placeholder="Sheet name"
-              className="w-full bg-[#2a2a4a] border border-[#3a3a5a] rounded-[10px] px-4 py-3 text-sm outline-none focus:border-[#6c63ff] mb-4"
+              className="w-full bg-[#2a2a4a] border border-[#3a3a5a] rounded-[10px] px-4 py-3 text-base outline-none focus:border-[#6c63ff] mb-4"
               autoFocus />
             <button onClick={handleCreate} disabled={isCreating || !newSheetName.trim()}
               className="w-full bg-[#6c63ff] rounded-[10px] p-3 text-center font-semibold text-sm disabled:opacity-50">
