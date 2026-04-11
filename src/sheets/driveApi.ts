@@ -289,6 +289,25 @@ export async function inviteByLink(spreadsheetId: string): Promise<string> {
   return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`
 }
 
+export async function cloneSheet(spreadsheetId: string, newName: string): Promise<string> {
+  const res = await authFetch(`${DRIVE_BASE}/files/${spreadsheetId}/copy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: newName }),
+  })
+  if (!res.ok) throw new Error('Failed to clone sheet')
+  const data = await res.json()
+  const newId = data.id
+
+  // Move to repsheets folder
+  try {
+    const folderId = await getOrCreateFolder()
+    await moveToFolder(newId, folderId)
+  } catch {}
+
+  return newId
+}
+
 export async function renameSheet(spreadsheetId: string, newName: string): Promise<void> {
   const res = await authFetch(`${SHEETS_BASE}/${spreadsheetId}:batchUpdate`, {
     method: 'POST',
