@@ -57,38 +57,65 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
 
   const [authFailed, setAuthFailed] = useState(false)
 
-  const retryWithFreshToken = () => {
-    // Use interactive refresh (Test 3 — proven to work on iOS)
+  const saveTokenAndRetry = async (accessToken: string) => {
+    const storedUser = getStoredUser()
+    if (storedUser) {
+      storedUser.accessToken = accessToken
+      localStorage.setItem('repsheets_user', JSON.stringify(storedUser))
+      localStorage.setItem('repsheets_token', accessToken)
+    }
+    setAuthFailed(false)
+    setIsLoading(true)
     try {
-      const client = window.google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope: SCOPES,
-        callback: async (response: { access_token: string; error?: string }) => {
-          if (response.error) {
-            console.error('Re-auth failed:', response.error)
-            return
-          }
-          // Save new token
-          const storedUser = getStoredUser()
-          if (storedUser) {
-            storedUser.accessToken = response.access_token
-            localStorage.setItem('repsheets_user', JSON.stringify(storedUser))
-            localStorage.setItem('repsheets_token', response.access_token)
-          }
-          // Retry listing sheets
-          setAuthFailed(false)
-          setIsLoading(true)
-          try {
-            const s = await listRepSheets()
-            setSheets(s)
-          } catch {}
-          setIsLoading(false)
-        },
-        error_callback: (error: { type: string }) => {
-          console.error('Re-auth error:', error.type)
-        },
-      })
-      client.requestAccessToken()
+      const s = await listRepSheets()
+      setSheets(s)
+      if (spreadsheetId) flushSync(spreadsheetId)
+    } catch {}
+    setIsLoading(false)
+  }
+
+  const retryWithFreshToken = () => {
+    try {
+      // Try silent first, fall back to interactive
+      const trySilent = () => {
+        const client = window.google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: SCOPES,
+          callback: async (response: { access_token: string; error?: string }) => {
+            if (response.error) {
+              console.log('Silent refresh failed, trying interactive...')
+              tryInteractive()
+              return
+            }
+            saveTokenAndRetry(response.access_token)
+          },
+          error_callback: () => {
+            console.log('Silent refresh error, trying interactive...')
+            tryInteractive()
+          },
+        })
+        client.requestAccessToken({ prompt: '' })
+      }
+
+      const tryInteractive = () => {
+        const client = window.google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: SCOPES,
+          callback: async (response: { access_token: string; error?: string }) => {
+            if (response.error) {
+              console.error('Interactive refresh failed:', response.error)
+              return
+            }
+            saveTokenAndRetry(response.access_token)
+          },
+          error_callback: (error: { type: string }) => {
+            console.error('Interactive refresh error:', error.type)
+          },
+        })
+        client.requestAccessToken()
+      }
+
+      trySilent()
     } catch (e) {
       console.error('GIS not available:', e)
       login()
@@ -102,9 +129,30 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
       setIsLoading(false)
       if (spreadsheetId) flushSync(spreadsheetId)
     }).catch((e) => {
-      console.error('Sheet list failed:', e)
-      setAuthFailed(true)
-      setIsLoading(false)
+      console.error('Sheet list failed, attempting silent refresh:', e)
+      // Try silent refresh automatically
+      try {
+        const client = window.google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: SCOPES,
+          callback: async (response: { access_token: string; error?: string }) => {
+            if (response.error) {
+              setAuthFailed(true)
+              setIsLoading(false)
+              return
+            }
+            await saveTokenAndRetry(response.access_token)
+          },
+          error_callback: () => {
+            setAuthFailed(true)
+            setIsLoading(false)
+          },
+        })
+        client.requestAccessToken({ prompt: '' })
+      } catch {
+        setAuthFailed(true)
+        setIsLoading(false)
+      }
     })
   }, [user, login])
 
