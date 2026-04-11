@@ -120,22 +120,20 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
         ) : (
           <h1 className="text-[20px] font-bold flex-1">Routines</h1>
         )}
-        <button onClick={() => setShowShare(true)}
-          className="w-12 rounded-[10px] bg-[#2a2a4a] border border-[#3a3a5a] flex items-center justify-center flex-shrink-0 active:opacity-80">
-          <ShareIcon />
-        </button>
-      </div>
-      <div className="flex justify-between items-center mb-3">
-        <h1 className="text-[20px] font-bold">Routines</h1>
         <button onClick={handleRefresh} disabled={isRefreshing}
-          className={`text-gray-500 p-1.5 active:text-[#6c63ff] transition ${isRefreshing ? 'animate-spin' : ''}`}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          className={`w-12 rounded-[10px] bg-[#2a2a4a] border border-[#3a3a5a] flex items-center justify-center flex-shrink-0 active:opacity-80 ${isRefreshing ? 'animate-spin' : ''}`}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="23 4 23 10 17 10" />
             <polyline points="1 20 1 14 7 14" />
             <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
           </svg>
         </button>
+        <button onClick={() => setShowShare(true)}
+          className="w-12 rounded-[10px] bg-[#2a2a4a] border border-[#3a3a5a] flex items-center justify-center flex-shrink-0 active:opacity-80">
+          <ShareIcon />
+        </button>
       </div>
+      <h1 className="text-[20px] font-bold mb-3">Routines</h1>
       {routineList.length === 0 ? (
         <p className="text-gray-500 text-sm">No routines found for this program.</p>
       ) : (
