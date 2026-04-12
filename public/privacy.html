@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — repsheets</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      color: #222;
+      background: #fff;
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+    h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; }
+    h2 { font-size: 1.05rem; font-weight: 600; margin-top: 2em; margin-bottom: 0.25em; }
+    p, li { color: #333; }
+    ul { padding-left: 1.4em; }
+    .meta { color: #888; font-size: 0.85rem; margin-bottom: 2.5em; }
+    a { color: #6c47c9; }
+    hr { border: none; border-top: 1px solid #eee; margin: 2.5em 0; }
+    .back { display: inline-block; margin-bottom: 2em; font-size: 0.85rem; color: #888; text-decoration: none; }
+    .back:hover { color: #6c47c9; }
+  </style>
+</head>
+<body>
+  <a href="/" class="back">&larr; repsheets</a>
+
+  <h1>Privacy Policy</h1>
+  <p class="meta">Last updated: April 12, 2026</p>
+
+  <h2>Overview</h2>
+  <p>repsheets is a workout tracking Progressive Web App (PWA) that uses Google Sheets as its data storage backend. This policy explains what data we access, how we use it, and your rights as a user.</p>
+
+  <hr />
+
+  <h2>Data We Access</h2>
+
+  <p><strong>Google Account Information</strong><br />
+  When you sign in, we access your Google account name and email address solely to identify you within the app and display your profile.</p>
+
+  <p><strong>Google Sheets</strong><br />
+  With your permission, we read from and write to Google Sheets files you select. This data includes workout routines, exercises, sets, reps, and weight entries that you create within the app.</p>
+
+  <p><strong>Google Drive (limited)</strong><br />
+  We use the <code>drive.file</code> scope to access only files that were created by or explicitly opened in repsheets. We do not access your broader Google Drive.</p>
+
+  <hr />
+
+  <h2>How We Use Your Data</h2>
+  <ul>
+    <li><strong>Workout tracking:</strong> Reading and writing workout data to your chosen Google Sheet.</li>
+    <li><strong>Authentication:</strong> Maintaining your signed-in session and refreshing your access token so the app works without repeated sign-ins.</li>
+    <li><strong>Offline access:</strong> Caching your workout data locally on your device (via IndexedDB) so the app works without an internet connection.</li>
+  </ul>
+  <p>We do <strong>not</strong> use your data for advertising, analytics, or any purpose beyond the core workout tracking functionality described above.</p>
+
+  <hr />
+
+  <h2>Data Sharing and Third Parties</h2>
+  <p>We do <strong>not</strong> sell, rent, or share your personal data or Google user data with third parties.</p>
+  <p>The only external service involved in authentication is a Cloudflare Worker used solely to handle OAuth token refresh. This service does not store your data and does not have access to your Google Sheets content.</p>
+  <p>If you use Coach mode and share your Google Sheet with other users, that sharing is managed entirely through Google's own sharing controls. repsheets does not independently transmit your data to other users.</p>
+
+  <hr />
+
+  <h2>Data Storage and Retention</h2>
+  <ul>
+    <li><strong>Google Sheets:</strong> Your workout data lives in your own Google Sheet, in your own Google account. We have no independent copy.</li>
+    <li><strong>Local cache:</strong> Workout data is cached on your device for offline use. You can clear this at any time by clearing your browser's site data.</li>
+    <li><strong>Tokens:</strong> Authentication tokens are stored locally on your device and are used only to communicate with Google's APIs on your behalf.</li>
+  </ul>
+  <p>We do not maintain any server-side database of your personal information or workout data.</p>
+
+  <hr />
+
+  <h2>Your Rights</h2>
+  <p>You can revoke repsheets' access to your Google account at any time via <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer">Google Account permissions</a>. Revoking access will sign you out of the app and prevent further reads or writes to your Google Sheets.</p>
+
+  <hr />
+
+  <h2>Security</h2>
+  <p>We use Google's OAuth 2.0 flow for authentication. Access tokens are stored locally on your device and transmitted only over HTTPS. We do not store credentials on any server.</p>
+
+  <hr />
+
+  <h2>Changes to This Policy</h2>
+  <p>If we make material changes to this policy, we will update the "Last updated" date above. Continued use of the app after changes constitutes acceptance of the updated policy.</p>
+
+  <hr />
+
+  <h2>Contact</h2>
+  <p>If you have questions about this privacy policy, please contact:<br />
+  <strong>Eric Heflin</strong><br />
+  <a href="mailto:ejheflin@gmail.com">ejheflin@gmail.com</a></p>
+</body>
+</html>

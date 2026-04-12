@@ -87,6 +87,11 @@ export function LoginScreen() {
           className="text-[11px] text-gray-600 hover:text-gray-400 transition">
           Open Source
         </a>
+        <span className="text-[11px] text-gray-400">·</span>
+        <a href="/privacy.html"
+          className="text-[11px] text-gray-600 hover:text-gray-400 transition">
+          Privacy Policy
+        </a>
       </div>
     </div>
   )
