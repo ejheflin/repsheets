@@ -99,7 +99,7 @@ export function LoginScreen() {
 
   return (
     <div className="min-h-screen bg-[#1a1a2e] flex flex-col items-center justify-center px-6 relative">
-      <img src="/icon-192.png" alt="repsheets" className="w-16 h-16 mb-5 rounded-[22%] shadow-[0_6px_24px_rgba(0,0,0,0.6)]" />
+      <img src="/icon-192.png" alt="repsheets" className="w-44 h-44 mb-5 rounded-[22%] shadow-[0_6px_24px_rgba(0,0,0,0.6)]" />
       <h1 className="text-4xl font-bold text-white mb-6">repsheets</h1>
       <StaggeredBullets />
       <div className="mt-10 flex flex-col items-center gap-3">
