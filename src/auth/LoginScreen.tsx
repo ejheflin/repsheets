@@ -1,6 +1,11 @@
 import { useAuth } from './useAuth'
 import { useState, useEffect } from 'react'
 
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => void
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
+
 const SHARED_WITH = ['no one', 'friends', 'clients', 'everyone']
 
 const BULLETS = [
@@ -62,11 +67,42 @@ function StaggeredBullets() {
 
 export function LoginScreen() {
   const { login } = useAuth()
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [showIOSHint, setShowIOSHint] = useState(false)
+
+  useEffect(() => {
+    const isInstalled =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (navigator as any).standalone === true
+
+    if (isInstalled) return
+
+    const handler = (e: Event) => {
+      e.preventDefault()
+      setInstallPrompt(e as BeforeInstallPromptEvent)
+    }
+    window.addEventListener('beforeinstallprompt', handler)
+
+    if (/iPhone|iPad|iPod/.test(navigator.userAgent)) {
+      setShowIOSHint(true)
+    }
+
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  const handleInstall = async () => {
+    if (!installPrompt) return
+    installPrompt.prompt()
+    const { outcome } = await installPrompt.userChoice
+    if (outcome === 'accepted') setInstallPrompt(null)
+  }
+
   return (
     <div className="min-h-screen bg-[#1a1a2e] flex flex-col items-center justify-center px-6 relative">
+      <img src="/icon-192.png" alt="repsheets" className="w-16 h-16 mb-5 rounded-2xl" />
       <h1 className="text-4xl font-bold text-white mb-6">repsheets</h1>
       <StaggeredBullets />
-      <div className="mt-10">
+      <div className="mt-10 flex flex-col items-center gap-3">
         <button onClick={login}
           className="bg-white text-gray-800 font-semibold px-6 py-3 rounded-lg flex items-center gap-3 hover:bg-gray-100 transition">
           <svg width="20" height="20" viewBox="0 0 48 48">
@@ -77,6 +113,26 @@ export function LoginScreen() {
           </svg>
           Sign in with Google
         </button>
+
+        {installPrompt && (
+          <button onClick={handleInstall}
+            className="flex items-center gap-1.5 text-[13px] text-[#6c63ff] hover:text-[#8b7ff7] transition">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+            </svg>
+            Add to Home Screen
+          </button>
+        )}
+
+        {showIOSHint && !installPrompt && (
+          <p className="text-[12px] text-gray-500 text-center max-w-[200px] leading-relaxed">
+            Tap{' '}
+            <svg className="inline-block align-middle mx-0.5" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 16V4M8 8l4-4 4 4"/><path d="M3 17v2a2 2 0 002 2h14a2 2 0 002-2v-2"/>
+            </svg>
+            {' '}then <span className="text-gray-400 font-medium">Add to Home Screen</span>
+          </p>
+        )}
       </div>
 
       <div className="absolute bottom-6 flex items-center gap-1.5">
