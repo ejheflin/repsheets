@@ -4,6 +4,20 @@ import { getStoredUser } from '../auth/googleAuth'
 
 const DRIVE_BASE = 'https://www.googleapis.com/drive/v3'
 const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets'
+const JOINED_SHEETS_KEY = 'repsheets_joined_sheets'
+
+export function saveJoinedSheetId(id: string) {
+  const existing = getJoinedSheetIds()
+  if (!existing.includes(id)) {
+    localStorage.setItem(JOINED_SHEETS_KEY, JSON.stringify([...existing, id]))
+  }
+}
+
+function getJoinedSheetIds(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(JOINED_SHEETS_KEY) ?? '[]')
+  } catch { return [] }
+}
 
 interface SheetSchemaInfo {
   hasSchema: boolean
@@ -35,6 +49,42 @@ export async function listRepSheets(): Promise<RepSheet[]> {
       })
     }
   }
+
+  // Supplement with any sheets joined via link that Drive doesn't list
+  // (drive.file scope only sees files the app opened/created through Drive)
+  const joinedIds = getJoinedSheetIds()
+  const foundIds = new Set(sheets.map((s) => s.spreadsheetId))
+  for (const id of joinedIds) {
+    if (foundIds.has(id)) continue
+    try {
+      const schemaRes = await authFetch(`${SHEETS_BASE}/${id}?fields=properties.title,sheets.properties.title`)
+      if (!schemaRes.ok) continue
+      const schemaData = await schemaRes.json()
+      const titles = (schemaData.sheets ?? []).map(
+        (s: { properties: { title: string } }) => s.properties.title
+      )
+      if (!titles.includes('Routines') || !titles.includes('Log')) continue
+      const isTemplate = titles.includes('_meta')
+      const name: string = schemaData.properties?.title ?? id
+
+      let owner = 'Unknown'
+      let ownerEmail = ''
+      let isOwner = false
+      try {
+        const driveRes = await authFetch(`${DRIVE_BASE}/files/${id}?fields=owners`)
+        if (driveRes.ok) {
+          const driveData = await driveRes.json()
+          ownerEmail = driveData.owners?.[0]?.emailAddress ?? ''
+          owner = driveData.owners?.[0]?.displayName ?? 'Unknown'
+          isOwner = currentUser?.email === ownerEmail
+        }
+      } catch {}
+
+      if (isOwner && isTemplate) continue
+      sheets.push({ spreadsheetId: id, name, owner, ownerEmail, isOwner, isTemplate })
+    } catch {}
+  }
+
   return sheets
 }
 
