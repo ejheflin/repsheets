@@ -17,6 +17,7 @@ import { DemoApp } from './demo/DemoApp'
 import { useState, useEffect } from 'react'
 import { AuthExpiredError } from './auth/authFetch'
 import { initSyncListeners, flushSync } from './data/syncEngine'
+import { saveJoinedSheetId } from './sheets/driveApi'
 import { AuthTest } from './ui/AuthTest'
 
 function getUrlParam(name: string): string | null {
@@ -63,6 +64,7 @@ function JoinHandler({ sheetId, onDone }: { sheetId: string; onDone: () => void 
 
   useEffect(() => {
     setSpreadsheetId(sheetId)
+    saveJoinedSheetId(sheetId)
     onDone()
   }, [sheetId, setSpreadsheetId, onDone])
 
