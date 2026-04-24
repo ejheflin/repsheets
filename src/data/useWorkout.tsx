@@ -91,11 +91,11 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
               ex.notes = matchingExpanded.notes
             }
 
-            // Update autofill values for untouched sets
+            // Update autofill values and pct for untouched sets
             for (const set of ex.sets) {
               if (set.completed || set.isAdded) continue
               const resolved = resolveSetValues(
-                { exercise: ex.exercise, setNumber: set.setNumber, reps: null, value: null, unit: set.unit, notes: '', supersetGroup: null },
+                { exercise: ex.exercise, setNumber: set.setNumber, reps: null, value: null, pct: null, unit: set.unit, notes: '', supersetGroup: null },
                 logs,
                 prev.program,
                 prev.routine,
@@ -103,6 +103,11 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
               )
               if (resolved.reps !== null) set.reps = resolved.reps
               if (resolved.value !== null) set.value = resolved.value
+              // Refresh pct from latest routine in case coach changed percentages
+              const matchingSet = expanded.find(
+                (s) => s.exercise === ex.exercise && s.setNumber === set.setNumber
+              )
+              if (matchingSet) set.pct = matchingSet.pct
             }
           }
 
@@ -155,6 +160,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
             setNumber: s.setNumber,
             reps: resolved.reps,
             value: resolved.value,
+            pct: s.pct,
             unit: s.unit,
             completed: false,
             isAdded: false,
@@ -249,6 +255,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         setNumber: lastSet.setNumber + 1,
         reps: lastSet.reps,
         value: lastSet.value,
+        pct: lastSet.pct,
         unit: lastSet.unit,
         completed: false,
         isAdded: true,

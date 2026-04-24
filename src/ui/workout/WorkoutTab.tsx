@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { ExerciseRow } from './ExerciseRow'
 import { SupersetGroup } from './SupersetGroup'
 import { FinishWorkoutSheet } from './FinishWorkoutSheet'
 import { RoutineUpdatePrompt } from './RoutineUpdatePrompt'
 import { useWorkout } from '../../data/useWorkout'
+import { useLogs } from '../../data/useLogs'
 import { useSheetContext } from '../../data/useSheetContext'
+import { useAuth } from '../../auth/useAuth'
 import { listRepSheets } from '../../sheets/driveApi'
+import { estimateOneRepMax } from '../../workout/oneRepMax'
 import type { WorkoutExercise } from '../../types'
 
 interface WorkoutTabProps {
@@ -18,10 +21,30 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
     toggleExpanded, addSet, finishWorkout, discardWorkout,
   } = useWorkout()
   const { spreadsheetId } = useSheetContext()
+  const { user } = useAuth()
+  const { myLogs } = useLogs()
   const [showFinish, setShowFinish] = useState(false)
   const [showDiscard, setShowDiscard] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [routineUpdateExercises, setRoutineUpdateExercises] = useState<WorkoutExercise[] | null>(null)
+
+  const athleteName = useMemo(() => {
+    if (!user) return ''
+    const parts = user.name.trim().split(/\s+/)
+    if (parts.length < 2) return parts[0] || ''
+    return `${parts[0]} ${parts[parts.length - 1][0]}`
+  }, [user])
+
+  const oneRepMaxMap = useMemo(() => {
+    const map = new Map<string, number | null>()
+    if (!workout) return map
+    for (const ex of workout.exercises) {
+      if (ex.sets.some((s) => s.pct !== null)) {
+        map.set(ex.exercise, estimateOneRepMax(myLogs, ex.exercise, athleteName))
+      }
+    }
+    return map
+  }, [workout, myLogs, athleteName])
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20)
@@ -101,17 +124,21 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
       </div>
 
       {groups.map((group, gIdx) => {
-        const content = group.exerciseIndices.map((exIdx) => (
-          <ExerciseRow key={exIdx} exercise={workout.exercises[exIdx]}
-            onToggleExpand={() => toggleExpanded(exIdx)}
-            onToggleExercise={() => toggleExercise(exIdx)}
-            onToggleSet={(setIdx) => toggleSet(exIdx, setIdx)}
-            onUpdateSet={(setIdx, field, val) => updateSet(exIdx, setIdx, field, val)}
-            onUpdateAllSets={(field, val) => updateAllSets(exIdx, field, val)}
-            onUpdateNotes={(notes) => updateNotes(exIdx, notes)}
-            onAddSet={() => addSet(exIdx)}
-            tourId={exIdx === 0 ? 'first-exercise' : undefined} />
-        ))
+        const content = group.exerciseIndices.map((exIdx) => {
+          const ex = workout.exercises[exIdx]
+          return (
+            <ExerciseRow key={exIdx} exercise={ex}
+              oneRepMax={oneRepMaxMap.get(ex.exercise) ?? null}
+              onToggleExpand={() => toggleExpanded(exIdx)}
+              onToggleExercise={() => toggleExercise(exIdx)}
+              onToggleSet={(setIdx) => toggleSet(exIdx, setIdx)}
+              onUpdateSet={(setIdx, field, val) => updateSet(exIdx, setIdx, field, val)}
+              onUpdateAllSets={(field, val) => updateAllSets(exIdx, field, val)}
+              onUpdateNotes={(notes) => updateNotes(exIdx, notes)}
+              onAddSet={() => addSet(exIdx)}
+              tourId={exIdx === 0 ? 'first-exercise' : undefined} />
+          )
+        })
         return group.supersetGroup ? (
           <SupersetGroup key={gIdx}>{content}</SupersetGroup>
         ) : (

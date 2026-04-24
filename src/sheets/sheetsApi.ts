@@ -31,31 +31,41 @@ async function fetchPublicRange(spreadsheetId: string, range: string): Promise<s
 export async function fetchPublicRoutineRows(spreadsheetId: string): Promise<RoutineRow[]> {
   const rows = await fetchPublicRange(spreadsheetId, 'Routines!A:H')
   if (rows.length < 2) return []
-  return rows.slice(1).map((row) => ({
-    program: row[0] ?? '',
-    routine: row[1] ?? '',
-    exercise: row[2] ?? '',
-    sets: row[3] ?? '1',
-    reps: row[4] ? Number(row[4]) : null,
-    value: row[5] ? Number(row[5]) : null,
-    unit: row[6] ?? '',
-    notes: row[7] ?? '',
-  }))
+  return rows.slice(1).map((row) => {
+    const rawValue = row[5] ?? ''
+    const isPct = rawValue.endsWith('%')
+    return {
+      program: row[0] ?? '',
+      routine: row[1] ?? '',
+      exercise: row[2] ?? '',
+      sets: row[3] ?? '1',
+      reps: row[4] ? Number(row[4]) : null,
+      value: isPct ? null : (rawValue ? Number(rawValue) : null),
+      pct: isPct ? (parseFloat(rawValue) || null) : null,
+      unit: row[6] ?? '',
+      notes: row[7] ?? '',
+    }
+  })
 }
 
 export async function fetchRoutineRows(spreadsheetId: string): Promise<RoutineRow[]> {
   const rows = await fetchRange(spreadsheetId, 'Routines!A:H')
   if (rows.length < 2) return []
-  return rows.slice(1).map((row) => ({
-    program: row[0] ?? '',
-    routine: row[1] ?? '',
-    exercise: row[2] ?? '',
-    sets: row[3] ?? '1',
-    reps: row[4] ? Number(row[4]) : null,
-    value: row[5] ? Number(row[5]) : null,
-    unit: row[6] ?? '',
-    notes: row[7] ?? '',
-  }))
+  return rows.slice(1).map((row) => {
+    const rawValue = row[5] ?? ''
+    const isPct = rawValue.endsWith('%')
+    return {
+      program: row[0] ?? '',
+      routine: row[1] ?? '',
+      exercise: row[2] ?? '',
+      sets: row[3] ?? '1',
+      reps: row[4] ? Number(row[4]) : null,
+      value: isPct ? null : (rawValue ? Number(rawValue) : null),
+      pct: isPct ? (parseFloat(rawValue) || null) : null,
+      unit: row[6] ?? '',
+      notes: row[7] ?? '',
+    }
+  })
 }
 
 export async function fetchLogEntries(spreadsheetId: string): Promise<LogEntry[]> {

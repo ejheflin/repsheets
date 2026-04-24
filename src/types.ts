@@ -6,6 +6,7 @@ export interface RoutineRow {
   sets: string       // e.g. "5", "3a", "10"
   reps: number | null
   value: number | null
+  pct: number | null  // e.g. 80 when cell contains "80%", null otherwise
   unit: string
   notes: string
 }
@@ -30,6 +31,7 @@ export interface ExpandedSet {
   setNumber: number
   reps: number | null
   value: number | null
+  pct: number | null
   unit: string
   notes: string
   supersetGroup: string | null  // "a", "b", etc. or null
@@ -50,6 +52,7 @@ export interface WorkoutSet {
   setNumber: number
   reps: number | null
   value: number | null
+  pct: number | null    // target percentage of 1RM, null if absolute weight
   unit: string
   completed: boolean
   isAdded: boolean      // true if user added this set (not in routine config)
