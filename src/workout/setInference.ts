@@ -37,6 +37,7 @@ export function expandRoutine(rows: RoutineRow[]): ExpandedSet[] {
           setNumber: s,
           reps: row.reps,
           value: row.value,
+          pct: row.pct,
           unit: row.unit,
           notes: row.notes,
           supersetGroup: parsed.supersetGroup,

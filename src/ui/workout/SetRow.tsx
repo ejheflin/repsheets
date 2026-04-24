@@ -4,6 +4,8 @@ interface SetRowProps {
   value: number | null
   unit: string
   completed: boolean
+  pct?: number | null
+  oneRepMax?: number | null
   repsFlag?: boolean
   valueFlag?: boolean
   onToggle: () => void
@@ -13,9 +15,19 @@ interface SetRowProps {
 
 export function SetRow({
   setNumber, reps, value, unit: _unit, completed,
+  pct, oneRepMax,
   repsFlag, valueFlag,
   onToggle, onRepsChange, onValueChange,
 }: SetRowProps) {
+  const showPctLabel = pct != null
+  const targetWeight = showPctLabel && oneRepMax != null
+    ? Math.round(pct * oneRepMax / 100)
+    : null
+
+  const pctLabel = showPctLabel
+    ? targetWeight != null ? `${pct}%/${targetWeight}` : `${pct}%`
+    : null
+
   return (
     <div className="flex items-center py-1.5 border-b border-[#3a3a5a] last:border-b-0">
       <div className="w-7 text-xs text-gray-500">{setNumber}</div>
@@ -34,6 +46,11 @@ export function SetRow({
           className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#2a2a4a]"
         >+</button>
       </div>
+      {pctLabel != null && (
+        <div className="w-16 text-right pr-1 text-[11px] text-gray-500 leading-tight flex-shrink-0">
+          {pctLabel}
+        </div>
+      )}
       <div className="flex-1 text-center">
         <input type="text" inputMode="decimal" value={value ?? ''}
           onChange={(e) => onValueChange(e.target.value ? Number(e.target.value) : null)}

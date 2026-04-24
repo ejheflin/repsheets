@@ -33,6 +33,7 @@ function NotesIcon({ hasNotes }: { hasNotes: boolean }) {
 
 interface ExerciseRowProps {
   exercise: WorkoutExercise
+  oneRepMax?: number | null
   onToggleExpand: () => void
   onToggleExercise: () => void
   onToggleSet: (setIdx: number) => void
@@ -43,8 +44,33 @@ interface ExerciseRowProps {
   tourId?: string
 }
 
+/** Compute target weight from pct + 1RM, or null if either is missing. */
+function targetWeight(pct: number | null | undefined, orm: number | null | undefined): number | null {
+  if (pct == null || orm == null) return null
+  return Math.round(pct * orm / 100)
+}
+
+/** Build slashed target string for collapsed view, truncated to maxLen chars. */
+function buildSlashedTargets(sets: WorkoutExercise['sets'], orm: number | null | undefined, maxLen = 18): string {
+  const parts: string[] = []
+  let result = ''
+  for (const s of sets) {
+    const tw = s.pct != null ? targetWeight(s.pct, orm) : s.value
+    const part = tw != null ? String(Math.round(tw)) : '?'
+    const next = parts.length === 0 ? part : `${result}/${part}`
+    if (next.length > maxLen) {
+      result = `${result}/…`
+      break
+    }
+    parts.push(part)
+    result = next
+  }
+  return result
+}
+
 export function ExerciseRow({
   exercise,
+  oneRepMax,
   onToggleExpand, onToggleExercise, onToggleSet, onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet, tourId,
 }: ExerciseRowProps) {
   const [showNotes, setShowNotes] = useState(false)
@@ -59,6 +85,13 @@ export function ExerciseRow({
 
   const userNotes = exercise.userNotes ?? ''
   const hasUserNotes = userNotes.length > 0
+
+  // Percentage set detection
+  const firstPct = exercise.sets[0]?.pct ?? null
+  const allSamePct = exercise.sets.every((s) => s.pct === firstPct)
+  // Show slashed targets when pcts differ across sets (or mix of pct + absolute)
+  const showSlashedTargets = exercise.sets.some((s) => s.pct !== null) && !allSamePct
+  const hasAnyPct = exercise.sets.some((s) => s.pct !== null)
 
   const notesInput = showNotes ? (
     <div className="mt-1.5 ml-5">
@@ -84,7 +117,7 @@ export function ExerciseRow({
               <div className="text-[10px] text-[#6c63ff] mt-0.5 truncate">▸ {exercise.notes}</div>
             )}
           </button>
-          {summaryValue ? (
+          {summaryValue && !showSlashedTargets ? (
             <div className="flex-shrink-0 flex items-center mr-10">
               <PlateCalculator weight={summaryValue} unit={unit} exercise={exercise.exercise} />
             </div>
@@ -115,11 +148,22 @@ export function ExerciseRow({
             >+</button>
           </div>
           <div className="flex-1 text-center">
-            <input type="text" inputMode="decimal" value={summaryValue ?? ''}
-              onChange={(e) => onUpdateAllSets('value', e.target.value ? Number(e.target.value) : null)}
-              onFocus={(e) => e.target.select()}
-              className={`w-16 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
-              placeholder="—" />
+            {showSlashedTargets ? (
+              // Different pcts across sets: show calculated targets, tap to expand
+              <button
+                onClick={onToggleExpand}
+                className="text-sm font-semibold text-gray-300 px-1"
+              >
+                {buildSlashedTargets(exercise.sets, oneRepMax)}
+              </button>
+            ) : (
+              // All sets same pct (or no pct): normal editable weight input
+              <input type="text" inputMode="decimal" value={summaryValue ?? ''}
+                onChange={(e) => onUpdateAllSets('value', e.target.value ? Number(e.target.value) : null)}
+                onFocus={(e) => e.target.select()}
+                className={`w-16 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
+                placeholder="—" />
+            )}
           </div>
           <button onClick={() => setShowNotes(!showNotes)} className="w-7 flex items-center justify-center">
             <NotesIcon hasNotes={hasUserNotes} />
@@ -135,7 +179,7 @@ export function ExerciseRow({
       <div className="flex items-center mb-2">
         <button onClick={onToggleExpand} className="mr-1.5 flex items-center"><ChevronDown /></button>
         <button onClick={onToggleExpand} className="flex-1 text-left font-bold text-[15px]">{exercise.exercise}</button>
-        {summaryValue ? (
+        {summaryValue && !hasAnyPct ? (
           <div className="flex-shrink-0 flex items-center mr-10">
             <PlateCalculator weight={summaryValue} unit={unit} exercise={exercise.exercise} />
           </div>
@@ -155,12 +199,15 @@ export function ExerciseRow({
         <div className="flex pb-1 text-[10px] text-gray-600 uppercase tracking-wider">
           <div className="w-7">Set</div>
           <div className="flex-1 text-center">Reps</div>
+          {hasAnyPct && <div className="w-16 text-right pr-1">Target</div>}
           <div className="flex-1 text-center">{unit || 'Value'}</div>
           <div className="w-7" />
         </div>
         {exercise.sets.map((set, setIdx) => (
           <SetRow key={set.setNumber} setNumber={set.setNumber} reps={set.reps}
             value={set.value} unit={unit} completed={set.completed}
+            pct={set.pct}
+            oneRepMax={oneRepMax}
             repsFlag={set.reps !== summaryReps}
             valueFlag={set.value !== summaryValue}
             onToggle={() => onToggleSet(setIdx)}
