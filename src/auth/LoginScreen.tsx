@@ -98,61 +98,133 @@ export function LoginScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-[#1a1a2e] flex flex-col items-center justify-center px-6 relative">
-      <img src="/icon-192.png" alt="repsheets" className="w-44 h-44 mb-5 rounded-[22%] shadow-[0_6px_24px_rgba(0,0,0,0.6)]" />
-      <h1 className="text-4xl font-bold text-white mb-6">repsheets</h1>
-      <StaggeredBullets />
-      <div className="mt-10 flex flex-col items-center gap-3">
-        <button onClick={login}
-          className="bg-white text-gray-800 font-semibold px-6 py-3 rounded-lg flex items-center gap-3 hover:bg-gray-100 transition">
-          <svg width="20" height="20" viewBox="0 0 48 48">
-            <path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-            <path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-            <path fill="#FBBC05" d="M10.53 28.59A14.5 14.5 0 019.5 24c0-1.59.28-3.14.76-4.59l-7.98-6.19A23.9 23.9 0 000 24c0 3.77.9 7.35 2.56 10.54l7.97-5.95z"/>
-            <path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 5.95C6.51 42.62 14.62 48 24 48z"/>
-          </svg>
-          Sign in with Google
-        </button>
-
-        {installPrompt && (
-          <button onClick={handleInstall}
-            className="flex items-center gap-1.5 text-[13px] text-[#6c63ff] hover:text-[#8b7ff7] transition">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+    <div>
+      <div className="min-h-screen bg-[#1a1a2e] flex flex-col items-center justify-center px-6 relative">
+        <img src="/icon-192.png" alt="repsheets" className="w-44 h-44 mb-5 rounded-[22%] shadow-[0_6px_24px_rgba(0,0,0,0.6)]" />
+        <h1 className="text-4xl font-bold text-white mb-6">repsheets</h1>
+        <StaggeredBullets />
+        <div className="mt-10 flex flex-col items-center gap-3">
+          <button onClick={login}
+            className="bg-white text-gray-800 font-semibold px-6 py-3 rounded-lg flex items-center gap-3 hover:bg-gray-100 transition">
+            <svg width="20" height="20" viewBox="0 0 48 48">
+              <path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59A14.5 14.5 0 019.5 24c0-1.59.28-3.14.76-4.59l-7.98-6.19A23.9 23.9 0 000 24c0 3.77.9 7.35 2.56 10.54l7.97-5.95z"/>
+              <path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 5.95C6.51 42.62 14.62 48 24 48z"/>
             </svg>
-            Add to Home Screen
+            Sign in with Google
           </button>
-        )}
 
-        {showIOSHint && !installPrompt && (
-          <p className="text-[12px] text-gray-500 text-center max-w-[200px] leading-relaxed">
-            Tap{' '}
-            <svg className="inline-block align-middle mx-0.5" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 16V4M8 8l4-4 4 4"/><path d="M3 17v2a2 2 0 002 2h14a2 2 0 002-2v-2"/>
-            </svg>
-            {' '}then <span className="text-gray-400 font-medium">Add to Home Screen</span>
+          {/* no-account notice */}
+          <p className="text-[10px] text-gray-600 text-center leading-relaxed">
+            No account created<br />
+            No email stored
           </p>
-        )}
+
+          {installPrompt && (
+            <button onClick={handleInstall}
+              className="flex items-center gap-1.5 text-[13px] text-[#6c63ff] hover:text-[#8b7ff7] transition">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+              </svg>
+              Add to Home Screen
+            </button>
+          )}
+
+          {showIOSHint && !installPrompt && (
+            <p className="text-[12px] text-gray-500 text-center max-w-[200px] leading-relaxed">
+              Tap{' '}
+              <svg className="inline-block align-middle mx-0.5" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 16V4M8 8l4-4 4 4"/><path d="M3 17v2a2 2 0 002 2h14a2 2 0 002-2v-2"/>
+              </svg>
+              {' '}then <span className="text-gray-400 font-medium">Add to Home Screen</span>
+            </p>
+          )}
+        </div>
+
+        <div className="absolute bottom-6 flex items-center gap-1.5">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22" />
+          </svg>
+          <a href="https://github.com/ejheflin/repsheets" target="_blank" rel="noopener noreferrer"
+            className="text-[11px] text-gray-600 hover:text-gray-400 transition">
+            Open Source
+          </a>
+          <span className="text-[11px] text-gray-400">·</span>
+          <a href="/privacy.html"
+            className="text-[11px] text-gray-600 hover:text-gray-400 transition">
+            Privacy Policy
+          </a>
+          <span className="text-[11px] text-gray-400">·</span>
+          <a href="/tos.html"
+            className="text-[11px] text-gray-600 hover:text-gray-400 transition">
+            Terms
+          </a>
+        </div>
       </div>
 
-      <div className="absolute bottom-6 flex items-center gap-1.5">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22" />
-        </svg>
-        <a href="https://github.com/ejheflin/repsheets" target="_blank" rel="noopener noreferrer"
-          className="text-[11px] text-gray-600 hover:text-gray-400 transition">
-          Open Source
-        </a>
-        <span className="text-[11px] text-gray-400">·</span>
-        <a href="/privacy.html"
-          className="text-[11px] text-gray-600 hover:text-gray-400 transition">
-          Privacy Policy
-        </a>
-        <span className="text-[11px] text-gray-400">·</span>
-        <a href="/tos.html"
-          className="text-[11px] text-gray-600 hover:text-gray-400 transition">
-          Terms
-        </a>
+      {/* below fold — explainer for Google OAuth review */}
+      <div className="bg-[#0d0c1f] border-t border-[#1e1d38] px-7 pt-7 pb-9">
+
+        {/* How it works */}
+        <p className="text-[10px] font-bold text-[#6c63ff] uppercase tracking-widest mb-4">
+          How it works
+        </p>
+
+        <div className="flex flex-col gap-3.5 mb-6">
+          <div className="flex items-start gap-3">
+            <div className="w-5 h-5 rounded-full bg-[#1e1d38] border border-[#3a3860] text-[#6c63ff] text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">1</div>
+            <div>
+              <p className="text-xs text-gray-200 font-semibold mb-0.5">Sign in with Google</p>
+              <p className="text-[11px] text-gray-500 leading-relaxed">repsheets creates a spreadsheet in your Google Drive to design and store your workouts. Nothing else is accessed.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="w-5 h-5 rounded-full bg-[#1e1d38] border border-[#3a3860] text-[#6c63ff] text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">2</div>
+            <div>
+              <p className="text-xs text-gray-200 font-semibold mb-0.5">Log your workouts</p>
+              <p className="text-[11px] text-gray-500 leading-relaxed">Track exercises, sets, reps, and weight from any device. Works offline as a PWA.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="w-5 h-5 rounded-full bg-[#1e1d38] border border-[#3a3860] text-[#6c63ff] text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">3</div>
+            <div>
+              <p className="text-xs text-gray-200 font-semibold mb-0.5">Your data, your sheet</p>
+              <p className="text-[11px] text-gray-500 leading-relaxed">Everything lives in a Google Sheet you own. View, analyze, export, or delete it any time — no lock-in.</p>
+            </div>
+          </div>
+        </div>
+
+        <hr className="border-[#1e1d38] mb-5" />
+
+        {/* Google permissions */}
+        <p className="text-[10px] font-bold text-[#6c63ff] uppercase tracking-widest mb-2.5">
+          Google permissions used
+        </p>
+        <div className="flex flex-col gap-1.5 mb-2">
+          <div className="flex items-baseline gap-1.5">
+            <div className="w-1 h-1 rounded-full bg-[#3a3860] flex-shrink-0 mt-1.5" />
+            <span className="text-[11px] text-gray-400 font-semibold">Google Sheets</span>
+            <span className="text-[11px] text-gray-600">— read &amp; write your workout spreadsheet</span>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <div className="w-1 h-1 rounded-full bg-[#3a3860] flex-shrink-0 mt-1.5" />
+            <span className="text-[11px] text-gray-400 font-semibold">Google Drive</span>
+            <span className="text-[11px] text-gray-600">— create the initial spreadsheet in your Drive</span>
+          </div>
+        </div>
+        <p className="text-[10px] text-gray-700 italic leading-relaxed">
+          We never access other files, your contacts, calendar, or email.
+        </p>
+
+        {/* Your privacy callout */}
+        <div className="mt-5 bg-[#141328] border-l-2 border-[#6c63ff] rounded-r-md px-3 py-2.5">
+          <p className="text-[10px] font-bold text-[#6c63ff] uppercase tracking-widest mb-1.5">Your privacy</p>
+          <p className="text-[11px] text-gray-500 leading-relaxed">
+            Signing in with Google does not create an account at repsheets. We never receive or store your email address. You will not receive emails from us — ever.
+          </p>
+        </div>
+
       </div>
     </div>
   )
