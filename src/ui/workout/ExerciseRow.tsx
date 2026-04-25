@@ -44,10 +44,10 @@ interface ExerciseRowProps {
   tourId?: string
 }
 
-/** Compute target weight from pct + 1RM, or null if either is missing. */
+/** Compute target weight from pct + 1RM, rounded to nearest 5, or null if either is missing. */
 function targetWeight(pct: number | null | undefined, orm: number | null | undefined): number | null {
   if (pct == null || orm == null) return null
-  return Math.round(pct * orm / 100)
+  return Math.round(pct * orm / 100 / 5) * 5
 }
 
 /** Build slashed target string for collapsed view, truncated to maxLen chars. */
