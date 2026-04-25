@@ -171,7 +171,7 @@ export function ExerciseProgressChart({
                 {hasOrm && (
                   <Line type="monotone" dataKey="orm" name="Est. 1RM"
                     stroke="#a78bfa" strokeWidth={1.5} strokeDasharray="4 3"
-                    dot={false} connectNulls={true} />
+                    dot={{ r: 2.5, fill: '#a78bfa', strokeWidth: 0 }} connectNulls={true} />
                 )}
               </ComposedChart>
             ) : (
@@ -192,7 +192,7 @@ export function ExerciseProgressChart({
                 {hasOrm && (
                   <Line type="monotone" dataKey="orm" name="Est. 1RM"
                     stroke="#a78bfa" strokeWidth={1.5} strokeDasharray="4 3"
-                    dot={false} connectNulls={true} />
+                    dot={{ r: 2.5, fill: '#a78bfa', strokeWidth: 0 }} connectNulls={true} />
                 )}
               </LineChart>
             )}
