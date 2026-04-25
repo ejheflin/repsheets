@@ -8,6 +8,7 @@ import type { LogEntry } from '../types'
 export interface ExerciseHistoryPoint {
   date: string
   maxWeight: number
+  estimatedOrm?: number | null
   athlete?: string
 }
 
@@ -111,16 +112,26 @@ export function useLogs() {
   }, [logs])
 
   const exerciseHistory = useCallback((exerciseName: string, limit: number = 10): ExerciseHistoryPoint[] => {
-    const byDate = new Map<string, number>()
+    const byDate = new Map<string, { maxWeight: number; maxOrm: number | null }>()
     for (const log of logs) {
-      if (log.exercise !== exerciseName || log.value === null) continue
-      const current = byDate.get(log.date) ?? 0
-      if (log.value > current) byDate.set(log.date, log.value)
+      if (log.exercise !== exerciseName || log.value === null || log.value <= 0) continue
+      const orm = (log.pct != null && log.pct > 0) ? log.value / (log.pct / 100) : null
+      const current = byDate.get(log.date) ?? { maxWeight: 0, maxOrm: null }
+      byDate.set(log.date, {
+        maxWeight: Math.max(current.maxWeight, log.value),
+        maxOrm: orm != null
+          ? Math.max(current.maxOrm ?? 0, orm)
+          : current.maxOrm,
+      })
     }
     return Array.from(byDate.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .slice(-limit)
-      .map(([date, maxWeight]) => ({ date, maxWeight }))
+      .map(([date, { maxWeight, maxOrm }]) => ({
+        date,
+        maxWeight,
+        estimatedOrm: maxOrm != null ? Math.round(maxOrm / 5) * 5 : null,
+      }))
   }, [logs])
 
   // Per-athlete exercise history for multi-athlete chart

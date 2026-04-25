@@ -284,6 +284,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
           value: set.value,
           unit: set.unit,
           notes: ex.userNotes,
+          pct: set.pct ?? null,
         })
       }
     }
