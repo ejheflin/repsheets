@@ -21,7 +21,7 @@ export function SetRow({
 }: SetRowProps) {
   const showPctLabel = pct != null
   const targetWeight = showPctLabel && oneRepMax != null
-    ? Math.round(pct * oneRepMax / 100)
+    ? Math.round(pct * oneRepMax / 100 / 5) * 5
     : null
 
   const pctLabel = showPctLabel
