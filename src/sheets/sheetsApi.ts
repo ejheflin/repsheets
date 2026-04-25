@@ -51,7 +51,7 @@ export async function fetchPublicRoutineRows(spreadsheetId: string): Promise<Rou
   const rows = await fetchPublicRange(spreadsheetId, 'Routines!A:H')
   if (rows.length < 2) return []
   return rows.slice(1).map((row) => {
-    const rawValue = row[5] ?? ''
+    const rawValue = String(row[5] ?? '')
     const num = rawValue ? parseFloat(rawValue) : NaN
     const isDecimalPct = !isNaN(num) && num > 0 && num < 1 && !rawValue.endsWith('%')
     const isPct = rawValue.endsWith('%') || isDecimalPct
@@ -76,7 +76,7 @@ export async function fetchRoutineRows(spreadsheetId: string): Promise<RoutineRo
   const rows = await fetchRange(spreadsheetId, 'Routines!A:H')
   if (rows.length < 2) return []
   return rows.slice(1).map((row) => {
-    const rawValue = row[5] ?? ''
+    const rawValue = String(row[5] ?? '')
     const num = rawValue ? parseFloat(rawValue) : NaN
     const isDecimalPct = !isNaN(num) && num > 0 && num < 1 && !rawValue.endsWith('%')
     const isPct = rawValue.endsWith('%') || isDecimalPct
