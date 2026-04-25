@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { ComposedChart, BarChart, Bar, LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend } from 'recharts'
+import { ComposedChart, Bar, LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import { ExerciseChipFilter } from './ExerciseChipFilter'
 import type { ExerciseHistoryPoint } from '../../data/useLogs'
 
