@@ -39,8 +39,9 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
     const map = new Map<string, number | null>()
     if (!workout) return map
     for (const ex of workout.exercises) {
-      if (ex.sets.some((s) => s.pct !== null)) {
-        map.set(ex.exercise, estimateOneRepMax(myLogs, ex.exercise, athleteName))
+      if (ex.sets.some((s) => s.pct != null)) {
+        const setToPct = new Map(ex.sets.map((s) => [s.setNumber, s.pct]))
+        map.set(ex.exercise, estimateOneRepMax(myLogs, ex.exercise, athleteName, setToPct))
       }
     }
     return map

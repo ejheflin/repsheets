@@ -6,14 +6,18 @@ function epley(weight: number, reps: number): number {
 }
 
 /**
- * Estimates 1RM using Epley formula averaged across the last 3 workout sessions.
- * Only considers sets with 1–12 reps (estimates degrade above 12).
- * Returns null when no qualifying logs exist.
+ * Estimates 1RM averaged across the last 3 workout sessions.
+ *
+ * setToPct maps set number → programmed percentage for the current routine.
+ * When a log entry matches a percentage-programmed set, 1RM is derived directly
+ * as weight / (pct/100) — far more accurate than Epley for submaximal work.
+ * Falls back to Epley for absolute-weight sets (reps 1–12 only).
  */
 export function estimateOneRepMax(
   logs: LogEntry[],
   exercise: string,
   athlete: string,
+  setToPct?: Map<number, number | null | undefined>,
 ): number | null {
   const byDate = new Map<string, number>()
 
@@ -21,9 +25,16 @@ export function estimateOneRepMax(
     if (log.athlete !== athlete) continue
     if (log.exercise !== exercise) continue
     if (log.value === null || log.value <= 0) continue
-    if (log.reps < 1 || log.reps > 12) continue
 
-    const est = epley(log.value, log.reps)
+    const pct = setToPct?.get(log.set)
+    let est: number
+    if (pct != null && pct > 0) {
+      est = log.value / (pct / 100)
+    } else {
+      if (log.reps < 1 || log.reps > 12) continue
+      est = epley(log.value, log.reps)
+    }
+
     const current = byDate.get(log.date) ?? 0
     if (est > current) byDate.set(log.date, est)
   }
