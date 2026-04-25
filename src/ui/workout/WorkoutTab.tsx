@@ -27,6 +27,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const [showDiscard, setShowDiscard] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [routineUpdateExercises, setRoutineUpdateExercises] = useState<WorkoutExercise[] | null>(null)
+  const [showSavedToast, setShowSavedToast] = useState(false)
 
   const athleteName = useMemo(() => {
     if (!user) return ''
@@ -53,12 +54,24 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  const savedToast = showSavedToast && (
+    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-[#22c55e] text-white px-5 py-2.5 rounded-full text-sm font-semibold shadow-lg pointer-events-none">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+      Workout saved
+    </div>
+  )
+
   if (!workout) {
     return (
-      <div className="text-center mt-20">
-        <p className="text-gray-400">No workout in progress.</p>
-        <p className="text-gray-500 text-sm mt-2">Pick a <button onClick={onGoToRoutines} className="text-[#6c63ff] underline">routine</button> to get started.</p>
-      </div>
+      <>
+        {savedToast}
+        <div className="text-center mt-20">
+          <p className="text-gray-400">No workout in progress.</p>
+          <p className="text-gray-500 text-sm mt-2">Pick a <button onClick={onGoToRoutines} className="text-[#6c63ff] underline">routine</button> to get started.</p>
+        </div>
+      </>
     )
   }
 
@@ -67,6 +80,10 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const doFinish = async (logOnlyCompleted: boolean) => {
     const result = await finishWorkout(logOnlyCompleted)
     setShowFinish(false)
+    if (result) {
+      setShowSavedToast(true)
+      setTimeout(() => setShowSavedToast(false), 2500)
+    }
     if (result && result.exercisesWithAddedSets.length > 0 && spreadsheetId) {
       // Only prompt to update routine if the user owns the sheet
       try {
@@ -107,6 +124,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
 
   return (
     <div>
+      {savedToast}
       <div className={`sticky top-0 z-20 bg-[#1a1a2e] -mx-4 px-4 flex justify-between items-center transition-all duration-200 ${scrolled ? 'pt-2 pb-1.5 mb-1.5' : 'pt-1 pb-2 mb-2'}`}>
         <div className="min-w-0">
           {!scrolled && <div className="text-[11px] text-gray-500">{workout.program}</div>}
