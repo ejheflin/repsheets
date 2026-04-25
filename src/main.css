@@ -1,1 +1,7 @@
 @import "tailwindcss";
+
+/* Suppress the browser focus outline that Recharts applies to its SVG on click */
+.recharts-wrapper:focus,
+.recharts-wrapper svg:focus {
+  outline: none;
+}
