@@ -3,26 +3,19 @@ import { authFetch } from '../auth/authFetch'
 import { GOOGLE_API_KEY } from '../config'
 
 /**
- * Normalizes any date value from Google Sheets to YYYY-MM-DD.
- * Sheets may store dates as serial numbers (e.g. 45376) or locale-formatted
- * strings (e.g. "4/25/2026") when USER_ENTERED mode interprets the value.
+ * Converts a Google Sheets serial date number to YYYY-MM-DD.
+ * With UNFORMATTED_VALUE, date cells always come back as serial numbers
+ * regardless of the spreadsheet's locale or cell format.
+ * 25569 = days between the Sheets epoch (Dec 30 1899) and Unix epoch.
  */
 function normalizeDate(raw: string): string {
   if (!raw) return raw
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw
 
-  // Google Sheets serial number: integer with no separators
   const serial = Number(raw)
-  if (Number.isInteger(serial) && serial > 1 && String(serial) === raw) {
-    // 25569 = days between Google Sheets epoch (Dec 30 1899) and Unix epoch
+  if (Number.isInteger(serial) && serial > 1) {
     const date = new Date(Math.round((serial - 25569) * 86400000))
     return date.toISOString().split('T')[0]
-  }
-
-  // Locale-formatted date string — parse and reformat
-  const parsed = new Date(raw)
-  if (!isNaN(parsed.getTime())) {
-    return parsed.toISOString().split('T')[0]
   }
 
   return raw
@@ -31,7 +24,7 @@ function normalizeDate(raw: string): string {
 const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets'
 
 async function fetchRange(spreadsheetId: string, range: string): Promise<string[][]> {
-  const url = `${SHEETS_BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}`
+  const url = `${SHEETS_BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}?valueRenderOption=UNFORMATTED_VALUE`
   const res = await authFetch(url)
   if (!res.ok) {
     const err = await res.json()
@@ -43,7 +36,7 @@ async function fetchRange(spreadsheetId: string, range: string): Promise<string[
 
 /** Fetch range from a publicly shared sheet (no auth, uses API key) */
 async function fetchPublicRange(spreadsheetId: string, range: string): Promise<string[][]> {
-  const url = `${SHEETS_BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}?key=${GOOGLE_API_KEY}`
+  const url = `${SHEETS_BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}?key=${GOOGLE_API_KEY}&valueRenderOption=UNFORMATTED_VALUE`
   const res = await fetch(url)
   if (!res.ok) {
     const err = await res.json()
@@ -124,8 +117,7 @@ export async function fetchLogEntries(spreadsheetId: string): Promise<LogEntry[]
 export async function appendLogEntries(spreadsheetId: string, entries: LogEntry[]): Promise<void> {
   const url = `${SHEETS_BASE}/${spreadsheetId}/values/Log!A:J:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`
   const values = entries.map((e) => [
-    // Prefix with ' to force Sheets to store as text, preventing serial-date conversion
-    `'${e.date}`, e.athlete, e.program, e.routine, e.exercise,
+    e.date, e.athlete, e.program, e.routine, e.exercise,
     e.set, e.reps, e.value ?? '', e.unit, e.notes,
   ])
   const res = await authFetch(url, {
