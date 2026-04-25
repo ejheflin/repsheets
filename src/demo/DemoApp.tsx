@@ -49,6 +49,7 @@ export function DemoApp() {
             setNumber: s.setNumber,
             reps: resolved.reps,
             value: resolved.value,
+            pct: s.pct,
             unit: s.unit,
             completed: false,
             isAdded: false,
@@ -108,7 +109,7 @@ export function DemoApp() {
       const next = structuredClone(prev)
       const ex = next.exercises[ei]
       const last = ex.sets[ex.sets.length - 1]
-      ex.sets.push({ setNumber: last.setNumber + 1, reps: last.reps, value: last.value, unit: last.unit, completed: false, isAdded: true })
+      ex.sets.push({ setNumber: last.setNumber + 1, reps: last.reps, value: last.value, pct: last.pct, unit: last.unit, completed: false, isAdded: true })
       return next
     })
   }

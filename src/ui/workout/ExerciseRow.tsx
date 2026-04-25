@@ -88,10 +88,10 @@ export function ExerciseRow({
 
   // Percentage set detection
   const firstPct = exercise.sets[0]?.pct ?? null
-  const allSamePct = exercise.sets.every((s) => s.pct === firstPct)
+  const allSamePct = exercise.sets.every((s) => (s.pct ?? null) === firstPct)
   // Show slashed targets when pcts differ across sets (or mix of pct + absolute)
-  const showSlashedTargets = exercise.sets.some((s) => s.pct !== null) && !allSamePct
-  const hasAnyPct = exercise.sets.some((s) => s.pct !== null)
+  const showSlashedTargets = exercise.sets.some((s) => s.pct != null) && !allSamePct
+  const hasAnyPct = exercise.sets.some((s) => s.pct != null)
 
   const notesInput = showNotes ? (
     <div className="mt-1.5 ml-5">
@@ -209,7 +209,7 @@ export function ExerciseRow({
             pct={set.pct}
             oneRepMax={oneRepMax}
             repsFlag={set.reps !== summaryReps}
-            valueFlag={set.value !== summaryValue}
+            valueFlag={!showSlashedTargets && set.value !== summaryValue}
             onToggle={() => onToggleSet(setIdx)}
             onRepsChange={(v) => onUpdateSet(setIdx, 'reps', v)}
             onValueChange={(v) => onUpdateSet(setIdx, 'value', v)} />

@@ -33,7 +33,12 @@ export async function fetchPublicRoutineRows(spreadsheetId: string): Promise<Rou
   if (rows.length < 2) return []
   return rows.slice(1).map((row) => {
     const rawValue = row[5] ?? ''
-    const isPct = rawValue.endsWith('%')
+    const num = rawValue ? parseFloat(rawValue) : NaN
+    const isDecimalPct = !isNaN(num) && num > 0 && num < 1 && !rawValue.endsWith('%')
+    const isPct = rawValue.endsWith('%') || isDecimalPct
+    const pct: number | null = isPct
+      ? (rawValue.endsWith('%') ? parseFloat(rawValue) || null : num * 100)
+      : null
     return {
       program: row[0] ?? '',
       routine: row[1] ?? '',
@@ -41,7 +46,7 @@ export async function fetchPublicRoutineRows(spreadsheetId: string): Promise<Rou
       sets: row[3] ?? '1',
       reps: row[4] ? Number(row[4]) : null,
       value: isPct ? null : (rawValue ? Number(rawValue) : null),
-      pct: isPct ? (parseFloat(rawValue) || null) : null,
+      pct,
       unit: row[6] ?? '',
       notes: row[7] ?? '',
     }
@@ -53,7 +58,12 @@ export async function fetchRoutineRows(spreadsheetId: string): Promise<RoutineRo
   if (rows.length < 2) return []
   return rows.slice(1).map((row) => {
     const rawValue = row[5] ?? ''
-    const isPct = rawValue.endsWith('%')
+    const num = rawValue ? parseFloat(rawValue) : NaN
+    const isDecimalPct = !isNaN(num) && num > 0 && num < 1 && !rawValue.endsWith('%')
+    const isPct = rawValue.endsWith('%') || isDecimalPct
+    const pct: number | null = isPct
+      ? (rawValue.endsWith('%') ? parseFloat(rawValue) || null : num * 100)
+      : null
     return {
       program: row[0] ?? '',
       routine: row[1] ?? '',
@@ -61,7 +71,7 @@ export async function fetchRoutineRows(spreadsheetId: string): Promise<RoutineRo
       sets: row[3] ?? '1',
       reps: row[4] ? Number(row[4]) : null,
       value: isPct ? null : (rawValue ? Number(rawValue) : null),
-      pct: isPct ? (parseFloat(rawValue) || null) : null,
+      pct,
       unit: row[6] ?? '',
       notes: row[7] ?? '',
     }
