@@ -23,6 +23,7 @@ export interface LogEntry {
   value: number | null
   unit: string
   notes: string
+  pct?: number | null // programmed % of 1RM (col K), null for absolute-weight sets
 }
 
 /** A set expanded from RoutineRow by the set inference engine */

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend } from 'recharts'
+import { ComposedChart, BarChart, Bar, LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import { ExerciseChipFilter } from './ExerciseChipFilter'
 import type { ExerciseHistoryPoint } from '../../data/useLogs'
 
@@ -79,21 +79,26 @@ export function ExerciseProgressChart({
   }, [selectedExercise])
 
   // Build chart data
-  const { data, series } = useMemo(() => {
-    if (!selectedExercise) return { data: [], series: [] as string[] }
+  const { data, series, hasOrm } = useMemo(() => {
+    if (!selectedExercise) return { data: [], series: [] as string[], hasOrm: false }
 
     const effectiveLimit = limit === 0 ? 9999 : limit
 
     if (isShared && showAllAthletes) {
-      // Multi-athlete mode
+      // Multi-athlete mode — no 1RM line
       const result = exerciseHistoryByAthlete(selectedExercise, effectiveLimit)
-      return { data: result.data, series: result.athletes }
+      return { data: result.data, series: result.athletes, hasOrm: false }
     }
 
     // Single athlete mode
     const points = exerciseHistory(selectedExercise, effectiveLimit)
-    const chartData = points.map((p) => ({ date: p.date.slice(5), weight: p.maxWeight }))
-    return { data: chartData, series: ['weight'] }
+    const anyOrm = points.some((p) => p.estimatedOrm != null)
+    const chartData = points.map((p) => ({
+      date: p.date.slice(5),
+      weight: p.maxWeight,
+      ...(anyOrm ? { orm: p.estimatedOrm ?? undefined } : {}),
+    }))
+    return { data: chartData, series: ['weight'], hasOrm: anyOrm }
   }, [selectedExercise, exerciseHistory, exerciseHistoryByAthlete, isShared, showAllAthletes, limit])
 
   if (uniqueExercises.length === 0) return null
@@ -151,7 +156,7 @@ export function ExerciseProgressChart({
         <>
           <ResponsiveContainer width="100%" height={200}>
             {chartType === 'bar' ? (
-              <BarChart data={data} margin={{ top: 10, right: 5, bottom: 0, left: -15 }}>
+              <ComposedChart data={data} margin={{ top: 10, right: 5, bottom: 0, left: -15 }}>
                 <XAxis dataKey="date" tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false} />
                 <Tooltip
@@ -159,11 +164,16 @@ export function ExerciseProgressChart({
                   labelStyle={{ color: '#888' }}
                   cursor={{ fill: 'transparent', stroke: '#6c63ff', strokeDasharray: '4 2', strokeWidth: 1 }}
                 />
-                {series.length > 1 && <Legend wrapperStyle={{ fontSize: 10, color: '#888' }} />}
+                {(series.length > 1 || hasOrm) && <Legend wrapperStyle={{ fontSize: 10, color: '#888' }} />}
                 {series.map((s, i) => (
                   <Bar key={s} dataKey={s} fill={CHART_COLORS[i % CHART_COLORS.length]} radius={[3, 3, 0, 0]} barSize={16} />
                 ))}
-              </BarChart>
+                {hasOrm && (
+                  <Line type="monotone" dataKey="orm" name="Est. 1RM"
+                    stroke="#a78bfa" strokeWidth={1.5} strokeDasharray="4 3"
+                    dot={false} connectNulls={true} />
+                )}
+              </ComposedChart>
             ) : (
               <LineChart data={data} margin={{ top: 10, right: 5, bottom: 0, left: -15 }}>
                 <XAxis dataKey="date" tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false} />
@@ -173,12 +183,17 @@ export function ExerciseProgressChart({
                   contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #3a3a5a', borderRadius: 8, fontSize: 12 }}
                   labelStyle={{ color: '#888' }}
                 />
-                {series.length > 1 && <Legend wrapperStyle={{ fontSize: 10, color: '#888' }} />}
+                {(series.length > 1 || hasOrm) && <Legend wrapperStyle={{ fontSize: 10, color: '#888' }} />}
                 {series.map((s, i) => (
                   <Line key={s} type="monotone" dataKey={s} stroke={CHART_COLORS[i % CHART_COLORS.length]}
                     strokeWidth={2} dot={{ r: 3, fill: CHART_COLORS[i % CHART_COLORS.length] }}
                     connectNulls={true} />
                 ))}
+                {hasOrm && (
+                  <Line type="monotone" dataKey="orm" name="Est. 1RM"
+                    stroke="#a78bfa" strokeWidth={1.5} strokeDasharray="4 3"
+                    dot={false} connectNulls={true} />
+                )}
               </LineChart>
             )}
           </ResponsiveContainer>

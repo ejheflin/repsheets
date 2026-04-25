@@ -98,7 +98,7 @@ export async function fetchRoutineRows(spreadsheetId: string): Promise<RoutineRo
 }
 
 export async function fetchLogEntries(spreadsheetId: string): Promise<LogEntry[]> {
-  const rows = await fetchRange(spreadsheetId, 'Log!A:J')
+  const rows = await fetchRange(spreadsheetId, 'Log!A:K')
   if (rows.length < 2) return []
   return rows.slice(1).map((row) => ({
     date: normalizeDate(row[0] ?? ''),
@@ -111,14 +111,16 @@ export async function fetchLogEntries(spreadsheetId: string): Promise<LogEntry[]
     value: row[7] ? Number(row[7]) : null,
     unit: row[8] ?? '',
     notes: row[9] ?? '',
+    pct: row[10] ? Number(row[10]) : null,
   }))
 }
 
 export async function appendLogEntries(spreadsheetId: string, entries: LogEntry[]): Promise<void> {
-  const url = `${SHEETS_BASE}/${spreadsheetId}/values/Log!A:J:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`
+  const url = `${SHEETS_BASE}/${spreadsheetId}/values/Log!A:K:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`
   const values = entries.map((e) => [
     e.date, e.athlete, e.program, e.routine, e.exercise,
     e.set, e.reps, e.value ?? '', e.unit, e.notes,
+    e.pct ?? '',
   ])
   const res = await authFetch(url, {
     method: 'POST',
