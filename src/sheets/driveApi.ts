@@ -55,7 +55,6 @@ async function getOrCreateRegistry(): Promise<string> {
   if (!createRes.ok) throw new Error('Failed to create registry')
   const created = await createRes.json()
   localStorage.setItem(REGISTRY_KEY, created.id)
-  await writeRegistryContent(created.id, [])
   return created.id
 }
 
