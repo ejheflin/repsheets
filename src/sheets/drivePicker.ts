@@ -1,5 +1,4 @@
 import { getStoredUser } from '../auth/googleAuth'
-import { GOOGLE_API_KEY } from '../config'
 
 export interface PickerFile {
   id: string
@@ -34,7 +33,6 @@ export async function openRepSheetPicker(
   new window.google.picker!.PickerBuilder()
     .addView(window.google.picker!.ViewId.SPREADSHEETS)
     .setOAuthToken(accessToken)
-    .setDeveloperKey(GOOGLE_API_KEY)
     .setCallback((data) => {
       if (data.action === window.google.picker!.Action.PICKED && data.docs?.[0]) {
         onPick(data.docs[0])
