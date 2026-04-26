@@ -78,7 +78,12 @@ function JoinHandler({ sheetId, onDone }: { sheetId: string; onDone: () => void 
 
   useEffect(() => {
     const run = async () => {
-      try { await registerSheetById(sheetId) } catch {}
+      try {
+        await registerSheetById(sheetId)
+        console.log('[repsheets] JoinHandler: registered sheet', sheetId)
+      } catch (e) {
+        console.error('[repsheets] JoinHandler: registerSheetById failed', e)
+      }
       setSpreadsheetId(sheetId)
       onDone()
     }
