@@ -1,6 +1,7 @@
-import { createContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { createContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import type { AuthUser } from '../types'
-import { getStoredUser, initLogin, logout as doLogout } from './googleAuth'
+import { getStoredUser, initLogin, logout as doLogout, upgradeStoredToken } from './googleAuth'
+import { GOOGLE_CLIENT_ID, SCOPES, SCOPE_VERSION } from '../config'
 
 interface AuthContextValue {
   user: AuthUser | null
@@ -16,6 +17,7 @@ export const AuthContext = createContext<AuthContextValue>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const upgradeAttempted = useRef(false)
 
   useEffect(() => {
     const stored = getStoredUser()
@@ -24,6 +26,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setIsLoading(false)
   }, [])
+
+  // Silently request a fresh token when the stored one predates a scope change
+  useEffect(() => {
+    if (!user || (user.scopeVersion ?? 0) >= SCOPE_VERSION || upgradeAttempted.current) return
+    upgradeAttempted.current = true
+
+    const tryUpgrade = () => {
+      if (!window.google?.accounts?.oauth2) { setTimeout(tryUpgrade, 500); return }
+      window.google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: SCOPES,
+        callback: (response: { access_token: string; error?: string }) => {
+          if (response.error) return
+          const updated = upgradeStoredToken(response.access_token)
+          if (updated) setUser(updated)
+        },
+        error_callback: () => {},
+      }).requestAccessToken({ prompt: '' })
+    }
+
+    tryUpgrade()
+  }, [user])
 
   const login = useCallback(() => {
     initLogin(

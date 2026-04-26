@@ -83,4 +83,5 @@ export interface AuthUser {
   name: string
   picture: string
   accessToken: string
+  scopeVersion?: number
 }

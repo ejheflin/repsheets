@@ -1,4 +1,4 @@
-import { GOOGLE_CLIENT_ID, SCOPES, AUTH_WORKER_URL } from '../config'
+import { GOOGLE_CLIENT_ID, SCOPES, SCOPE_VERSION, AUTH_WORKER_URL } from '../config'
 import type { AuthUser } from '../types'
 
 const TOKEN_KEY = 'repsheets_token'
@@ -131,7 +131,8 @@ export async function silentRefresh(): Promise<AuthUser | null> {
     const data = await res.json()
 
     const info = await fetchUserInfo(data.access_token)
-    const user: AuthUser = { ...info, accessToken: data.access_token }
+    const existing = getStoredUser()
+    const user: AuthUser = { ...info, accessToken: data.access_token, scopeVersion: existing?.scopeVersion }
     storeUser(user)
     return user
   } catch {
@@ -154,7 +155,7 @@ export function initLogin(onSuccess: (user: AuthUser) => void, onError: (err: st
           const tokens = await exchangeCode(response.code)
           storeRefreshToken(tokens.refresh_token)
           const info = await fetchUserInfo(tokens.access_token)
-          const user: AuthUser = { ...info, accessToken: tokens.access_token }
+          const user: AuthUser = { ...info, accessToken: tokens.access_token, scopeVersion: SCOPE_VERSION }
           storeUser(user)
           onSuccess(user)
         } catch (e) { console.error('Code exchange error:', e); onError(String(e)) }
@@ -171,7 +172,7 @@ export function initLogin(onSuccess: (user: AuthUser) => void, onError: (err: st
         if (response.error) { onError(response.error); return }
         try {
           const info = await fetchUserInfo(response.access_token)
-          const user: AuthUser = { ...info, accessToken: response.access_token }
+          const user: AuthUser = { ...info, accessToken: response.access_token, scopeVersion: SCOPE_VERSION }
           storeUser(user)
           onSuccess(user)
         } catch (e) { console.error('Login error:', e); onError(String(e)) }
@@ -214,6 +215,14 @@ export function refreshToken(): Promise<AuthUser | null> {
     }
     tryRefresh(true)
   })
+}
+
+export function upgradeStoredToken(accessToken: string): AuthUser | null {
+  const user = getStoredUser()
+  if (!user) return null
+  const updated: AuthUser = { ...user, accessToken, scopeVersion: SCOPE_VERSION }
+  storeUser(updated)
+  return updated
 }
 
 export function isTokenExpiringSoon(): boolean {
