@@ -17,7 +17,7 @@ import { DemoApp } from './demo/DemoApp'
 import { useState, useEffect } from 'react'
 import { AuthExpiredError } from './auth/authFetch'
 import { initSyncListeners, flushSync } from './data/syncEngine'
-import { saveJoinedSheetId } from './sheets/driveApi'
+import { registerSheetById } from './sheets/driveApi'
 import { AuthTest } from './ui/AuthTest'
 
 function getUrlParam(name: string): string | null {
@@ -63,9 +63,12 @@ function JoinHandler({ sheetId, onDone }: { sheetId: string; onDone: () => void 
   const { setSpreadsheetId } = useSheetContext()
 
   useEffect(() => {
-    setSpreadsheetId(sheetId)
-    saveJoinedSheetId(sheetId)
-    onDone()
+    const run = async () => {
+      try { await registerSheetById(sheetId) } catch {}
+      setSpreadsheetId(sheetId)
+      onDone()
+    }
+    run()
   }, [sheetId, setSpreadsheetId, onDone])
 
   return (
@@ -138,17 +141,13 @@ function AppContent() {
     )
   }
 
-  if (joinSheetId) {
-    return (
-      <SheetProvider>
-        <JoinHandler sheetId={joinSheetId} onDone={clearJoin} />
-      </SheetProvider>
-    )
-  }
-
   return (
     <SheetProvider>
-      <MainApp />
+      {joinSheetId ? (
+        <JoinHandler sheetId={joinSheetId} onDone={clearJoin} />
+      ) : (
+        <MainApp />
+      )}
       {showReAuth && <ReAuthPrompt onDone={clearReAuth} />}
     </SheetProvider>
   )

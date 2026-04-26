@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from '../data/useSheetContext'
-import { listRepSheets, createExampleSheet } from '../sheets/driveApi'
+import { listRepSheets, createExampleSheet, registerSheetById, NotRepSheetError } from '../sheets/driveApi'
+import { openRepSheetPicker } from '../sheets/drivePicker'
 import { fetchPublicRoutineRows } from '../sheets/sheetsApi'
+import { setPreference } from '../data/db'
 import { TEMPLATE_SHEET_ID } from '../config'
 import type { RepSheet, RoutineRow } from '../types'
 
@@ -21,6 +23,8 @@ export function SheetSelector() {
   const [selectedPrograms, setSelectedPrograms] = useState<Set<string>>(new Set())
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState('')
+  const [isPickerLoading, setIsPickerLoading] = useState(false)
+  const [pickerError, setPickerError] = useState('')
 
   useEffect(() => {
     if (!user) return
@@ -58,6 +62,33 @@ export function SheetSelector() {
       else next.add(program)
       return next
     })
+  }
+
+  const handleLoadSheet = async () => {
+    setIsPickerLoading(true)
+    setPickerError('')
+    try {
+      await openRepSheetPicker(
+        async (file) => {
+          try {
+            await registerSheetById(file.id)
+            await setPreference('activeSheet', file.id)
+            setSpreadsheetId(file.id)
+          } catch (e) {
+            setPickerError(
+              e instanceof NotRepSheetError
+                ? "That spreadsheet isn't a repsheet — it needs Routines and Log tabs"
+                : "Couldn't access that sheet"
+            )
+            setIsPickerLoading(false)
+          }
+        },
+        () => setIsPickerLoading(false),
+      )
+    } catch {
+      setPickerError('Failed to open file picker')
+      setIsPickerLoading(false)
+    }
   }
 
   const handleCreate = async () => {
@@ -153,6 +184,12 @@ export function SheetSelector() {
         className="w-full border-2 border-dashed border-[#6c63ff] rounded-[10px] p-4 mt-2 text-center text-[#6c63ff] font-semibold">
         + Create New Sheet
       </button>
+
+      <button onClick={handleLoadSheet} disabled={isPickerLoading}
+        className="w-full p-3 mt-1 text-center text-gray-400 text-sm font-semibold disabled:opacity-50">
+        {isPickerLoading ? 'Opening…' : 'Load a sheet from Drive'}
+      </button>
+      {pickerError && <p className="text-red-400 text-xs text-center mt-1">{pickerError}</p>}
     </div>
   )
 }

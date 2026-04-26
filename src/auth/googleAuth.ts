@@ -8,6 +8,9 @@ const TOKEN_TIME_KEY = 'repsheets_token_time'
 
 declare global {
   interface Window {
+    gapi: {
+      load: (module: string, config: { callback: () => void; onerror?: (err: unknown) => void }) => void
+    }
     google: {
       accounts: {
         oauth2: {
@@ -31,7 +34,23 @@ declare global {
           revoke: (token: string, callback: () => void) => void
         }
       }
+      picker?: {
+        PickerBuilder: { new(): PickerBuilderInstance }
+        ViewId: { SPREADSHEETS: string }
+        Action: { PICKED: string; CANCEL: string }
+      }
     }
+  }
+  interface PickerBuilderInstance {
+    addView(viewId: string): PickerBuilderInstance
+    setOAuthToken(token: string): PickerBuilderInstance
+    setDeveloperKey(key: string): PickerBuilderInstance
+    setCallback(cb: (data: PickerCallbackData) => void): PickerBuilderInstance
+    build(): { setVisible(visible: boolean): void }
+  }
+  interface PickerCallbackData {
+    action: string
+    docs?: Array<{ id: string; name: string; mimeType: string }>
   }
 }
 
