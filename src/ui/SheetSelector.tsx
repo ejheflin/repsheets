@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from '../data/useSheetContext'
 import { listRepSheets, createExampleSheet, registerSheetById, NotRepSheetError } from '../sheets/driveApi'
+import { openRepSheetPicker } from '../sheets/drivePicker'
 import { fetchPublicRoutineRows } from '../sheets/sheetsApi'
 import { setPreference } from '../data/db'
 import { TEMPLATE_SHEET_ID } from '../config'
@@ -22,10 +23,8 @@ export function SheetSelector() {
   const [selectedPrograms, setSelectedPrograms] = useState<Set<string>>(new Set())
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState('')
-  const [showUrlInput, setShowUrlInput] = useState(false)
-  const [urlInput, setUrlInput] = useState('')
-  const [isUrlLoading, setIsUrlLoading] = useState(false)
-  const [urlError, setUrlError] = useState('')
+  const [isPickerLoading, setIsPickerLoading] = useState(false)
+  const [pickerError, setPickerError] = useState('')
 
   useEffect(() => {
     if (!user) return
@@ -65,29 +64,30 @@ export function SheetSelector() {
     })
   }
 
-  function parseSheetId(input: string): string | null {
-    const urlMatch = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)
-    if (urlMatch) return urlMatch[1]
-    if (/^[a-zA-Z0-9_-]{20,}$/.test(input.trim())) return input.trim()
-    return null
-  }
-
   const handleLoadSheet = async () => {
-    const id = parseSheetId(urlInput)
-    if (!id) { setUrlError('Enter a valid Google Sheets URL or ID'); return }
-    setIsUrlLoading(true)
-    setUrlError('')
+    setIsPickerLoading(true)
+    setPickerError('')
     try {
-      await registerSheetById(id)
-      await setPreference('activeSheet', id)
-      setSpreadsheetId(id)
-    } catch (e) {
-      setUrlError(
-        e instanceof NotRepSheetError
-          ? "That spreadsheet isn't a repsheet — it needs Routines and Log tabs"
-          : "Couldn't access that sheet"
+      await openRepSheetPicker(
+        async (file) => {
+          try {
+            await registerSheetById(file.id)
+            await setPreference('activeSheet', file.id)
+            setSpreadsheetId(file.id)
+          } catch (e) {
+            setPickerError(
+              e instanceof NotRepSheetError
+                ? "That spreadsheet isn't a repsheet — it needs Routines and Log tabs"
+                : "Couldn't access that sheet"
+            )
+            setIsPickerLoading(false)
+          }
+        },
+        () => setIsPickerLoading(false),
       )
-      setIsUrlLoading(false)
+    } catch {
+      setPickerError('Failed to open file picker')
+      setIsPickerLoading(false)
     }
   }
 
@@ -185,33 +185,11 @@ export function SheetSelector() {
         + Create New Sheet
       </button>
 
-      {showUrlInput ? (
-        <div className="mt-2">
-          <input
-            type="url"
-            value={urlInput}
-            onChange={(e) => setUrlInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleLoadSheet()}
-            placeholder="Paste Google Sheets URL or ID"
-            className="w-full bg-[#2a2a4a] border border-[#3a3a5a] rounded-[10px] px-4 py-3 text-sm outline-none focus:border-[#6c63ff] mb-2"
-            autoFocus
-          />
-          <button onClick={handleLoadSheet} disabled={isUrlLoading || !urlInput.trim()}
-            className="w-full bg-[#2a2a4a] rounded-[10px] p-3 text-center text-sm text-[#6c63ff] font-semibold disabled:opacity-50">
-            {isUrlLoading ? 'Loading…' : 'Load Sheet'}
-          </button>
-          {urlError && <p className="text-red-400 text-xs text-center mt-1">{urlError}</p>}
-          <button onClick={() => { setShowUrlInput(false); setUrlInput(''); setUrlError('') }}
-            className="w-full p-2 text-center text-gray-500 text-xs mt-1">
-            Cancel
-          </button>
-        </div>
-      ) : (
-        <button onClick={() => setShowUrlInput(true)}
-          className="w-full p-3 mt-1 text-center text-gray-400 text-sm font-semibold">
-          Load a sheet from Drive
-        </button>
-      )}
+      <button onClick={handleLoadSheet} disabled={isPickerLoading}
+        className="w-full p-3 mt-1 text-center text-gray-400 text-sm font-semibold disabled:opacity-50">
+        {isPickerLoading ? 'Opening…' : 'Load a sheet from Drive'}
+      </button>
+      {pickerError && <p className="text-red-400 text-xs text-center mt-1">{pickerError}</p>}
     </div>
   )
 }
