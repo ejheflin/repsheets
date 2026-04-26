@@ -36,9 +36,23 @@ function useImportParam() {
   return { importSheetId, clearImport }
 }
 
+const PENDING_JOIN_KEY = 'repsheets_pending_join'
+
 function useJoinParam() {
-  const [joinSheetId, setJoinSheetId] = useState<string | null>(() => getUrlParam('join'))
-  const clearJoin = () => { setJoinSheetId(null); clearUrlParam('join') }
+  const [joinSheetId, setJoinSheetId] = useState<string | null>(() => {
+    const urlParam = getUrlParam('join')
+    if (urlParam) {
+      sessionStorage.setItem(PENDING_JOIN_KEY, urlParam)
+      return urlParam
+    }
+    // Recover join ID if the OAuth flow redirected the page and lost the URL param
+    return sessionStorage.getItem(PENDING_JOIN_KEY)
+  })
+  const clearJoin = () => {
+    setJoinSheetId(null)
+    clearUrlParam('join')
+    sessionStorage.removeItem(PENDING_JOIN_KEY)
+  }
   return { joinSheetId, clearJoin }
 }
 
