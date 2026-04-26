@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from '../data/useSheetContext'
-import { listRepSheets, renameSheet, cloneSheet, createExampleSheet, getFolderUrl, registerSheetById, NotRepSheetError } from '../sheets/driveApi'
-import { openRepSheetPicker } from '../sheets/drivePicker'
+import { listRepSheets, renameSheet, cloneSheet, createExampleSheet, getFolderUrl } from '../sheets/driveApi'
 import { GOOGLE_CLIENT_ID, SCOPES } from '../config'
 import { getStoredUser } from '../auth/googleAuth'
 import { shareOrCopy } from './sharing/shareLink'
@@ -57,8 +56,6 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
   const [createdSheetId, setCreatedSheetId] = useState<string | null>(null)
 
   const [authFailed, setAuthFailed] = useState(false)
-  const [isPickerLoading, setIsPickerLoading] = useState(false)
-  const [pickerError, setPickerError] = useState('')
 
   const saveTokenAndRetry = async (accessToken: string) => {
     const storedUser = getStoredUser()
@@ -201,33 +198,6 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
       }
     })
   }, [user, login])
-
-  const handleLoadSheet = async () => {
-    setIsPickerLoading(true)
-    setPickerError('')
-    try {
-      await openRepSheetPicker(
-        async (file) => {
-          try {
-            await registerSheetById(file.id)
-            setSpreadsheetId(file.id)
-            onClose()
-          } catch (e) {
-            setPickerError(
-              e instanceof NotRepSheetError
-                ? "That spreadsheet isn't a repsheet — it needs Routines and Log tabs"
-                : "Couldn't access that sheet"
-            )
-            setIsPickerLoading(false)
-          }
-        },
-        () => setIsPickerLoading(false),
-      )
-    } catch {
-      setPickerError('Failed to open file picker')
-      setIsPickerLoading(false)
-    }
-  }
 
   const handleSelect = (id: string) => {
     if (renamingId) return
@@ -378,12 +348,6 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
               className="w-full border-2 border-dashed border-[#6c63ff] rounded-[10px] p-3 mt-2 text-center text-[#6c63ff] font-semibold text-sm">
               + Create New Sheet
             </button>
-
-            <button onClick={handleLoadSheet} disabled={isPickerLoading}
-              className="w-full p-2 mt-1 text-center text-gray-400 text-sm font-semibold disabled:opacity-50">
-              {isPickerLoading ? 'Opening…' : 'Load a sheet from Drive'}
-            </button>
-            {pickerError && <p className="text-red-400 text-xs text-center mt-1">{pickerError}</p>}
 
             <button onClick={onClose}
               className="w-full p-3 text-center text-gray-400 font-semibold text-sm mt-2">
