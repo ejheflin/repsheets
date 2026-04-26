@@ -86,13 +86,10 @@ async function readRegistry(): Promise<RegistryEntry[]> {
 
 async function addToRegistry(entry: RegistryEntry): Promise<void> {
   const fileId = await getOrCreateRegistry()
-  console.log('[repsheets] addToRegistry: got registry file', fileId)
   const entries = await readRegistryContent(fileId)
-  console.log('[repsheets] addToRegistry: existing entries', entries)
   const idx = entries.findIndex((e) => e.id === entry.id)
   if (idx >= 0) { entries[idx] = entry } else { entries.push(entry) }
   await writeRegistryContent(fileId, entries)
-  console.log('[repsheets] addToRegistry: wrote entries', entries)
 }
 
 export async function registerSheetById(id: string): Promise<void> {
@@ -192,7 +189,7 @@ export async function listRepSheets(): Promise<RepSheet[]> {
 
   // Supplement with registry entries (joined/loaded sheets not visible via drive.file)
   const registry = await readRegistry()
-  console.log('[repsheets] listRepSheets: registry entries', registry)
+  alert('[repsheets] listRepSheets registry: ' + JSON.stringify(registry))
   const foundIds = new Set(sheets.map((s) => s.spreadsheetId))
   for (const entry of registry) {
     if (foundIds.has(entry.id)) continue
