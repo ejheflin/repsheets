@@ -21,9 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = getStoredUser()
-    if (stored) {
-      setUser(stored)
-    }
+    if (stored) setUser(stored)
     setIsLoading(false)
   }, [])
 
