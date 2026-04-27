@@ -14,7 +14,7 @@ import { ImportFlow } from './ui/sharing/ImportFlow'
 import { ReAuthPrompt } from './ui/ReAuthPrompt'
 import { DemoProvider, useDemo } from './demo/DemoProvider'
 import { DemoApp } from './demo/DemoApp'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { AuthExpiredError } from './auth/authFetch'
 import { initSyncListeners, flushSync } from './data/syncEngine'
 import { registerSheetById } from './sheets/driveApi'
@@ -75,19 +75,28 @@ function useAuthExpiredHandler() {
 
 function JoinHandler({ sheetId, onDone }: { sheetId: string; onDone: () => void }) {
   const { setSpreadsheetId } = useSheetContext()
+  const { user } = useAuth()
+  const onDoneRef = useRef(onDone)
+  onDoneRef.current = onDone
 
   useEffect(() => {
+    if (!user) return
     const run = async () => {
-      try {
-        await registerSheetById(sheetId)
-      } catch (e) {
-        // registration failure is non-fatal; sheet will still open
-      }
+      await registerSheetById(sheetId)
       setSpreadsheetId(sheetId)
-      onDone()
+      onDoneRef.current()
     }
-    run()
-  }, [sheetId, setSpreadsheetId, onDone])
+    run().catch((e) => {
+      if (e instanceof AuthExpiredError) {
+        // Don't clear the join intent — keep JoinHandler mounted so it retries
+        // once the user re-authenticates and `user` changes.
+        throw e  // propagates as unhandled rejection → triggers ReAuthPrompt
+      }
+      // Non-auth errors (schema mismatch, network, etc.) are non-fatal
+      setSpreadsheetId(sheetId)
+      onDoneRef.current()
+    })
+  }, [sheetId, setSpreadsheetId, user])
 
   return (
     <div className="min-h-screen bg-[#1a1a2e] flex items-center justify-center">
