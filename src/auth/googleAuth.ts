@@ -6,6 +6,10 @@ const USER_KEY = 'repsheets_user'
 const REFRESH_TOKEN_KEY = 'repsheets_refresh_token'
 const TOKEN_TIME_KEY = 'repsheets_token_time'
 
+function isIOSPWA(): boolean {
+  return !!(window.navigator as unknown as { standalone?: boolean }).standalone
+}
+
 declare global {
   interface Window {
     gapi: {
@@ -26,6 +30,7 @@ declare global {
             client_id: string
             scope: string
             ux_mode: string
+            redirect_uri?: string
             callback: (response: { code: string; error?: string }) => void
             error_callback?: (error: { type: string }) => void
           }) => {
@@ -115,36 +120,78 @@ async function exchangeCode(code: string): Promise<{ access_token: string; refre
 }
 
 export async function silentRefresh(): Promise<AuthUser | null> {
-  const refreshToken = getRefreshToken()
-  if (!refreshToken || !AUTH_WORKER_URL) return null
-
-  try {
-    const res = await fetch(`${AUTH_WORKER_URL}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        refresh_token: refreshToken,
-        client_id: GOOGLE_CLIENT_ID,
-      }),
-    })
-    if (!res.ok) return null
-    const data = await res.json()
-
-    const info = await fetchUserInfo(data.access_token)
-    const existing = getStoredUser()
-    const user: AuthUser = { ...info, accessToken: data.access_token, scopeVersion: existing?.scopeVersion }
-    storeUser(user)
-    return user
-  } catch {
-    return null
+  const storedRefreshToken = getRefreshToken()
+  if (storedRefreshToken && AUTH_WORKER_URL) {
+    try {
+      const res = await fetch(`${AUTH_WORKER_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          refresh_token: storedRefreshToken,
+          client_id: GOOGLE_CLIENT_ID,
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const info = await fetchUserInfo(data.access_token)
+        const existing = getStoredUser()
+        const user: AuthUser = { ...info, accessToken: data.access_token, scopeVersion: existing?.scopeVersion }
+        storeUser(user)
+        return user
+      }
+    } catch {
+      // fall through to GIS silent refresh
+    }
   }
+
+  if (!isIOSPWA()) return null
+
+  // iOS PWA has no refresh token; use GIS silent token grant against the device's active Google session
+  return new Promise((resolve) => {
+    try {
+      window.google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: SCOPES,
+        callback: async (response) => {
+          if (response.error) { resolve(null); return }
+          try {
+            const info = await fetchUserInfo(response.access_token)
+            const existing = getStoredUser()
+            const user: AuthUser = { ...info, accessToken: response.access_token, scopeVersion: existing?.scopeVersion }
+            storeUser(user)
+            resolve(user)
+          } catch { resolve(null) }
+        },
+        error_callback: () => { resolve(null) },
+      }).requestAccessToken({ prompt: '' })
+    } catch { resolve(null) }
+  })
 }
 
 // === Implicit Grant Flow (fallback, no worker) ===
 
 export function initLogin(onSuccess: (user: AuthUser) => void, onError: (err: string) => void) {
   if (useCodeFlow()) {
-    // Authorization code flow
+    if (isIOSPWA()) {
+      // Redirects leave the PWA and return to Safari, losing the PWA's storage context.
+      // Token client stays within the WebView and delivers the access token directly.
+      window.google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: SCOPES,
+        callback: async (response) => {
+          if (response.error) { onError(response.error); return }
+          try {
+            const info = await fetchUserInfo(response.access_token)
+            const user: AuthUser = { ...info, accessToken: response.access_token, scopeVersion: SCOPE_VERSION }
+            storeUser(user)
+            onSuccess(user)
+          } catch (e) { onError(String(e)) }
+        },
+        error_callback: (error) => { onError(error.type) },
+      }).requestAccessToken()
+      return
+    }
+    // Popup mode for non-PWA browsers
     const client = window.google.accounts.oauth2.initCodeClient({
       client_id: GOOGLE_CLIENT_ID,
       scope: SCOPES,
