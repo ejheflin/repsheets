@@ -64,9 +64,8 @@ export function LogsTab() {
   const handleRefresh = async () => {
     setIsRefreshing(true)
     try {
+      if (spreadsheetId) await flushSync(spreadsheetId)
       await refresh()
-      // Also flush any pending sync
-      if (spreadsheetId) flushSync(spreadsheetId)
     } catch (e) {
       if (e instanceof AuthExpiredError) {
         login()
