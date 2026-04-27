@@ -22,11 +22,11 @@ self.addEventListener('fetch', (event) => {
   // Never cache Google auth
   if (url.hostname === 'accounts.google.com') return
 
-  // Network first for API calls
+  // Pass API calls through to the browser's native network stack.
+  // Intercepting and re-fetching these in the SW strips the Authorization
+  // header in iOS PWA standalone mode, breaking all authenticated API calls.
+  // The app handles offline fallback for data via IndexedDB.
   if (url.hostname === 'sheets.googleapis.com' || url.hostname === 'www.googleapis.com') {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
-    )
     return
   }
 
