@@ -80,9 +80,9 @@ function JoinHandler({ sheetId, onDone }: { sheetId: string; onDone: () => void 
     const run = async () => {
       try {
         await registerSheetById(sheetId)
-        alert('[repsheets] JoinHandler: registered sheet ' + sheetId)
+        console.log('[repsheets] JoinHandler: registered sheet', sheetId)
       } catch (e) {
-        alert('[repsheets] JoinHandler: registerSheetById FAILED: ' + String(e))
+        console.error('[repsheets] JoinHandler: registerSheetById failed', e)
       }
       setSpreadsheetId(sheetId)
       onDone()
