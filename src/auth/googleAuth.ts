@@ -21,6 +21,7 @@ declare global {
           initTokenClient: (config: {
             client_id: string
             scope: string
+            hint?: string
             callback: (response: { access_token: string; error?: string }) => void
             error_callback?: (error: { type: string }) => void
           }) => {
@@ -149,21 +150,22 @@ export async function silentRefresh(): Promise<AuthUser | null> {
   // iOS PWA has no refresh token; use GIS silent token grant against the device's active Google session
   return new Promise((resolve) => {
     try {
+      const existing = getStoredUser()
       window.google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: SCOPES,
+        hint: existing?.email,
         callback: async (response) => {
           if (response.error) { resolve(null); return }
           try {
             const info = await fetchUserInfo(response.access_token)
-            const existing = getStoredUser()
             const user: AuthUser = { ...info, accessToken: response.access_token, scopeVersion: existing?.scopeVersion }
             storeUser(user)
             resolve(user)
           } catch { resolve(null) }
         },
         error_callback: () => { resolve(null) },
-      }).requestAccessToken({ prompt: '' })
+      }).requestAccessToken({ prompt: 'none' })
     } catch { resolve(null) }
   })
 }
@@ -178,6 +180,7 @@ export function initLogin(onSuccess: (user: AuthUser) => void, onError: (err: st
       window.google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: SCOPES,
+        hint: getStoredUser()?.email,
         callback: async (response) => {
           if (response.error) { onError(response.error); return }
           try {
