@@ -3,6 +3,7 @@ import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from './useSheetContext'
 import { fetchLogEntries } from '../sheets/sheetsApi'
 import { saveLogs, getLogs } from './db'
+import { AuthExpiredError } from '../auth/authFetch'
 import type { LogEntry } from '../types'
 
 export interface ExerciseHistoryPoint {
@@ -40,8 +41,6 @@ export function useLogs() {
       await saveLogs(spreadsheetId, logs)
       setAllLogs(logs)
     } catch (e) {
-      // Let auth errors propagate so the UI can trigger re-login
-      const { AuthExpiredError } = await import('../auth/authFetch')
       if (e instanceof AuthExpiredError) throw e
       const cached = await getLogs(spreadsheetId)
       setAllLogs(cached)
@@ -57,10 +56,12 @@ export function useLogs() {
         setAllLogs(cached)
         setIsLoading(false)
       }
-      refresh().catch(() => {}) // silently fall back to cache on mount
+      refresh().catch((e) => {
+        if (e instanceof AuthExpiredError) throw e
+      })
     }
     load()
-  }, [spreadsheetId, refresh])
+  }, [spreadsheetId, refresh, user?.accessToken])
 
   const athleteName = useMemo(() => {
     if (!user) return null
