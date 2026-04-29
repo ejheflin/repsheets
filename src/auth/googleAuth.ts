@@ -176,7 +176,6 @@ export async function handleRedirectCode(): Promise<AuthUser | null> {
   if (!code) return null
 
   const standalone = !!(window.navigator as unknown as { standalone?: boolean }).standalone
-  console.log('[repsheets] handleRedirectCode fired', { standalone, url: window.location.href })
 
   // Clean OAuth params from URL before any async work
   const clean = new URL(window.location.href)
@@ -184,24 +183,25 @@ export async function handleRedirectCode(): Promise<AuthUser | null> {
   window.history.replaceState({}, '', clean.pathname + clean.search)
 
   if (params.get('error')) {
-    console.log('[repsheets] redirect returned error:', params.get('error'))
+    alert(`[repsheets test] Redirect error: ${params.get('error')}`)
     return null
   }
 
   try {
     const tokens = await exchangeCode(code)
-    console.log('[repsheets] code exchange succeeded', {
-      standalone,
-      hasRefreshToken: !!tokens.refresh_token,
-      hasAccessToken: !!tokens.access_token,
-    })
+    alert(
+      `[repsheets test] Redirect result:\n` +
+      `Context: ${standalone ? 'PWA (standalone)' : 'Safari (browser)'}\n` +
+      `Refresh token: ${tokens.refresh_token ? 'YES' : 'NO'}\n` +
+      `Access token: ${tokens.access_token ? 'YES' : 'NO'}`
+    )
     storeRefreshToken(tokens.refresh_token)
     const info = await fetchUserInfo(tokens.access_token)
     const user: AuthUser = { ...info, accessToken: tokens.access_token, scopeVersion: SCOPE_VERSION }
     storeUser(user)
     return user
   } catch (e) {
-    console.log('[repsheets] code exchange failed:', e)
+    alert(`[repsheets test] Code exchange failed:\nContext: ${standalone ? 'PWA' : 'Safari'}\nError: ${e}`)
     return null
   }
 }
