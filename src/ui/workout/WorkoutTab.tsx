@@ -49,6 +49,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([])
   const [confirmEditSession, setConfirmEditSession] = useState<RecentSession | null>(null)
+  const [sessionsFetchKey, setSessionsFetchKey] = useState(0)
 
   const isEditMode = !!workout?.editMode
 
@@ -112,7 +113,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
         setRecentSessions(sorted)
       })
       .catch(() => {})
-  }, [spreadsheetId, user])
+  }, [spreadsheetId, user, sessionsFetchKey])
 
   const handleEditSession = useCallback(async (session: RecentSession) => {
     await loadPastWorkout(session.entries, session.program, session.routine, session.athlete, session.date)
@@ -229,6 +230,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
     setIsSaving(true)
     await saveEditedWorkout()
     setIsSaving(false)
+    setSessionsFetchKey((k) => k + 1)
     setShowSavedToast(true)
     setTimeout(() => setShowSavedToast(false), 2500)
   }
