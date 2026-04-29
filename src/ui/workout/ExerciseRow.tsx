@@ -139,7 +139,7 @@ export function ExerciseRow({
           </button>
         </div>
         <div className="flex items-center mt-1.5 ml-5">
-          <span className="text-xs text-gray-500 mr-2 w-7 flex-shrink-0">{exercise.sets.length}×</span>
+          <button onClick={onToggleExpand} className="text-xs text-gray-500 mr-2 w-7 flex-shrink-0 text-left">{exercise.sets.length}×</button>
           <div className="flex-1 flex items-center justify-center gap-1">
             <button
               onClick={() => onUpdateAllSets('reps', Math.max(0, (summaryReps ?? 0) - 1))}
