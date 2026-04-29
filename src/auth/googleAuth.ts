@@ -175,33 +175,21 @@ export async function handleRedirectCode(): Promise<AuthUser | null> {
   const code = params.get('code')
   if (!code) return null
 
-  const standalone = !!(window.navigator as unknown as { standalone?: boolean }).standalone
-
   // Clean OAuth params from URL before any async work
   const clean = new URL(window.location.href)
   ;['code', 'scope', 'authuser', 'prompt', 'error'].forEach((k) => clean.searchParams.delete(k))
   window.history.replaceState({}, '', clean.pathname + clean.search)
 
-  if (params.get('error')) {
-    alert(`[repsheets test] Redirect error: ${params.get('error')}`)
-    return null
-  }
+  if (params.get('error')) return null
 
   try {
     const tokens = await exchangeCode(code)
-    alert(
-      `[repsheets test] Redirect result:\n` +
-      `Context: ${standalone ? 'PWA (standalone)' : 'Safari (browser)'}\n` +
-      `Refresh token: ${tokens.refresh_token ? 'YES' : 'NO'}\n` +
-      `Access token: ${tokens.access_token ? 'YES' : 'NO'}`
-    )
     storeRefreshToken(tokens.refresh_token)
     const info = await fetchUserInfo(tokens.access_token)
     const user: AuthUser = { ...info, accessToken: tokens.access_token, scopeVersion: SCOPE_VERSION }
     storeUser(user)
     return user
-  } catch (e) {
-    alert(`[repsheets test] Code exchange failed:\nContext: ${standalone ? 'PWA' : 'Safari'}\nError: ${e}`)
+  } catch {
     return null
   }
 }
@@ -211,10 +199,8 @@ export async function handleRedirectCode(): Promise<AuthUser | null> {
 export function initLogin(onSuccess: (user: AuthUser) => void, onError: (err: string) => void) {
   if (useCodeFlow()) {
     if (isIOSPWA() && window.location.protocol === 'https:') {
-      // Redirect mode: test whether iOS PWA navigation returns to the WebView or opens Safari.
-      // If it returns here (standalone === true in handleRedirectCode), we get a refresh token
-      // and the Cloudflare worker handles all future silent renewal.
-      console.log('[repsheets] initiating redirect login from iOS PWA')
+      // iOS redirects to Google via Safari then hands back to the PWA on return.
+      // This gets a refresh token so the Cloudflare worker handles all future silent renewal.
       window.google.accounts.oauth2.initCodeClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: SCOPES,
