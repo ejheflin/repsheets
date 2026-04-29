@@ -170,13 +170,63 @@ export async function silentRefresh(): Promise<AuthUser | null> {
   })
 }
 
+export async function handleRedirectCode(): Promise<AuthUser | null> {
+  const params = new URLSearchParams(window.location.search)
+  const code = params.get('code')
+  if (!code) return null
+
+  const standalone = !!(window.navigator as unknown as { standalone?: boolean }).standalone
+  console.log('[repsheets] handleRedirectCode fired', { standalone, url: window.location.href })
+
+  // Clean OAuth params from URL before any async work
+  const clean = new URL(window.location.href)
+  ;['code', 'scope', 'authuser', 'prompt', 'error'].forEach((k) => clean.searchParams.delete(k))
+  window.history.replaceState({}, '', clean.pathname + clean.search)
+
+  if (params.get('error')) {
+    console.log('[repsheets] redirect returned error:', params.get('error'))
+    return null
+  }
+
+  try {
+    const tokens = await exchangeCode(code)
+    console.log('[repsheets] code exchange succeeded', {
+      standalone,
+      hasRefreshToken: !!tokens.refresh_token,
+      hasAccessToken: !!tokens.access_token,
+    })
+    storeRefreshToken(tokens.refresh_token)
+    const info = await fetchUserInfo(tokens.access_token)
+    const user: AuthUser = { ...info, accessToken: tokens.access_token, scopeVersion: SCOPE_VERSION }
+    storeUser(user)
+    return user
+  } catch (e) {
+    console.log('[repsheets] code exchange failed:', e)
+    return null
+  }
+}
+
 // === Implicit Grant Flow (fallback, no worker) ===
 
 export function initLogin(onSuccess: (user: AuthUser) => void, onError: (err: string) => void) {
   if (useCodeFlow()) {
+    if (isIOSPWA() && window.location.protocol === 'https:') {
+      // Redirect mode: test whether iOS PWA navigation returns to the WebView or opens Safari.
+      // If it returns here (standalone === true in handleRedirectCode), we get a refresh token
+      // and the Cloudflare worker handles all future silent renewal.
+      console.log('[repsheets] initiating redirect login from iOS PWA')
+      window.google.accounts.oauth2.initCodeClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: SCOPES,
+        ux_mode: 'redirect',
+        redirect_uri: window.location.origin,
+        callback: () => {},
+        error_callback: (error) => { onError(error.type) },
+      }).requestCode()
+      return
+    }
     if (isIOSPWA()) {
-      // Redirects leave the PWA and return to Safari, losing the PWA's storage context.
-      // Token client stays within the WebView and delivers the access token directly.
+      // Local dev (http): redirect requires https, fall back to token client
       window.google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: SCOPES,
