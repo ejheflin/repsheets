@@ -9,6 +9,7 @@ import { useSheetContext } from '../../data/useSheetContext'
 import { useAuth } from '../../auth/useAuth'
 import { listRepSheets } from '../../sheets/driveApi'
 import { estimateOneRepMax } from '../../workout/oneRepMax'
+import { useExerciseSettings } from '../../data/useExerciseSettings'
 import type { WorkoutExercise } from '../../types'
 
 interface WorkoutTabProps {
@@ -21,6 +22,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
     toggleExpanded, addSet, finishWorkout, discardWorkout,
   } = useWorkout()
   const { spreadsheetId } = useSheetContext()
+  const { settings: exerciseSettings, saveSettings } = useExerciseSettings(spreadsheetId)
   const { user } = useAuth()
   const { myLogs } = useLogs()
   const [showFinish, setShowFinish] = useState(false)
@@ -36,7 +38,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
     return `${parts[0]} ${parts[parts.length - 1][0]}`
   }, [user])
 
-  const oneRepMaxMap = useMemo(() => {
+  const rawE1RMMap = useMemo(() => {
     const map = new Map<string, number | null>()
     if (!workout) return map
     for (const ex of workout.exercises) {
@@ -47,6 +49,17 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
     }
     return map
   }, [workout, myLogs, athleteName])
+
+  const oneRepMaxMap = useMemo(() => {
+    const map = new Map<string, number | null>()
+    for (const [exercise, raw] of rawE1RMMap) {
+      const exSettings = exerciseSettings[exercise]
+      const effective = exSettings?.oneRepMax ?? raw
+      const tm = exSettings?.tm ?? 1.0
+      map.set(exercise, effective != null ? effective * tm : null)
+    }
+    return map
+  }, [rawE1RMMap, exerciseSettings])
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20)
@@ -148,6 +161,9 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
           return (
             <ExerciseRow key={exIdx} exercise={ex}
               oneRepMax={oneRepMaxMap.get(ex.exercise) ?? null}
+              calculatedE1RM={rawE1RMMap.get(ex.exercise) ?? null}
+              exerciseSettings={exerciseSettings[ex.exercise] ?? {}}
+              onSaveSettings={(s) => saveSettings(ex.exercise, s)}
               onToggleExpand={() => toggleExpanded(exIdx)}
               onToggleExercise={() => toggleExercise(exIdx)}
               onToggleSet={(setIdx) => toggleSet(exIdx, setIdx)}
