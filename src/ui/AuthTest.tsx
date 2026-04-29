@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { GOOGLE_CLIENT_ID, SCOPES } from '../config'
-import { getStoredUser } from '../auth/googleAuth'
+import { getStoredUser, silentRefresh } from '../auth/googleAuth'
 
 export function AuthTest() {
   const [results, setResults] = useState<string[]>([])
@@ -166,6 +166,41 @@ export function AuthTest() {
     testInteractiveRefresh()
   }
 
+  const testRefreshTokenStored = () => {
+    const rt = localStorage.getItem('repsheets_refresh_token')
+    if (rt) {
+      log(`Worker A: Refresh token STORED ✓ (${rt.slice(0, 12)}...)`)
+    } else {
+      log('Worker A: Refresh token NOT FOUND ✗ — log in via redirect first')
+    }
+  }
+
+  const testSimulateExpiry = () => {
+    const user = getStoredUser()
+    if (!user) { log('Worker B: No stored user — log in first'); return }
+    user.accessToken = 'simulated_expired_token'
+    localStorage.setItem('repsheets_user', JSON.stringify(user))
+    localStorage.setItem('repsheets_token', 'simulated_expired_token')
+    localStorage.setItem('repsheets_token_time', '0')
+    log('Worker B: Access token replaced with expired placeholder ✓')
+    log('Worker B: Now run "Worker C: Test Worker Renewal"')
+  }
+
+  const testWorkerRenewal = async () => {
+    log('Worker C: Calling silentRefresh() via Cloudflare worker...')
+    try {
+      const user = await silentRefresh()
+      if (user) {
+        log(`Worker C: PASS ✓ — renewed token for ${user.email}`)
+        log(`Worker C: New token: ${user.accessToken.slice(0, 20)}...`)
+      } else {
+        log('Worker C: FAIL ✗ — silentRefresh returned null (no refresh token or worker error)')
+      }
+    } catch (e) {
+      log(`Worker C: ERROR — ${e}`)
+    }
+  }
+
   const testApiAfterRefresh = async () => {
     const user = getStoredUser()
     if (!user) { log('Test 8: No stored user — run a refresh test first'); return }
@@ -218,6 +253,19 @@ export function AuthTest() {
         <button onClick={testApiAfterRefresh} className="w-full bg-[#2a2a4a] rounded-lg p-3 text-left text-sm">
           Test 8: Test Sheets API With Current Token
         </button>
+
+        <div className="border-t border-[#3a3a5a] pt-3 mt-1">
+          <p className="text-xs text-gray-400 mb-2">Cloudflare Worker Tests — run A → B → C in order</p>
+          <button onClick={testRefreshTokenStored} className="w-full bg-[#1a2a1a] border border-green-800 rounded-lg p-3 text-left text-sm mb-2">
+            Worker A: Check Refresh Token Stored
+          </button>
+          <button onClick={testSimulateExpiry} className="w-full bg-[#1a2a1a] border border-green-800 rounded-lg p-3 text-left text-sm mb-2">
+            Worker B: Simulate Token Expiry
+          </button>
+          <button onClick={testWorkerRenewal} className="w-full bg-[#1a2a1a] border border-green-800 rounded-lg p-3 text-left text-sm">
+            Worker C: Test Worker Renewal
+          </button>
+        </div>
       </div>
 
       <div className="bg-[#2a2a4a] rounded-lg p-3">
