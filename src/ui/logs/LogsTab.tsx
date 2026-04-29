@@ -150,13 +150,8 @@ export function LogsTab() {
         </button>
       </div>
 
-      <div className="flex justify-center mt-1 pb-2">
-        <button onClick={() => { window.location.href = '/?test=auth' }} className="text-xs text-gray-600">
-          Auth Test
-        </button>
-      </div>
 
-      {showSettings && (
+{showSettings && (
         <LogsSettingsModal panes={panes} onChange={setPanes} onClose={() => setShowSettings(false)} />
       )}
       {showHevyImport && (
