@@ -19,7 +19,7 @@ interface WorkoutTabProps {
 export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const {
     workout, toggleSet, toggleExercise, updateSet, updateAllSets, updateNotes,
-    toggleExpanded, addSet, finishWorkout, discardWorkout,
+    toggleExpanded, addSet, finishWorkout, discardWorkout, saveEditedWorkout, updateEditDate,
   } = useWorkout()
   const { spreadsheetId } = useSheetContext()
   const { settings: exerciseSettings, saveSettings } = useExerciseSettings(spreadsheetId)
@@ -30,6 +30,9 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const [scrolled, setScrolled] = useState(false)
   const [routineUpdateExercises, setRoutineUpdateExercises] = useState<WorkoutExercise[] | null>(null)
   const [showSavedToast, setShowSavedToast] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+
+  const isEditMode = !!workout?.editMode
 
   const athleteName = useMemo(() => {
     if (!user) return ''
@@ -124,6 +127,14 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
     setShowDiscard(false)
   }
 
+  const handleSave = async () => {
+    setIsSaving(true)
+    await saveEditedWorkout()
+    setIsSaving(false)
+    setShowSavedToast(true)
+    setTimeout(() => setShowSavedToast(false), 2500)
+  }
+
   // Group consecutive exercises with the same supersetGroup
   const groups: { supersetGroup: string | null; exerciseIndices: number[] }[] = []
   workout.exercises.forEach((ex, idx) => {
@@ -138,21 +149,48 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   return (
     <div>
       {savedToast}
-      <div className={`sticky top-0 z-20 bg-[#1a1a2e] -mx-4 px-4 flex justify-between items-center transition-all duration-200 ${scrolled ? 'pt-2 pb-1.5 mb-1.5' : 'pt-1 pb-2 mb-2'}`}>
-        <div className="min-w-0">
-          {!scrolled && <div className="text-[11px] text-gray-500">{workout.program}</div>}
-          <h1 className={`font-bold truncate transition-all duration-200 ${scrolled ? 'text-[15px]' : 'text-[20px]'}`}>{workout.routine}</h1>
+      <div className={`sticky top-0 z-20 bg-[#1a1a2e] -mx-4 transition-all duration-200 ${scrolled ? 'mb-1.5' : 'mb-2'}`}>
+        <div className={`px-4 flex justify-between items-center ${scrolled ? 'pt-2 pb-1.5' : 'pt-1 pb-2'}`}>
+          <div className="min-w-0">
+            {!scrolled && !isEditMode && <div className="text-[11px] text-gray-500">{workout.program}</div>}
+            <h1 className={`font-bold truncate transition-all duration-200 ${scrolled ? 'text-[15px]' : 'text-[20px]'}`}>{workout.routine}</h1>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button onClick={() => setShowDiscard(true)}
+              className={`rounded-md bg-[#2a2a4a] text-red-400 flex items-center justify-center transition-all duration-200 ${scrolled ? 'w-8 h-8 text-xs' : 'w-9 h-9 text-sm'}`}>
+              ✕
+            </button>
+            {isEditMode ? (
+              <button onClick={handleSave} disabled={isSaving}
+                className={`bg-[#6c63ff] rounded-md font-semibold transition-all duration-200 ${scrolled ? 'px-3 py-1.5 text-xs h-8' : 'px-4 py-2 text-sm h-9'}`}>
+                {isSaving ? 'Saving…' : 'Save'}
+              </button>
+            ) : (
+              <button data-tour="finish-button" onClick={handleFinish}
+                className={`bg-[#6c63ff] rounded-md font-semibold transition-all duration-200 ${scrolled ? 'px-3 py-1.5 text-xs h-8' : 'px-4 py-2 text-sm h-9'}`}>
+                Finish
+              </button>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <button onClick={() => setShowDiscard(true)}
-            className={`rounded-md bg-[#2a2a4a] text-red-400 flex items-center justify-center transition-all duration-200 ${scrolled ? 'w-8 h-8 text-xs' : 'w-9 h-9 text-sm'}`}>
-            ✕
-          </button>
-          <button data-tour="finish-button" onClick={handleFinish}
-            className={`bg-[#6c63ff] rounded-md font-semibold transition-all duration-200 ${scrolled ? 'px-3 py-1.5 text-xs h-8' : 'px-4 py-2 text-sm h-9'}`}>
-            Finish
-          </button>
-        </div>
+        {isEditMode && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-amber-400/10 border-b border-amber-400/20">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            <span className="text-[12px] text-amber-400 font-medium">Editing · </span>
+            <label className="text-[12px] text-amber-400 font-medium underline underline-offset-2 cursor-pointer">
+              {workout.editMode!.editDate}
+              <input
+                type="date"
+                value={workout.editMode!.editDate}
+                onChange={(e) => updateEditDate(e.target.value)}
+                className="sr-only"
+              />
+            </label>
+          </div>
+        )}
       </div>
 
       {groups.map((group, gIdx) => {
@@ -170,7 +208,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
               onUpdateSet={(setIdx, field, val) => updateSet(exIdx, setIdx, field, val)}
               onUpdateAllSets={(field, val) => updateAllSets(exIdx, field, val)}
               onUpdateNotes={(notes) => updateNotes(exIdx, notes)}
-              onAddSet={() => addSet(exIdx)}
+              onAddSet={isEditMode ? undefined : () => addSet(exIdx)}
               tourId={exIdx === 0 ? 'first-exercise' : undefined} />
           )
         })
@@ -199,8 +237,8 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
       {showDiscard && (
         <div className="fixed inset-0 bg-black/60 flex items-end z-50">
           <div className="w-full bg-[#1a1a2e] rounded-t-2xl p-5">
-            <p className="text-center font-bold mb-1">Discard Workout?</p>
-            <p className="text-center text-gray-400 text-sm mb-4">Your progress will be lost.</p>
+            <p className="text-center font-bold mb-1">{isEditMode ? 'Discard Changes?' : 'Discard Workout?'}</p>
+            <p className="text-center text-gray-400 text-sm mb-4">{isEditMode ? 'Your edits will not be saved.' : 'Your progress will be lost.'}</p>
             <button onClick={handleDiscard}
               className="w-full bg-red-500 rounded-[10px] p-3 text-center font-semibold mb-2">Discard</button>
             <button onClick={() => setShowDiscard(false)}

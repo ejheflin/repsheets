@@ -44,7 +44,7 @@ interface ExerciseRowProps {
   onUpdateSet: (setIdx: number, field: 'reps' | 'value', val: number | null) => void
   onUpdateAllSets: (field: 'reps' | 'value', val: number | null) => void
   onUpdateNotes: (notes: string) => void
-  onAddSet: () => void
+  onAddSet?: () => void
   tourId?: string
 }
 
@@ -238,10 +238,12 @@ export function ExerciseRow({
             onTargetClick={set.pct != null ? () => setShowMaxSettings(true) : undefined} />
         ))}
         <div className="flex items-center mt-1">
-          <button onClick={onAddSet}
-            className="flex-1 text-center text-xs text-[#6c63ff] py-2 font-semibold">
-            + Add Set
-          </button>
+          {onAddSet && (
+            <button onClick={onAddSet}
+              className="flex-1 text-center text-xs text-[#6c63ff] py-2 font-semibold">
+              + Add Set
+            </button>
+          )}
           <button onClick={() => setShowNotes(!showNotes)} className="w-7 flex items-center justify-center py-2">
             <NotesIcon hasNotes={hasUserNotes} />
           </button>

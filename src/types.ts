@@ -57,6 +57,13 @@ export interface WorkoutSet {
   unit: string
   completed: boolean
   isAdded: boolean      // true if user added this set (not in routine config)
+  rowIndex?: number     // 1-based sheet row in Log tab; only set in edit mode
+}
+
+export interface EditModeState {
+  originalDate: string  // YYYY-MM-DD — the session being edited
+  editDate: string      // current date picker value (may differ from originalDate)
+  athlete: string       // athlete string as stored in the log rows
 }
 
 /** Full state of an in-progress workout */
@@ -65,6 +72,7 @@ export interface WorkoutState {
   routine: string
   exercises: WorkoutExercise[]
   startedAt: string     // ISO timestamp
+  editMode?: EditModeState
 }
 
 /** Metadata about a Google Sheet that matches RepSheets schema */

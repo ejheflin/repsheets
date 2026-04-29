@@ -3,10 +3,10 @@ import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from './useSheetContext'
 import { expandRoutine } from '../workout/setInference'
 import { resolveSetValues } from '../workout/autofill'
-import { fetchRoutineRows, fetchLogEntries, appendLogEntries } from '../sheets/sheetsApi'
+import { fetchRoutineRows, fetchLogEntries, appendLogEntries, updateLogRows, type IndexedLogEntry } from '../sheets/sheetsApi'
 import { saveWorkout, getWorkout, clearWorkout, saveLogs, getLogs, queueLogEntries } from './db'
 import { checkPendingSync } from './syncEngine'
-import type { RoutineRow, WorkoutState, WorkoutExercise, LogEntry } from '../types'
+import type { RoutineRow, WorkoutState, WorkoutExercise, LogEntry, EditModeState } from '../types'
 
 function formatAthleteName(name: string): string {
   const parts = name.trim().split(/\s+/)
@@ -20,6 +20,9 @@ interface WorkoutContextValue {
   workout: WorkoutState | null
   isLoading: boolean
   startWorkout: (program: string, routineName: string, routineRows: RoutineRow[]) => Promise<void>
+  loadPastWorkout: (entries: IndexedLogEntry[], program: string, routine: string, athlete: string, date: string) => Promise<void>
+  updateEditDate: (date: string) => void
+  saveEditedWorkout: () => Promise<void>
   toggleSet: (exerciseIdx: number, setIdx: number) => void
   toggleExercise: (exerciseIdx: number) => void
   updateSet: (exerciseIdx: number, setIdx: number, field: 'reps' | 'value', val: number | null) => void
@@ -55,7 +58,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   // Refresh persisted workout from Google Sheets on load
   const hasRefreshed = useRef(false)
   useEffect(() => {
-    if (hasRefreshed.current || !workout || !spreadsheetId || !user || isLoading) return
+    if (hasRefreshed.current || !workout || workout.editMode || !spreadsheetId || !user || isLoading) return
     hasRefreshed.current = true
 
     const refreshWorkout = async () => {
@@ -264,8 +267,85 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const loadPastWorkout = useCallback(async (
+    entries: IndexedLogEntry[],
+    program: string,
+    routine: string,
+    athlete: string,
+    date: string
+  ) => {
+    const exerciseNames: string[] = []
+    for (const e of entries) {
+      if (!exerciseNames.includes(e.exercise)) exerciseNames.push(e.exercise)
+    }
+
+    const exercises: WorkoutExercise[] = exerciseNames.map((name) => {
+      const exEntries = entries.filter((e) => e.exercise === name)
+      return {
+        exercise: name,
+        notes: '',
+        userNotes: exEntries[0]?.notes ?? '',
+        supersetGroup: null,
+        isExpanded: false,
+        sets: exEntries.map((e) => ({
+          setNumber: e.set,
+          reps: e.reps,
+          value: e.value,
+          pct: e.pct ?? null,
+          unit: e.unit,
+          completed: true,
+          isAdded: false,
+          rowIndex: e.rowIndex,
+        })),
+      }
+    })
+
+    const editMode: EditModeState = { originalDate: date, editDate: date, athlete }
+    setWorkout({ program, routine, exercises, startedAt: new Date().toISOString(), editMode })
+  }, [])
+
+  const updateEditDate = useCallback((date: string) => {
+    setWorkout((prev) => {
+      if (!prev?.editMode) return prev
+      const next = structuredClone(prev)
+      next.editMode!.editDate = date
+      return next
+    })
+  }, [])
+
+  const saveEditedWorkout = useCallback(async () => {
+    if (!workout?.editMode || !spreadsheetId) return
+    const { editDate, athlete } = workout.editMode
+    const updates: Array<{ rowIndex: number; entry: LogEntry }> = []
+    for (const ex of workout.exercises) {
+      for (const set of ex.sets) {
+        if (set.rowIndex == null) continue
+        updates.push({
+          rowIndex: set.rowIndex,
+          entry: {
+            date: editDate,
+            athlete,
+            program: workout.program,
+            routine: workout.routine,
+            exercise: ex.exercise,
+            set: set.setNumber,
+            reps: set.reps ?? 0,
+            value: set.value,
+            unit: set.unit,
+            notes: ex.userNotes,
+            pct: set.pct ?? null,
+          },
+        })
+      }
+    }
+    await updateLogRows(spreadsheetId, updates)
+    await clearWorkout()
+    setWorkout(null)
+  }, [workout, spreadsheetId])
+
   const finishWorkout = useCallback(async (logOnlyCompleted: boolean) => {
     if (!workout || !spreadsheetId || !user) return
+    if (workout.editMode) return
 
     const today = new Date().toISOString().split('T')[0]
     const entries: LogEntry[] = []
@@ -313,8 +393,9 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
 
   return (
     <WorkoutContext.Provider value={{
-      workout, isLoading, startWorkout, toggleSet, toggleExercise,
-      updateSet, updateAllSets, updateNotes, toggleExpanded, addSet, finishWorkout, discardWorkout,
+      workout, isLoading, startWorkout, loadPastWorkout, updateEditDate, saveEditedWorkout,
+      toggleSet, toggleExercise, updateSet, updateAllSets, updateNotes, toggleExpanded,
+      addSet, finishWorkout, discardWorkout,
     }}>
       {children}
     </WorkoutContext.Provider>
