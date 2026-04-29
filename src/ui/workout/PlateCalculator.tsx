@@ -72,6 +72,12 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
     setHidden(getHiddenExercises().has(exercise))
   }, [exercise])
 
+  useEffect(() => {
+    const handler = (e: Event) => setSettings((e as CustomEvent<PlateSettingsData>).detail)
+    window.addEventListener('plateSettingsChanged', handler)
+    return () => window.removeEventListener('plateSettingsChanged', handler)
+  }, [])
+
   const handlePointerDown = useCallback(() => {
     didLongPress.current = false
     longPressTimer.current = setTimeout(() => {

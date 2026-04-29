@@ -62,6 +62,7 @@ export function loadPlateSettings(): PlateSettingsData {
 
 function savePlateSettings(data: PlateSettingsData) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(data))
+  window.dispatchEvent(new CustomEvent('plateSettingsChanged', { detail: data }))
 }
 
 interface PlateSettingsModalProps {
