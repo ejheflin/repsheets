@@ -20,20 +20,6 @@ function ChevronDown() {
   )
 }
 
-function SlidersIcon({ active }: { active: boolean }) {
-  const c = active ? '#6c63ff' : '#555'
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke={c} strokeWidth="1.5" strokeLinecap="round">
-      <line x1="2" y1="4" x2="14" y2="4" />
-      <line x1="2" y1="8" x2="14" y2="8" />
-      <line x1="2" y1="12" x2="14" y2="12" />
-      <circle cx="5" cy="4" r="1.5" fill={c} stroke="none" />
-      <circle cx="10" cy="8" r="1.5" fill={c} stroke="none" />
-      <circle cx="6" cy="12" r="1.5" fill={c} stroke="none" />
-    </svg>
-  )
-}
-
 function NotesIcon({ hasNotes }: { hasNotes: boolean }) {
   const color = hasNotes ? '#6c63ff' : '#555'
   return (
@@ -108,8 +94,6 @@ export function ExerciseRow({
   const userNotes = exercise.userNotes ?? ''
   const hasUserNotes = userNotes.length > 0
 
-  const settingsActive = !!(exerciseSettings?.oneRepMax || exerciseSettings?.tm)
-
   // Percentage set detection
   const firstPct = exercise.sets[0]?.pct ?? null
   const allSamePct = exercise.sets.every((s) => (s.pct ?? null) === firstPct)
@@ -141,12 +125,6 @@ export function ExerciseRow({
               <div className="text-[10px] text-[#6c63ff] mt-0.5 truncate">▸ {exercise.notes}</div>
             )}
           </button>
-          {hasAnyPct && (
-            <button onClick={() => setShowMaxSettings(true)}
-              className="w-8 h-8 flex-shrink-0 flex items-center justify-center active:opacity-80">
-              <SlidersIcon active={settingsActive} />
-            </button>
-          )}
           {summaryValue && !showSlashedTargets ? (
             <div className="flex-shrink-0 flex items-center mr-10">
               <PlateCalculator weight={summaryValue} unit={unit} exercise={exercise.exercise} />
@@ -179,10 +157,9 @@ export function ExerciseRow({
           </div>
           <div className="flex-1 text-center">
             {showSlashedTargets ? (
-              // Different pcts across sets: show calculated targets, tap to expand
               <button
-                onClick={onToggleExpand}
-                className="text-sm font-semibold text-gray-300 px-1"
+                onClick={() => setShowMaxSettings(true)}
+                className="text-sm font-semibold text-gray-300 px-1 active:opacity-80"
               >
                 {buildSlashedTargets(exercise.sets, oneRepMax)}
               </button>
@@ -219,12 +196,6 @@ export function ExerciseRow({
       <div className="flex items-center mb-2">
         <button onClick={onToggleExpand} className="mr-1.5 flex items-center"><ChevronDown /></button>
         <button onClick={onToggleExpand} className="flex-1 text-left font-bold text-[15px]">{exercise.exercise}</button>
-        {hasAnyPct && (
-          <button onClick={() => setShowMaxSettings(true)}
-            className="w-8 h-8 flex-shrink-0 flex items-center justify-center active:opacity-80">
-            <SlidersIcon active={settingsActive} />
-          </button>
-        )}
         {summaryValue && !hasAnyPct ? (
           <div className="flex-shrink-0 flex items-center mr-10">
             <PlateCalculator weight={summaryValue} unit={unit} exercise={exercise.exercise} />
@@ -245,7 +216,12 @@ export function ExerciseRow({
         <div className="flex pb-1 text-[10px] text-gray-600 uppercase tracking-wider">
           <div className="w-7">Set</div>
           <div className="flex-1 text-center">Reps</div>
-          {hasAnyPct && <div className="w-16 text-right pr-1">Target</div>}
+          {hasAnyPct && (
+            <button onClick={() => setShowMaxSettings(true)}
+              className="w-16 text-right pr-1 active:opacity-80">
+              Target
+            </button>
+          )}
           <div className="flex-1 text-center">{unit || 'Value'}</div>
           <div className="w-7" />
         </div>
@@ -258,7 +234,8 @@ export function ExerciseRow({
             valueFlag={!showSlashedTargets && set.value !== summaryValue}
             onToggle={() => onToggleSet(setIdx)}
             onRepsChange={(v) => onUpdateSet(setIdx, 'reps', v)}
-            onValueChange={(v) => onUpdateSet(setIdx, 'value', v)} />
+            onValueChange={(v) => onUpdateSet(setIdx, 'value', v)}
+            onTargetClick={set.pct != null ? () => setShowMaxSettings(true) : undefined} />
         ))}
         <div className="flex items-center mt-1">
           <button onClick={onAddSet}

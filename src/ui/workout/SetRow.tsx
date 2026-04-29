@@ -11,13 +11,14 @@ interface SetRowProps {
   onToggle: () => void
   onRepsChange: (val: number | null) => void
   onValueChange: (val: number | null) => void
+  onTargetClick?: () => void
 }
 
 export function SetRow({
   setNumber, reps, value, unit: _unit, completed,
   pct, oneRepMax,
   repsFlag, valueFlag,
-  onToggle, onRepsChange, onValueChange,
+  onToggle, onRepsChange, onValueChange, onTargetClick,
 }: SetRowProps) {
   const showPctLabel = pct != null
   const targetWeight = showPctLabel && oneRepMax != null
@@ -47,9 +48,10 @@ export function SetRow({
         >+</button>
       </div>
       {pctLabel != null && (
-        <div className="w-16 text-right pr-1 text-[11px] text-gray-500 leading-tight flex-shrink-0">
+        <button onClick={onTargetClick}
+          className="w-16 text-right pr-1 text-[11px] text-gray-500 leading-tight flex-shrink-0 active:opacity-80">
           {pctLabel}
-        </div>
+        </button>
       )}
       <div className="flex-1 text-center">
         <input type="text" inputMode="decimal" value={value ?? ''}
