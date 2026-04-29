@@ -317,7 +317,7 @@ function sheetTitle(programNames?: string[]): string {
   return result
 }
 
-async function writeRange(spreadsheetId: string, range: string, values: (string | number)[][]): Promise<void> {
+export async function writeRange(spreadsheetId: string, range: string, values: (string | number)[][]): Promise<void> {
   const url = `${SHEETS_BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`
   const res = await authFetch(url, {
     method: 'PUT',

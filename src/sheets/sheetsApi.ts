@@ -1,5 +1,6 @@
 import type { RoutineRow, LogEntry } from '../types'
 import { authFetch } from '../auth/authFetch'
+import { writeRange } from './driveApi'
 import { GOOGLE_API_KEY } from '../config'
 
 /**
@@ -100,7 +101,15 @@ export async function fetchRoutineRows(spreadsheetId: string): Promise<RoutineRo
 export async function fetchLogEntries(spreadsheetId: string): Promise<LogEntry[]> {
   const rows = await fetchRange(spreadsheetId, 'Log!A:K')
   if (rows.length < 2) return []
-  return rows.slice(1).map((row) => ({
+  return rows.slice(1).map(parseLogRow)
+}
+
+export interface IndexedLogEntry extends LogEntry {
+  rowIndex: number  // 1-based sheet row (header = row 1, first data row = row 2)
+}
+
+function parseLogRow(row: string[]): LogEntry {
+  return {
     date: normalizeDate(row[0] ?? ''),
     athlete: row[1] ?? '',
     program: row[2] ?? '',
@@ -112,7 +121,25 @@ export async function fetchLogEntries(spreadsheetId: string): Promise<LogEntry[]
     unit: row[8] ?? '',
     notes: row[9] ?? '',
     pct: row[10] ? Number(row[10]) : null,
-  }))
+  }
+}
+
+export async function fetchLogEntriesWithRows(spreadsheetId: string): Promise<IndexedLogEntry[]> {
+  const rows = await fetchRange(spreadsheetId, 'Log!A:K')
+  if (rows.length < 2) return []
+  return rows.slice(1).map((row, i) => ({ ...parseLogRow(row), rowIndex: i + 2 }))
+}
+
+export async function updateLogRows(
+  spreadsheetId: string,
+  updates: Array<{ rowIndex: number; entry: LogEntry }>
+): Promise<void> {
+  for (const { rowIndex, entry } of updates) {
+    await writeRange(spreadsheetId, `Log!A${rowIndex}:K${rowIndex}`, [[
+      entry.date, entry.athlete, entry.program, entry.routine, entry.exercise,
+      entry.set, entry.reps, entry.value ?? '', entry.unit, entry.notes, entry.pct ?? '',
+    ]])
+  }
 }
 
 export async function appendLogEntries(spreadsheetId: string, entries: LogEntry[]): Promise<void> {
