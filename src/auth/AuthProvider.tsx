@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import type { AuthUser } from '../types'
-import { getStoredUser, initLogin, logout as doLogout, upgradeStoredToken } from './googleAuth'
+import { getStoredUser, initLogin, logout as doLogout, upgradeStoredToken, handleRedirectCode } from './googleAuth'
 import { GOOGLE_CLIENT_ID, SCOPES, SCOPE_VERSION } from '../config'
 
 interface AuthContextValue {
@@ -20,9 +20,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const upgradeAttempted = useRef(false)
 
   useEffect(() => {
-    const stored = getStoredUser()
-    if (stored) setUser(stored)
-    setIsLoading(false)
+    const init = async () => {
+      const redirectUser = await handleRedirectCode()
+      if (redirectUser) {
+        setUser(redirectUser)
+        setIsLoading(false)
+        return
+      }
+      const stored = getStoredUser()
+      if (stored) setUser(stored)
+      setIsLoading(false)
+    }
+    init()
   }, [])
 
   // Silently request a fresh token when the stored one predates a scope change
