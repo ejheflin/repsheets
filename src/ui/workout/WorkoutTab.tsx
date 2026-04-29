@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { ExerciseRow } from './ExerciseRow'
 import { SupersetGroup } from './SupersetGroup'
 import { FinishWorkoutSheet } from './FinishWorkoutSheet'
@@ -8,9 +8,25 @@ import { useLogs } from '../../data/useLogs'
 import { useSheetContext } from '../../data/useSheetContext'
 import { useAuth } from '../../auth/useAuth'
 import { listRepSheets } from '../../sheets/driveApi'
+import { fetchLogEntriesWithRows, type IndexedLogEntry } from '../../sheets/sheetsApi'
 import { estimateOneRepMax } from '../../workout/oneRepMax'
 import { useExerciseSettings } from '../../data/useExerciseSettings'
 import type { WorkoutExercise } from '../../types'
+
+interface RecentSession {
+  date: string
+  athlete: string
+  program: string
+  routine: string
+  exerciseCount: number
+  entries: IndexedLogEntry[]
+}
+
+function formatSessionDate(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  const d = new Date(year, month - 1, day)
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
 
 interface WorkoutTabProps {
   onGoToRoutines: () => void
@@ -19,7 +35,7 @@ interface WorkoutTabProps {
 export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const {
     workout, toggleSet, toggleExercise, updateSet, updateAllSets, updateNotes,
-    toggleExpanded, addSet, finishWorkout, discardWorkout, saveEditedWorkout, updateEditDate,
+    toggleExpanded, addSet, finishWorkout, discardWorkout, saveEditedWorkout, updateEditDate, loadPastWorkout,
   } = useWorkout()
   const { spreadsheetId } = useSheetContext()
   const { settings: exerciseSettings, saveSettings } = useExerciseSettings(spreadsheetId)
@@ -31,6 +47,8 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const [routineUpdateExercises, setRoutineUpdateExercises] = useState<WorkoutExercise[] | null>(null)
   const [showSavedToast, setShowSavedToast] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [recentSessions, setRecentSessions] = useState<RecentSession[]>([])
+  const [confirmEditSession, setConfirmEditSession] = useState<RecentSession | null>(null)
 
   const isEditMode = !!workout?.editMode
 
@@ -70,6 +88,37 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  useEffect(() => {
+    if (!spreadsheetId || !user || !navigator.onLine) return
+    fetchLogEntriesWithRows(spreadsheetId)
+      .then((entries) => {
+        const athlete = (() => {
+          const parts = user.name.trim().split(/\s+/)
+          if (parts.length < 2) return parts[0] || ''
+          return `${parts[0]} ${parts[parts.length - 1][0]}`
+        })()
+        const sessionMap = new Map<string, RecentSession>()
+        for (const entry of entries) {
+          if (entry.athlete !== athlete) continue
+          const key = `${entry.date}||${entry.program}||${entry.routine}`
+          if (!sessionMap.has(key)) {
+            sessionMap.set(key, { date: entry.date, athlete, program: entry.program, routine: entry.routine, exerciseCount: 0, entries: [] })
+          }
+          const session = sessionMap.get(key)!
+          session.entries.push(entry)
+          session.exerciseCount = new Set(session.entries.map((e) => e.exercise)).size
+        }
+        const sorted = [...sessionMap.values()].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5)
+        setRecentSessions(sorted)
+      })
+      .catch(() => {})
+  }, [spreadsheetId, user])
+
+  const handleEditSession = useCallback(async (session: RecentSession) => {
+    await loadPastWorkout(session.entries, session.program, session.routine, session.athlete, session.date)
+    setConfirmEditSession(null)
+  }, [loadPastWorkout])
+
   const savedToast = showSavedToast && (
     <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-[#22c55e] text-white px-5 py-2.5 rounded-full text-sm font-semibold shadow-lg pointer-events-none">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -87,6 +136,55 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
           <p className="text-gray-400">No workout in progress.</p>
           <p className="text-gray-500 text-sm mt-2">Pick a <button onClick={onGoToRoutines} className="text-[#6c63ff] underline">routine</button> to get started.</p>
         </div>
+        {recentSessions.length > 0 && (
+          <div className="mt-10">
+            <h2 className="text-[13px] font-semibold text-gray-500 mb-3">Recent Workouts</h2>
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-[11px] text-gray-600 border-b border-white/10">
+                  <th className="pb-2 font-normal">Date</th>
+                  <th className="pb-2 font-normal">Routine</th>
+                  <th className="pb-2 font-normal text-right">Exercises</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentSessions.map((s) => (
+                  <tr
+                    key={`${s.date}||${s.routine}`}
+                    onClick={() => setConfirmEditSession(s)}
+                    className="border-b border-white/5 cursor-pointer active:bg-white/5"
+                  >
+                    <td className="py-3 text-[13px] text-gray-400">{formatSessionDate(s.date)}</td>
+                    <td className="py-3 text-[13px] text-white">{s.routine}</td>
+                    <td className="py-3 text-[13px] text-gray-500 text-right">{s.exerciseCount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {confirmEditSession && (
+          <div className="fixed inset-0 bg-black/60 flex items-end z-50">
+            <div className="w-full bg-[#2a2a4a] rounded-t-2xl p-6 pb-8">
+              <h2 className="text-[17px] font-semibold mb-1">Edit this workout?</h2>
+              <p className="text-[13px] text-gray-400 mb-6">
+                This will overwrite your logged sets from{' '}
+                <span className="text-white">{formatSessionDate(confirmEditSession.date)}</span>.
+                This can't be undone.
+              </p>
+              <button
+                onClick={() => handleEditSession(confirmEditSession)}
+                className="w-full bg-[#6c63ff] rounded-[10px] py-3 font-semibold mb-3 active:opacity-80">
+                Edit Workout
+              </button>
+              <button
+                onClick={() => { setConfirmEditSession(null); onGoToRoutines() }}
+                className="w-full text-gray-400 py-3 text-[15px] active:opacity-60">
+                Log New Workout Instead
+              </button>
+            </div>
+          </div>
+        )}
       </>
     )
   }

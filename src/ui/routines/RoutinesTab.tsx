@@ -9,32 +9,7 @@ import { getPreference, setPreference } from '../../data/db'
 import { useSheetContext } from '../../data/useSheetContext'
 import { SheetSwitcherModal } from '../SheetSwitcherModal'
 import { ShareCopyModal } from '../sharing/ShareModal'
-import { fetchLogEntriesWithRows, type IndexedLogEntry } from '../../sheets/sheetsApi'
 import type { RoutineRow } from '../../types'
-
-interface RecentSession {
-  date: string
-  athlete: string
-  program: string
-  routine: string
-  exerciseCount: number
-  entries: IndexedLogEntry[]
-}
-
-function formatSessionDate(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number)
-  const d = new Date(year, month - 1, day)
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
-function PencilIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-    </svg>
-  )
-}
 
 function ShareIcon() {
   return (
@@ -72,18 +47,15 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     setPreference('activeProgram', program)
   }, [])
   const { routineList, programs, isLoading, refresh } = useRoutines(selectedProgram || null)
-  const { workout, startWorkout, discardWorkout, loadPastWorkout } = useWorkout()
+  const { workout, startWorkout, discardWorkout } = useWorkout()
   const { spreadsheetId } = useSheetContext()
-  const { user, login } = useAuth()
+  const { login } = useAuth()
   const [showSheetSwitcher, setShowSheetSwitcher] = useState(false)
   const [showShare, setShowShare] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState<{
     program: string; routine: string; rows: RoutineRow[]
   } | null>(null)
-  const [recentSessions, setRecentSessions] = useState<RecentSession[]>([])
-  const [confirmEditSession, setConfirmEditSession] = useState<RecentSession | null>(null)
-
   // Load saved preference once on mount
   useEffect(() => {
     getPreference('activeProgram').then((saved) => {
@@ -103,42 +75,6 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
       setSelectedProgram(programs[0])
     }
   }, [prefLoaded, programs, savedProgram, selectedProgram, setSelectedProgram])
-
-  useEffect(() => {
-    if (!spreadsheetId || !user || !navigator.onLine) return
-    fetchLogEntriesWithRows(spreadsheetId)
-      .then((entries) => {
-        const athlete = (() => {
-          const parts = user.name.trim().split(/\s+/)
-          if (parts.length < 2) return parts[0] || ''
-          return `${parts[0]} ${parts[parts.length - 1][0]}`
-        })()
-        const sessionMap = new Map<string, RecentSession>()
-        for (const entry of entries) {
-          if (entry.athlete !== athlete) continue
-          const key = `${entry.date}||${entry.program}||${entry.routine}`
-          if (!sessionMap.has(key)) {
-            sessionMap.set(key, { date: entry.date, athlete, program: entry.program, routine: entry.routine, exerciseCount: 0, entries: [] })
-          }
-          const session = sessionMap.get(key)!
-          session.entries.push(entry)
-          const exercises = new Set(session.entries.map((e) => e.exercise))
-          session.exerciseCount = exercises.size
-        }
-        const sorted = [...sessionMap.values()].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5)
-        setRecentSessions(sorted)
-      })
-      .catch(() => {})
-  }, [spreadsheetId, user])
-
-  const handleEditSession = useCallback(async (session: RecentSession) => {
-    if (workout) {
-      await discardWorkout()
-    }
-    await loadPastWorkout(session.entries, session.program, session.routine, session.athlete, session.date)
-    setConfirmEditSession(null)
-    onStartWorkout()
-  }, [workout, discardWorkout, loadPastWorkout, onStartWorkout])
 
   const handleRoutineTap = (routine: { name: string; rows: RoutineRow[] }) => {
     if (workout) {
@@ -211,24 +147,6 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
           Open Google Sheet
         </a>
       )}
-      {recentSessions.length > 0 && (
-        <div className="border-t border-white/10 mt-4 pt-4">
-          <h2 className="text-[13px] font-semibold text-gray-400 mb-2">Recent Workouts</h2>
-          {recentSessions.map((s) => (
-            <button
-              key={`${s.date}||${s.routine}`}
-              onClick={() => setConfirmEditSession(s)}
-              className="w-full flex items-center justify-between bg-[#2a2a4a] rounded-[10px] px-4 py-3 mb-2 active:opacity-80"
-            >
-              <div className="text-left">
-                <div className="text-[14px] font-semibold">{s.routine}</div>
-                <div className="text-[11px] text-gray-400">{formatSessionDate(s.date)} · {s.exerciseCount} exercise{s.exerciseCount !== 1 ? 's' : ''}</div>
-              </div>
-              <span className="text-gray-500"><PencilIcon /></span>
-            </button>
-          ))}
-        </div>
-      )}
       {showSheetSwitcher && (
         <SheetSwitcherModal onClose={() => setShowSheetSwitcher(false)} />
       )}
@@ -248,28 +166,6 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
             </button>
             <button onClick={() => setConfirmDiscard(null)}
               className="w-full p-3 text-center text-gray-400 font-semibold">Cancel</button>
-          </div>
-        </div>
-      )}
-      {confirmEditSession && (
-        <div className="fixed inset-0 bg-black/60 flex items-end z-50">
-          <div className="w-full bg-[#2a2a4a] rounded-t-2xl p-6 pb-8">
-            <h2 className="text-[17px] font-semibold mb-1">Edit this workout?</h2>
-            <p className="text-[13px] text-gray-400 mb-6">
-              This will overwrite your logged sets from{' '}
-              <span className="text-white">{formatSessionDate(confirmEditSession.date)}</span>.
-              This can't be undone.
-            </p>
-            <button
-              onClick={() => handleEditSession(confirmEditSession)}
-              className="w-full bg-[#6c63ff] rounded-[10px] py-3 font-semibold mb-3 active:opacity-80">
-              Edit Workout
-            </button>
-            <button
-              onClick={() => setConfirmEditSession(null)}
-              className="w-full text-gray-400 py-3 text-[15px] active:opacity-60">
-              Log New Workout Instead
-            </button>
           </div>
         </div>
       )}
