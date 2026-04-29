@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { SetRow } from './SetRow'
 import { PlateCalculator } from './PlateCalculator'
-import type { WorkoutExercise } from '../../types'
+import { ExerciseMaxSettings } from './ExerciseMaxSettings'
+import type { WorkoutExercise, ExerciseSettings } from '../../types'
 
 function ChevronRight() {
   return (
@@ -15,6 +16,20 @@ function ChevronDown() {
   return (
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="2 4 6 8 10 4" />
+    </svg>
+  )
+}
+
+function SlidersIcon({ active }: { active: boolean }) {
+  const c = active ? '#6c63ff' : '#555'
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke={c} strokeWidth="1.5" strokeLinecap="round">
+      <line x1="2" y1="4" x2="14" y2="4" />
+      <line x1="2" y1="8" x2="14" y2="8" />
+      <line x1="2" y1="12" x2="14" y2="12" />
+      <circle cx="5" cy="4" r="1.5" fill={c} stroke="none" />
+      <circle cx="10" cy="8" r="1.5" fill={c} stroke="none" />
+      <circle cx="6" cy="12" r="1.5" fill={c} stroke="none" />
     </svg>
   )
 }
@@ -34,6 +49,9 @@ function NotesIcon({ hasNotes }: { hasNotes: boolean }) {
 interface ExerciseRowProps {
   exercise: WorkoutExercise
   oneRepMax?: number | null
+  calculatedE1RM?: number | null
+  exerciseSettings?: ExerciseSettings
+  onSaveSettings?: (s: ExerciseSettings) => void
   onToggleExpand: () => void
   onToggleExercise: () => void
   onToggleSet: (setIdx: number) => void
@@ -71,9 +89,13 @@ function buildSlashedTargets(sets: WorkoutExercise['sets'], orm: number | null |
 export function ExerciseRow({
   exercise,
   oneRepMax,
+  calculatedE1RM,
+  exerciseSettings,
+  onSaveSettings,
   onToggleExpand, onToggleExercise, onToggleSet, onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet, tourId,
 }: ExerciseRowProps) {
   const [showNotes, setShowNotes] = useState(false)
+  const [showMaxSettings, setShowMaxSettings] = useState(false)
   const allCompleted = exercise.sets.every((s) => s.completed)
   const unit = exercise.sets[0]?.unit ?? ''
 
@@ -85,6 +107,8 @@ export function ExerciseRow({
 
   const userNotes = exercise.userNotes ?? ''
   const hasUserNotes = userNotes.length > 0
+
+  const settingsActive = !!(exerciseSettings?.oneRepMax || exerciseSettings?.tm)
 
   // Percentage set detection
   const firstPct = exercise.sets[0]?.pct ?? null
@@ -117,6 +141,12 @@ export function ExerciseRow({
               <div className="text-[10px] text-[#6c63ff] mt-0.5 truncate">▸ {exercise.notes}</div>
             )}
           </button>
+          {hasAnyPct && (
+            <button onClick={() => setShowMaxSettings(true)}
+              className="w-8 h-8 flex-shrink-0 flex items-center justify-center active:opacity-80">
+              <SlidersIcon active={settingsActive} />
+            </button>
+          )}
           {summaryValue && !showSlashedTargets ? (
             <div className="flex-shrink-0 flex items-center mr-10">
               <PlateCalculator weight={summaryValue} unit={unit} exercise={exercise.exercise} />
@@ -170,6 +200,16 @@ export function ExerciseRow({
           </button>
         </div>
         {notesInput}
+        {showMaxSettings && (
+          <ExerciseMaxSettings
+            exerciseName={exercise.exercise}
+            unit={unit}
+            calculatedE1RM={calculatedE1RM ?? null}
+            settings={exerciseSettings ?? {}}
+            onSave={(s) => { onSaveSettings?.(s); setShowMaxSettings(false) }}
+            onClose={() => setShowMaxSettings(false)}
+          />
+        )}
       </div>
     )
   }
@@ -179,6 +219,12 @@ export function ExerciseRow({
       <div className="flex items-center mb-2">
         <button onClick={onToggleExpand} className="mr-1.5 flex items-center"><ChevronDown /></button>
         <button onClick={onToggleExpand} className="flex-1 text-left font-bold text-[15px]">{exercise.exercise}</button>
+        {hasAnyPct && (
+          <button onClick={() => setShowMaxSettings(true)}
+            className="w-8 h-8 flex-shrink-0 flex items-center justify-center active:opacity-80">
+            <SlidersIcon active={settingsActive} />
+          </button>
+        )}
         {summaryValue && !hasAnyPct ? (
           <div className="flex-shrink-0 flex items-center mr-10">
             <PlateCalculator weight={summaryValue} unit={unit} exercise={exercise.exercise} />
@@ -225,6 +271,16 @@ export function ExerciseRow({
         </div>
       </div>
       {notesInput}
+      {showMaxSettings && (
+        <ExerciseMaxSettings
+          exerciseName={exercise.exercise}
+          unit={unit}
+          calculatedE1RM={calculatedE1RM ?? null}
+          settings={exerciseSettings ?? {}}
+          onSave={(s) => { onSaveSettings?.(s); setShowMaxSettings(false) }}
+          onClose={() => setShowMaxSettings(false)}
+        />
+      )}
     </div>
   )
 }

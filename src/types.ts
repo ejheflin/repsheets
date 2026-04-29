@@ -77,6 +77,12 @@ export interface RepSheet {
   isTemplate: boolean  // true if _meta tab has type=shared_template
 }
 
+/** Per-exercise 1RM and training max overrides */
+export interface ExerciseSettings {
+  oneRepMax?: number  // user-defined; replaces calculated E1RM
+  tm?: number         // decimal: 0.9 = 90%; absent means 1.0
+}
+
 /** User auth state */
 export interface AuthUser {
   email: string

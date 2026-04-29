@@ -1,4 +1,4 @@
-import type { RoutineRow, RepSheet } from '../types'
+import type { RoutineRow, RepSheet, ExerciseSettings } from '../types'
 import { authFetch } from '../auth/authFetch'
 import { getStoredUser } from '../auth/googleAuth'
 
@@ -11,11 +11,12 @@ const MIGRATION_KEY = 'repsheets_registry_migrated'
 
 // ─── Registry ──────────────────────────────────────────────────────────────
 
-interface RegistryEntry {
+export interface RegistryEntry {
   id: string
   name: string
   owner: string
   ownerEmail: string
+  exerciseSettings?: Record<string, ExerciseSettings>
 }
 
 export class NotRepSheetError extends Error {
@@ -88,7 +89,33 @@ async function addToRegistry(entry: RegistryEntry): Promise<void> {
   const fileId = await getOrCreateRegistry()
   const entries = await readRegistryContent(fileId)
   const idx = entries.findIndex((e) => e.id === entry.id)
-  if (idx >= 0) { entries[idx] = entry } else { entries.push(entry) }
+  if (idx >= 0) { entries[idx] = { ...entries[idx], ...entry } } else { entries.push(entry) }
+  await writeRegistryContent(fileId, entries)
+}
+
+export async function readExerciseSettings(sheetId: string): Promise<Record<string, ExerciseSettings>> {
+  try {
+    const entries = await readRegistry()
+    return entries.find((e) => e.id === sheetId)?.exerciseSettings ?? {}
+  } catch { return {} }
+}
+
+export async function writeExerciseSettings(
+  sheetId: string,
+  exerciseName: string,
+  settings: ExerciseSettings
+): Promise<void> {
+  const fileId = await getOrCreateRegistry()
+  const entries = await readRegistryContent(fileId)
+  const idx = entries.findIndex((e) => e.id === sheetId)
+  if (idx < 0) return
+  const next = { ...(entries[idx].exerciseSettings ?? {}) }
+  if (!settings.oneRepMax && !settings.tm) {
+    delete next[exerciseName]
+  } else {
+    next[exerciseName] = settings
+  }
+  entries[idx] = { ...entries[idx], exerciseSettings: next }
   await writeRegistryContent(fileId, entries)
 }
 
