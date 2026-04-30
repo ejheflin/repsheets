@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { localDateString } from '../../utils'
 import { CalendarToggle, type CalendarColorMode } from './CalendarToggle'
 
 const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
@@ -27,7 +28,7 @@ export function CalendarView({ workoutDates, athleteDates, allRoutines, allAthle
     allAthletes.length > 1 ? 'athlete' : 'routine'
   )
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = localDateString()
 
   const routineColorMap = useMemo(() => {
     const map = new Map<string, string>()

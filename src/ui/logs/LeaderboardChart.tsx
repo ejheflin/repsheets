@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { localDateString } from '../../utils'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import type { LogEntry } from '../../types'
 
@@ -26,7 +27,7 @@ export function LeaderboardChart({ allLogs, athletes }: LeaderboardChartProps) {
 
   const data = useMemo(() => {
     const cutoff = periodWeeks > 0
-      ? (() => { const d = new Date(); d.setDate(d.getDate() - periodWeeks * 7); return d.toISOString().split('T')[0] })()
+      ? (() => { const d = new Date(); d.setDate(d.getDate() - periodWeeks * 7); return localDateString(d) })()
       : null
 
     const filtered = cutoff ? allLogs.filter((l) => l.date >= cutoff) : allLogs
