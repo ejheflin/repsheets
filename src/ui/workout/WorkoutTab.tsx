@@ -143,7 +143,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
         </div>
         {recentSessions.length > 0 && (
           <div className="mt-10">
-            <h2 className="text-[13px] font-semibold text-gray-500 mb-3">Recent Workouts</h2>
+            <h2 className="text-[13px] font-semibold text-gray-500 mb-3">Edit Recent Workouts</h2>
             <table className="w-full">
               <thead>
                 <tr className="text-left text-[11px] text-gray-600 border-b border-white/10">
