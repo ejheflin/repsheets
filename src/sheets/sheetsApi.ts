@@ -1,6 +1,5 @@
 import type { RoutineRow, LogEntry } from '../types'
 import { authFetch } from '../auth/authFetch'
-import { writeRange } from './driveApi'
 import { GOOGLE_API_KEY } from '../config'
 
 /**
@@ -134,12 +133,23 @@ export async function updateLogRows(
   spreadsheetId: string,
   updates: Array<{ rowIndex: number; entry: LogEntry }>
 ): Promise<void> {
-  for (const { rowIndex, entry } of updates) {
-    await writeRange(spreadsheetId, `Log!A${rowIndex}:K${rowIndex}`, [[
-      entry.date, entry.athlete, entry.program, entry.routine, entry.exercise,
-      entry.set, entry.reps, entry.value ?? '', entry.unit, entry.notes, entry.pct ?? '',
-    ]])
-  }
+  if (updates.length === 0) return
+  const url = `${SHEETS_BASE}/${spreadsheetId}/values:batchUpdate`
+  const res = await authFetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      valueInputOption: 'USER_ENTERED',
+      data: updates.map(({ rowIndex, entry }) => ({
+        range: `Log!A${rowIndex}:K${rowIndex}`,
+        values: [[
+          entry.date, entry.athlete, entry.program, entry.routine, entry.exercise,
+          entry.set, entry.reps, entry.value ?? '', entry.unit, entry.notes, entry.pct ?? '',
+        ]],
+      })),
+    }),
+  })
+  if (!res.ok) throw new Error('Failed to batch update log rows')
 }
 
 export async function appendLogEntries(spreadsheetId: string, entries: LogEntry[]): Promise<void> {
