@@ -35,7 +35,7 @@ export function useLogs() {
   const { alias } = useAlias()
   const [allLogs, setAllLogs] = useState<LogEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [selectedAthlete, setSelectedAthlete] = useState<string | null>(null) // null = me
+  const [selectedAthletes, setSelectedAthletes] = useState<string[]>(['__me__'])
 
   const refresh = useCallback(async () => {
     if (!spreadsheetId) return
@@ -88,12 +88,29 @@ export function useLogs() {
     return allLogs.filter((l) => l.athlete === athleteName || l.athlete === user.email)
   }, [allLogs, user, athleteName])
 
-  // Filtered logs based on selected athlete
+  const toggleAthlete = (id: string) => {
+    if (id === '__all__') { setSelectedAthletes(['__all__']); return }
+    setSelectedAthletes((prev) => {
+      const without = prev.filter((a) => a !== '__all__')
+      const next = without.includes(id) ? without.filter((a) => a !== id) : [...without, id]
+      return next.length === 0 ? ['__all__'] : next
+    })
+  }
+
+  // Filtered logs based on selected athletes
   const logs = useMemo(() => {
-    if (selectedAthlete === null) return myLogs
-    if (selectedAthlete === '__all__') return allLogs
-    return allLogs.filter((l) => l.athlete === selectedAthlete)
-  }, [allLogs, myLogs, selectedAthlete])
+    if (selectedAthletes.includes('__all__')) return allLogs
+    const names = new Set<string>()
+    for (const sel of selectedAthletes) {
+      if (sel === '__me__') {
+        if (athleteName) names.add(athleteName)
+        if (user?.email) names.add(user.email)
+      } else {
+        names.add(sel)
+      }
+    }
+    return allLogs.filter((l) => names.has(l.athlete))
+  }, [allLogs, selectedAthletes, athleteName, user])
 
   const workoutDates = useMemo(() => {
     const map = new Map<string, string[]>()
@@ -263,7 +280,7 @@ export function useLogs() {
     logs, allLogs, myLogs, isLoading, refresh,
     workoutDates, athleteDates, exerciseHistory, exerciseHistoryByAthlete,
     personalRecords, uniqueExercises, lastLoggedProgram,
-    athletes, isShared, selectedAthlete, setSelectedAthlete,
+    athletes, isShared, selectedAthletes, toggleAthlete,
     leaderboard, athleteStats, athleteName,
   }
 }

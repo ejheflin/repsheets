@@ -2,12 +2,12 @@ import { useRef } from 'react'
 
 interface AthleteFilterProps {
   athletes: string[]
-  selected: string | null  // null = me, '__all__' = everyone
-  onSelect: (athlete: string | null) => void
+  selected: string[]
+  onToggle: (id: string) => void
   onLongPressMe?: () => void
 }
 
-export function AthleteFilter({ athletes, selected, onSelect, onLongPressMe }: AthleteFilterProps) {
+export function AthleteFilter({ athletes, selected, onToggle, onLongPressMe }: AthleteFilterProps) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const didLongPressRef = useRef(false)
 
@@ -26,8 +26,10 @@ export function AthleteFilter({ athletes, selected, onSelect, onLongPressMe }: A
 
   const handleMeClick = () => {
     if (didLongPressRef.current) return
-    onSelect(null)
+    onToggle('__me__')
   }
+
+  const isActive = (id: string) => selected.includes(id)
 
   return (
     <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-3 px-3 scrollbar-hide">
@@ -40,20 +42,20 @@ export function AthleteFilter({ athletes, selected, onSelect, onLongPressMe }: A
         onMouseUp={cancelLongPress}
         onMouseLeave={cancelLongPress}
         className={`flex-shrink-0 px-3 py-1 rounded-full text-[11px] font-medium transition ${
-          selected === null ? 'bg-[#6c63ff] text-white' : 'bg-[#1a1a2e] text-gray-400'
+          isActive('__me__') ? 'bg-[#6c63ff] text-white' : 'bg-[#1a1a2e] text-gray-400'
         }`}>
         Me
       </button>
-      <button onClick={() => onSelect('__all__')}
+      <button onClick={() => onToggle('__all__')}
         className={`flex-shrink-0 px-3 py-1 rounded-full text-[11px] font-medium transition ${
-          selected === '__all__' ? 'bg-[#6c63ff] text-white' : 'bg-[#1a1a2e] text-gray-400'
+          isActive('__all__') ? 'bg-[#6c63ff] text-white' : 'bg-[#1a1a2e] text-gray-400'
         }`}>
         Everyone
       </button>
       {athletes.map((a) => (
-        <button key={a} onClick={() => onSelect(a)}
+        <button key={a} onClick={() => onToggle(a)}
           className={`flex-shrink-0 px-3 py-1 rounded-full text-[11px] font-medium transition ${
-            selected === a ? 'bg-[#6c63ff] text-white' : 'bg-[#1a1a2e] text-gray-400'
+            isActive(a) ? 'bg-[#6c63ff] text-white' : 'bg-[#1a1a2e] text-gray-400'
           }`}>
           {a}
         </button>

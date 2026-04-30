@@ -33,7 +33,7 @@ export function LogsTab() {
     isLoading, refresh, allLogs, workoutDates, athleteDates,
     exerciseHistory, exerciseHistoryByAthlete, personalRecords,
     uniqueExercises, lastLoggedProgram,
-    athletes, isShared, selectedAthlete, setSelectedAthlete, athleteName,
+    athletes, isShared, selectedAthletes, toggleAthlete, athleteName,
   } = useLogs()
   const { alias, saveAlias } = useAlias()
   const { allRows } = useRoutines(null)
@@ -120,7 +120,7 @@ export function LogsTab() {
             programExercises={programExercises}
             lastLoggedProgram={lastLoggedProgram}
             isShared={isShared}
-            showAllAthletes={selectedAthlete === '__all__'}
+            showAllAthletes={selectedAthletes.includes('__all__')}
           />
         )
       case 'records':
@@ -158,7 +158,7 @@ export function LogsTab() {
 
       {isShared && (
         <div className="sticky top-0 z-10 bg-[#1a1a2e] -mx-4 px-4 pb-2 mb-1">
-          <AthleteFilter athletes={athletes} selected={selectedAthlete} onSelect={setSelectedAthlete} onLongPressMe={handleOpenRename} />
+          <AthleteFilter athletes={athletes} selected={selectedAthletes} onToggle={toggleAthlete} onLongPressMe={handleOpenRename} />
         </div>
       )}
 
