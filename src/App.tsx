@@ -1,5 +1,6 @@
 import { AuthProvider } from './auth/AuthProvider'
 import { SheetProvider, useSheetContext } from './data/useSheetContext'
+import { AliasProvider } from './data/AliasProvider'
 import { useAuth } from './auth/useAuth'
 import { LoginScreen } from './auth/LoginScreen'
 import { Layout } from './ui/Layout'
@@ -119,21 +120,23 @@ function MainApp() {
   }
 
   return (
-    <WorkoutProvider>
-      <Layout>
-        {(activeTab, setActiveTab) => (
-          <>
-            {activeTab === 'routines' && (
-              <RoutinesTab onStartWorkout={() => setActiveTab('workout')} />
-            )}
-            {activeTab === 'workout' && <WorkoutTab onGoToRoutines={() => setActiveTab('routines')} />}
-            {activeTab === 'logs' && <LogsTab />}
-          </>
-        )}
-      </Layout>
-      <IOSInstallHint />
-      <OnboardingTour />
-    </WorkoutProvider>
+    <AliasProvider>
+      <WorkoutProvider>
+        <Layout>
+          {(activeTab, setActiveTab) => (
+            <>
+              {activeTab === 'routines' && (
+                <RoutinesTab onStartWorkout={() => setActiveTab('workout')} />
+              )}
+              {activeTab === 'workout' && <WorkoutTab onGoToRoutines={() => setActiveTab('routines')} />}
+              {activeTab === 'logs' && <LogsTab />}
+            </>
+          )}
+        </Layout>
+        <IOSInstallHint />
+        <OnboardingTour />
+      </WorkoutProvider>
+    </AliasProvider>
   )
 }
 

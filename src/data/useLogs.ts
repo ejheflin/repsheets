@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from './useSheetContext'
+import { useAlias } from './AliasProvider'
 import { fetchLogEntries } from '../sheets/sheetsApi'
 import { saveLogs, getLogs } from './db'
 import { AuthExpiredError } from '../auth/authFetch'
@@ -31,6 +32,7 @@ export interface AthleteStats {
 export function useLogs() {
   const { user } = useAuth()
   const { spreadsheetId } = useSheetContext()
+  const { alias } = useAlias()
   const [allLogs, setAllLogs] = useState<LogEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedAthlete, setSelectedAthlete] = useState<string | null>(null) // null = me
@@ -65,11 +67,12 @@ export function useLogs() {
   }, [spreadsheetId, refresh, user?.accessToken])
 
   const athleteName = useMemo(() => {
+    if (alias) return alias
     if (!user) return null
     const parts = user.name.trim().split(/\s+/)
     if (parts.length < 2) return parts[0] || ''
     return `${parts[0]} ${parts[parts.length - 1][0]}`
-  }, [user])
+  }, [user, alias])
 
   // All distinct athletes in the log
   const athletes = useMemo(() => {
@@ -261,7 +264,7 @@ export function useLogs() {
     workoutDates, athleteDates, exerciseHistory, exerciseHistoryByAthlete,
     personalRecords, uniqueExercises, lastLoggedProgram,
     athletes, isShared, selectedAthlete, setSelectedAthlete,
-    leaderboard, athleteStats,
+    leaderboard, athleteStats, athleteName,
   }
 }
 
