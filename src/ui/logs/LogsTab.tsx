@@ -198,7 +198,7 @@ export function LogsTab() {
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSaveAlias()}
               placeholder="Display name"
-              className="w-full bg-[#1a1a2e] rounded-[10px] px-3 py-2.5 text-sm text-white placeholder-gray-500 outline-none mb-3"
+              className="w-full bg-[#1a1a2e] rounded-[10px] px-3 py-2.5 text-base text-white placeholder-gray-500 outline-none mb-3"
             />
             <div className="flex gap-2">
               <button onClick={() => setShowRenameModal(false)}
