@@ -118,73 +118,85 @@ export function ExerciseRow({
   if (!exercise.isExpanded) {
     return (
       <div data-tour={tourId ? 'exercise-row' : undefined} className="bg-[#2a2a4a] rounded-[10px] mb-1.5 px-3 py-2.5">
-        <div className="flex items-center">
-          <button onClick={onToggleExpand} className="mr-1.5 self-stretch flex items-center"><ChevronRight /></button>
-          <button onClick={onToggleExpand} className="flex-1 text-left min-w-0">
-            <div className="font-semibold text-sm truncate">{exercise.exercise}</div>
-            {exercise.notes && (
-              <div className="text-[10px] text-[#6c63ff] mt-0.5 truncate">▸ {exercise.notes}</div>
-            )}
-          </button>
-          {summaryValue && !showSlashedTargets ? (
-            <div className="flex-shrink-0 flex items-center mr-10">
-              <PlateCalculator weight={summaryValue} unit={unit} exercise={exercise.exercise} />
-            </div>
-          ) : null}
-          <button data-tour={tourId ? 'exercise-checkbox' : undefined} onClick={onToggleExercise} className="ml-2">
-            {allCompleted ? (
-              <div className="w-[22px] h-[22px] bg-[#6c63ff] rounded-md flex items-center justify-center text-xs">✓</div>
-            ) : (
-              <div className="w-[22px] h-[22px] border-2 border-[#444] rounded-md" />
-            )}
-          </button>
-        </div>
-        <div className="flex items-center justify-between mt-1.5 ml-5">
-          <button onClick={onToggleExpand} className="text-xs text-gray-500 w-7 flex-shrink-0 text-left">{exercise.sets.length}×</button>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => onUpdateAllSets('reps', Math.max(0, (summaryReps ?? 0) - 1))}
-              className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#3a3a5a]"
-            >−</button>
-            <input type="text" inputMode="numeric" value={summaryReps ?? ''}
-              onChange={(e) => onUpdateAllSets('reps', e.target.value ? Number(e.target.value) : null)}
-              onFocus={(e) => e.target.select()}
-              className={`w-12 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${repsHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
-              placeholder="—" />
-            <button
-              onClick={() => onUpdateAllSets('reps', (summaryReps ?? 0) + 1)}
-              className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#3a3a5a]"
-            >+</button>
-          </div>
-          {onShowHistory && (
-            <button onClick={onShowHistory} className="flex-shrink-0 flex items-center justify-center w-8 active:opacity-60">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M2.5 8a5.5 5.5 0 1 0 1.1-3.3" />
-                <polyline points="2.5 3.5 2.5 6.5 5.5 6.5" />
-                <polyline points="8 5 8 8 10 10" />
-              </svg>
-            </button>
-          )}
-          <div className="flex items-center justify-center">
-            {showSlashedTargets ? (
-              <button
-                onClick={() => setShowMaxSettings(true)}
-                className="text-sm font-semibold text-gray-300 px-1 active:opacity-80"
-              >
-                {buildSlashedTargets(exercise.sets, oneRepMax)}
+        <div className="flex">
+          {/* Left column: exercise name (header) + set count/reps/history (controls) */}
+          <div className="flex-1 min-w-0 flex flex-col">
+            <div className="flex items-center">
+              <button onClick={onToggleExpand} className="mr-1.5 self-stretch flex items-center"><ChevronRight /></button>
+              <button onClick={onToggleExpand} className="flex-1 text-left min-w-0">
+                <div className="font-semibold text-sm truncate">{exercise.exercise}</div>
+                {exercise.notes && (
+                  <div className="text-[10px] text-[#6c63ff] mt-0.5 truncate">▸ {exercise.notes}</div>
+                )}
               </button>
-            ) : (
-              // All sets same pct (or no pct): normal editable weight input
-              <input type="text" inputMode="decimal" value={summaryValue ?? ''}
-                onChange={(e) => onUpdateAllSets('value', e.target.value ? Number(e.target.value) : null)}
-                onFocus={(e) => e.target.select()}
-                className={`w-16 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
-                placeholder="—" />
-            )}
+            </div>
+            <div className="flex items-center justify-between mt-1.5 ml-5">
+              <button onClick={onToggleExpand} className="text-xs text-gray-500 w-7 flex-shrink-0 text-left">{exercise.sets.length}×</button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => onUpdateAllSets('reps', Math.max(0, (summaryReps ?? 0) - 1))}
+                  className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#3a3a5a]"
+                >−</button>
+                <input type="text" inputMode="numeric" value={summaryReps ?? ''}
+                  onChange={(e) => onUpdateAllSets('reps', e.target.value ? Number(e.target.value) : null)}
+                  onFocus={(e) => e.target.select()}
+                  className={`w-12 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${repsHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
+                  placeholder="—" />
+                <button
+                  onClick={() => onUpdateAllSets('reps', (summaryReps ?? 0) + 1)}
+                  className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#3a3a5a]"
+                >+</button>
+              </div>
+              {onShowHistory && (
+                <button onClick={onShowHistory} className="flex-shrink-0 flex items-center justify-center w-8 active:opacity-60">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2.5 8a5.5 5.5 0 1 0 1.1-3.3" />
+                    <polyline points="2.5 3.5 2.5 6.5 5.5 6.5" />
+                    <polyline points="8 5 8 8 10 10" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
-          <button onClick={() => setShowNotes(!showNotes)} className="w-7 flex items-center justify-center">
-            <NotesIcon hasNotes={hasUserNotes} />
-          </button>
+
+          {/* Weight column: plate calc shares vertical axis with weight input */}
+          <div className="flex flex-col justify-between">
+            <div className="flex items-center justify-center">
+              {summaryValue && !showSlashedTargets ? (
+                <PlateCalculator weight={summaryValue} unit={unit} exercise={exercise.exercise} />
+              ) : null}
+            </div>
+            <div className="flex items-center justify-center mt-1.5">
+              {showSlashedTargets ? (
+                <button
+                  onClick={() => setShowMaxSettings(true)}
+                  className="text-sm font-semibold text-gray-300 px-1 active:opacity-80"
+                >
+                  {buildSlashedTargets(exercise.sets, oneRepMax)}
+                </button>
+              ) : (
+                <input type="text" inputMode="decimal" value={summaryValue ?? ''}
+                  onChange={(e) => onUpdateAllSets('value', e.target.value ? Number(e.target.value) : null)}
+                  onFocus={(e) => e.target.select()}
+                  className={`w-16 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
+                  placeholder="—" />
+              )}
+            </div>
+          </div>
+
+          {/* Checkbox/notes column: checkbox shares vertical axis with notes button */}
+          <div className="ml-2 flex flex-col justify-between">
+            <button data-tour={tourId ? 'exercise-checkbox' : undefined} onClick={onToggleExercise} className="flex items-center justify-center">
+              {allCompleted ? (
+                <div className="w-[22px] h-[22px] bg-[#6c63ff] rounded-md flex items-center justify-center text-xs">✓</div>
+              ) : (
+                <div className="w-[22px] h-[22px] border-2 border-[#444] rounded-md" />
+              )}
+            </button>
+            <button onClick={() => setShowNotes(!showNotes)} className="w-7 flex items-center justify-center mt-1.5">
+              <NotesIcon hasNotes={hasUserNotes} />
+            </button>
+          </div>
         </div>
         {notesInput}
         {showMaxSettings && (
