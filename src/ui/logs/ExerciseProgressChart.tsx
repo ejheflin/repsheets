@@ -79,7 +79,7 @@ export function ExerciseProgressChart({
   }, [selectedExercise])
 
   // Build chart data
-  const { data, series, hasOrm } = useMemo(() => {
+  const { data, series, hasOrm } = useMemo<{ data: Record<string, string | number | undefined>[]; series: string[]; hasOrm: boolean }>(() => {
     if (!selectedExercise) return { data: [], series: [] as string[], hasOrm: false }
 
     const effectiveLimit = limit === 0 ? 9999 : limit
@@ -100,6 +100,33 @@ export function ExerciseProgressChart({
     }))
     return { data: chartData, series: ['weight'], hasOrm: anyOrm }
   }, [selectedExercise, exerciseHistory, exerciseHistoryByAthlete, isShared, showAllAthletes, limit])
+
+  const progressDelta = useMemo(() => {
+    if (showAllAthletes || data.length < 2) return null
+    const first = data[0]?.weight as number | undefined
+    const last = (data[data.length - 1]?.weight) as number | undefined
+    if (first == null || last == null || first === 0) return null
+    const delta = Math.round((last - first) * 10) / 10
+    const pct = Math.round((delta / first) * 100)
+    return { first, last, delta, pct }
+  }, [data, showAllAthletes])
+
+  const lastDotLabel = useMemo(() => {
+    if (!progressDelta) return undefined
+    const { delta, pct } = progressDelta
+    const color = delta >= 0 ? '#4ade80' : '#f87171'
+    const sign = delta >= 0 ? '+' : ''
+    const lastIdx = data.length - 1
+    return function LastLabel(props: { x?: number; y?: number; index?: number }) {
+      const { x, y, index } = props
+      if (index !== lastIdx || x == null || y == null) return null
+      return (
+        <text x={x} y={y - 10} fill={color} fontSize={10} textAnchor="middle" fontWeight="600">
+          {sign}{delta} ({sign}{pct}%)
+        </text>
+      )
+    }
+  }, [progressDelta, data.length])
 
   if (uniqueExercises.length === 0) return null
 
@@ -152,6 +179,20 @@ export function ExerciseProgressChart({
 
       <ExerciseChipFilter exercises={filteredExercises} selected={selectedSet} onToggle={selectExercise} />
 
+      {progressDelta && (
+        <div className="flex items-center gap-2 px-0.5 pb-2 text-[12px]">
+          <span className="text-gray-500">{progressDelta.first}</span>
+          <span className="text-gray-600">→</span>
+          <span className="text-white font-medium">{progressDelta.last}</span>
+          <span className={`ml-auto font-semibold tabular-nums ${progressDelta.delta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            {progressDelta.delta >= 0 ? '+' : ''}{progressDelta.delta}
+            <span className="font-normal text-[11px] ml-1 opacity-70">
+              ({progressDelta.pct >= 0 ? '+' : ''}{progressDelta.pct}%)
+            </span>
+          </span>
+        </div>
+      )}
+
       {selectedExercise && data.length > 0 ? (
         <>
           <ResponsiveContainer width="100%" height={200}>
@@ -187,7 +228,8 @@ export function ExerciseProgressChart({
                 {series.map((s, i) => (
                   <Line key={s} type="monotone" dataKey={s} stroke={CHART_COLORS[i % CHART_COLORS.length]}
                     strokeWidth={2} dot={{ r: 3, fill: CHART_COLORS[i % CHART_COLORS.length] }}
-                    connectNulls={true} />
+                    connectNulls={true}
+                    label={i === 0 && lastDotLabel ? lastDotLabel : undefined} />
                 ))}
                 {hasOrm && (
                   <Line type="monotone" dataKey="orm" name="Est. 1RM"
