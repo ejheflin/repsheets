@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from '../data/useSheetContext'
-import { listRepSheets, renameSheet, cloneSheet, createExampleSheet, getFolderUrl } from '../sheets/driveApi'
+import { listRepSheets, renameSheet, cloneSheet, createExampleSheet, getFolderUrl, registerSheetById, NotRepSheetError } from '../sheets/driveApi'
 import { GOOGLE_CLIENT_ID, SCOPES } from '../config'
 import { getStoredUser } from '../auth/googleAuth'
 import { shareOrCopy } from './sharing/shareLink'
@@ -40,7 +40,7 @@ function CloneIcon() {
   )
 }
 
-type ModalView = 'list' | 'create' | 'created'
+type ModalView = 'list' | 'create' | 'created' | 'import'
 
 export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
   const { user, login, logout } = useAuth()
@@ -54,6 +54,10 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
   const [newSheetName, setNewSheetName] = useState('repsheets')
   const [isCreating, setIsCreating] = useState(false)
   const [createdSheetId, setCreatedSheetId] = useState<string | null>(null)
+
+  const [importLink, setImportLink] = useState('')
+  const [isImporting, setIsImporting] = useState(false)
+  const [importError, setImportError] = useState('')
 
   const [authFailed, setAuthFailed] = useState(false)
 
@@ -249,6 +253,25 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
     setIsCreating(false)
   }
 
+  const handleImport = async () => {
+    const sheetsMatch = importLink.match(/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)
+    const paramMatch = importLink.match(/[?&](?:join|import)=([a-zA-Z0-9_-]+)/)
+    const id = sheetsMatch?.[1] ?? paramMatch?.[1] ?? importLink.trim()
+    if (!id) return
+    setIsImporting(true)
+    setImportError('')
+    try {
+      await registerSheetById(id)
+      setSpreadsheetId(id)
+      onClose()
+    } catch (e) {
+      setImportError(e instanceof NotRepSheetError
+        ? "This doesn't look like a valid repsheets sheet."
+        : "Couldn't access this sheet. Make sure you have permission.")
+    }
+    setIsImporting(false)
+  }
+
   if (shareSheet) {
     return <ShareSheetModal sheet={shareSheet} onClose={() => setShareSheet(null)} />
   }
@@ -349,6 +372,11 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
               + Create New Sheet
             </button>
 
+            <button onClick={() => { setImportLink(''); setImportError(''); setView('import') }}
+              className="w-full bg-[#2a2a4a] rounded-[10px] p-3 mt-2 text-center text-gray-300 font-semibold text-sm active:opacity-80">
+              Import with Link
+            </button>
+
             <button onClick={onClose}
               className="w-full p-3 text-center text-gray-400 font-semibold text-sm mt-2">
               Cancel
@@ -376,6 +404,40 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
             <button onClick={handleCreate} disabled={isCreating || !newSheetName.trim()}
               className="w-full bg-[#6c63ff] rounded-[10px] p-3 text-center font-semibold text-sm disabled:opacity-50">
               {isCreating ? 'Creating...' : 'Create'}
+            </button>
+            <button onClick={() => setView('list')}
+              className="w-full p-3 text-center text-gray-400 font-semibold text-sm mt-1">
+              Back
+            </button>
+          </>
+        )}
+
+        {view === 'import' && (
+          <>
+            <h2 className="text-base font-bold text-center mb-4">Import with Link</h2>
+            <p className="text-[13px] text-gray-400 text-center mb-5">
+              To protect your privacy, repsheets cannot scan your Google Drive. If you have access to a valid repsheets Google Sheet, you can paste a link below:
+            </p>
+            <input
+              type="url"
+              value={importLink}
+              onChange={(e) => setImportLink(e.target.value)}
+              onClick={async () => {
+                try {
+                  const text = await navigator.clipboard.readText()
+                  if (text) setImportLink(text)
+                } catch {}
+              }}
+              placeholder="Paste Google Sheets link"
+              className="w-full bg-[#2a2a4a] border border-[#3a3a5a] rounded-[10px] px-4 py-3 text-base outline-none focus:border-[#6c63ff] mb-2"
+              autoFocus
+            />
+            {importError && <p className="text-red-400 text-xs mb-2">{importError}</p>}
+            <button
+              onClick={handleImport}
+              disabled={isImporting || !importLink.trim()}
+              className="w-full bg-[#6c63ff] rounded-[10px] p-3 text-center font-semibold text-sm disabled:opacity-50 mt-2 active:opacity-80">
+              {isImporting ? 'Importing...' : 'Import'}
             </button>
             <button onClick={() => setView('list')}
               className="w-full p-3 text-center text-gray-400 font-semibold text-sm mt-1">
