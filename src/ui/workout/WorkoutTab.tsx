@@ -169,8 +169,8 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
           </div>
         )}
         {confirmEditSession && (
-          <div className="fixed inset-0 bg-black/60 flex items-end z-50">
-            <div className="w-full bg-[#2a2a4a] rounded-t-2xl p-6 pb-8">
+          <div className="fixed inset-0 bg-black/60 flex items-end z-50" onClick={() => setConfirmEditSession(null)}>
+            <div className="w-full bg-[#2a2a4a] rounded-t-2xl p-6 pb-8" onClick={(e) => e.stopPropagation()}>
               <h2 className="text-[17px] font-semibold mb-1">Edit this workout?</h2>
               <p className="text-[13px] text-gray-400 mb-6">
                 This will overwrite your logged sets from{' '}
