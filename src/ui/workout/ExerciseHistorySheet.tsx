@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { LogEntry, WorkoutExercise } from '../../types'
 
 interface Props {
@@ -17,154 +18,165 @@ function formatDate(d: string): string {
   return `${m}/${day}`
 }
 
+function calcE1rm(log: LogEntry): number | null {
+  if (log.value == null || log.value <= 0) return null
+  if (log.pct != null && log.pct > 0) return log.value / (log.pct / 100)
+  if (log.reps >= 1 && log.reps <= 12) return epley(log.value, log.reps)
+  return null
+}
+
+function r5(n: number): number {
+  return Math.round(n / 5) * 5
+}
+
+function ChevronRight() {
+  return (
+    <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="2 1 6 4 2 7" />
+    </svg>
+  )
+}
+
+function ChevronDown() {
+  return (
+    <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="1 2 4 6 7 2" />
+    </svg>
+  )
+}
+
 export function ExerciseHistorySheet({ exercise, logs, program, onClose }: Props) {
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set())
+
+  const toggleDate = (date: string) => {
+    setExpandedDates((prev) => {
+      const next = new Set(prev)
+      if (next.has(date)) next.delete(date); else next.add(date)
+      return next
+    })
+  }
+
   const relevant = logs.filter(
     (l) => l.program === program && l.exercise === exercise.exercise && l.value != null && l.value > 0
   )
 
   const dateSet = new Set(relevant.map((l) => l.date))
-  const dates = [...dateSet].sort().slice(-5)
+  const dates = [...dateSet].sort().reverse() // most recent first
 
-  const body = (() => {
-    if (dates.length === 0) {
-      return <p className="text-center text-gray-500 text-xs py-6">No history yet</p>
-    }
-
-    // Group: date → setNumber → last matching log entry
-    const byDateSet = new Map<string, Map<number, LogEntry>>()
-    for (const log of relevant) {
-      if (!byDateSet.has(log.date)) byDateSet.set(log.date, new Map())
-      byDateSet.get(log.date)!.set(log.set, log)
-    }
-
-    const setNumbers = [...new Set(relevant.map((l) => l.set))].sort((a, b) => a - b)
-
-    // Most recently logged reps per set number (for row labels)
-    const latestReps = new Map<number, number | null>()
-    for (const setNum of setNumbers) {
-      const entries = relevant.filter((l) => l.set === setNum)
-      latestReps.set(setNum, entries[entries.length - 1]?.reps ?? null)
-    }
-
-    // Per date: E1RM, and the heaviest-set's pct + value as "Target % / Target"
-    const e1rmByDate = new Map<string, number>()
-    const targetPctByDate = new Map<string, number | null>()
-    const targetValByDate = new Map<string, number>()
-
-    for (const date of dates) {
-      const dateMap = byDateSet.get(date)
-      if (!dateMap) continue
-
-      let maxOrm = 0
-      let heaviest: LogEntry | null = null
-
-      for (const [, log] of dateMap) {
-        if (log.value == null) continue
-
-        // Track heaviest entry for Target % / Target rows
-        if (heaviest === null || log.value > (heaviest.value ?? 0)) heaviest = log
-
-        // E1RM
-        let orm = 0
-        if (log.pct != null && log.pct > 0) {
-          orm = log.value / (log.pct / 100)
-        } else if (log.reps >= 1 && log.reps <= 12) {
-          orm = epley(log.value, log.reps)
-        }
-        if (orm > maxOrm) maxOrm = orm
-      }
-
-      if (maxOrm > 0) e1rmByDate.set(date, Math.round(maxOrm / 5) * 5)
-      if (heaviest) {
-        targetPctByDate.set(date, heaviest.pct ?? null)
-        targetValByDate.set(date, heaviest.value!)
-      }
-    }
-
-    const buildLabel = (setNum: number): string => {
-      const reps = latestReps.get(setNum)
-      return reps != null ? `${setNum}×${reps}` : `${setNum}`
-    }
-
-    const divider = 'border-b-2 border-[#6c63ff]/30'
-    const summaryCell = 'text-center py-2 px-2 tabular-nums'
-    const setCell = 'text-center py-1.5 px-2 text-gray-200 tabular-nums'
-
+  if (dates.length === 0) {
     return (
-      <div className="overflow-x-auto">
-        <table className="w-full text-[11px]">
-          <thead>
-            <tr>
-              <th className="text-left text-gray-500 font-normal pb-2 pr-3 whitespace-nowrap"></th>
-              {dates.map((d) => (
-                <th key={d} className="text-center text-gray-500 font-normal pb-2 px-2 whitespace-nowrap">
-                  {formatDate(d)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {/* Summary section */}
-            <tr>
-              <td className="text-[#6c63ff] font-semibold py-2 pr-3 whitespace-nowrap">E1RM</td>
-              {dates.map((d) => (
-                <td key={d} className={`${summaryCell} text-white font-semibold`}>
-                  {e1rmByDate.has(d) ? e1rmByDate.get(d) : '—'}
-                </td>
-              ))}
-            </tr>
-            <tr>
-              <td className="text-[#6c63ff] font-semibold py-2 pr-3 whitespace-nowrap">Target %</td>
-              {dates.map((d) => {
-                const pct = targetPctByDate.get(d)
-                return (
-                  <td key={d} className={`${summaryCell} text-white font-semibold`}>
-                    {pct != null ? `${pct}%` : '—'}
-                  </td>
-                )
-              })}
-            </tr>
-            <tr className={divider}>
-              <td className="text-[#6c63ff] font-semibold py-2 pr-3 whitespace-nowrap">Target</td>
-              {dates.map((d) => (
-                <td key={d} className={`${summaryCell} text-white font-semibold`}>
-                  {targetValByDate.has(d) ? targetValByDate.get(d) : '—'}
-                </td>
-              ))}
-            </tr>
-            {/* Per-set history */}
-            {setNumbers.map((setNum) => (
-              <tr key={setNum} className="border-b border-[#3a3a5a] last:border-b-0">
-                <td className="text-gray-400 py-1.5 pr-3 whitespace-nowrap">{buildLabel(setNum)}</td>
-                {dates.map((d) => {
-                  const entry = byDateSet.get(d)?.get(setNum)
-                  return (
-                    <td key={d} className={setCell}>
-                      {entry?.value != null ? entry.value : '—'}
-                    </td>
-                  )
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="fixed inset-0 z-50 flex items-end bg-black/60" onClick={onClose}>
+        <div className="bg-[#2a2a4a] rounded-t-[20px] w-full p-5 pb-8" onClick={(e) => e.stopPropagation()}>
+          <p className="text-center text-gray-500 text-xs py-4">No history yet</p>
+        </div>
       </div>
     )
-  })()
+  }
+
+  // Group: date → list of entries (sorted by set number)
+  const byDate = new Map<string, LogEntry[]>()
+  for (const log of relevant) {
+    if (!byDate.has(log.date)) byDate.set(log.date, [])
+    byDate.get(log.date)!.push(log)
+  }
+  for (const entries of byDate.values()) {
+    entries.sort((a, b) => a.set - b.set)
+  }
+
+  const th = 'text-center text-[10px] text-gray-500 font-normal pb-2 px-1.5 whitespace-nowrap'
+  const td = 'text-center text-[11px] px-1.5 tabular-nums'
 
   return (
     <div className="fixed inset-0 z-50 flex items-end bg-black/60" onClick={onClose}>
       <div
-        className="bg-[#2a2a4a] rounded-t-[20px] w-full max-h-[60vh] overflow-y-auto"
+        className="bg-[#2a2a4a] rounded-t-[20px] w-full max-h-[70vh] flex flex-col"
         style={{ animation: 'slideUpSheet 0.25s ease' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-4 pt-4 pb-2 border-b border-[#3a3a5a]">
+        <div className="px-4 pt-4 pb-2 border-b border-[#3a3a5a] flex-shrink-0">
           <p className="text-sm font-semibold">{exercise.exercise}</p>
           <p className="text-[10px] text-gray-500 mt-0.5">History — {program}</p>
         </div>
-        <div className="px-4 py-3 pb-8">
-          {body}
+
+        <div className="overflow-y-auto pb-8">
+          <div className="overflow-x-auto px-4 pt-3">
+            <table className="w-full">
+              <thead>
+                <tr>
+                  <th className="text-left text-[10px] text-gray-500 font-normal pb-2 pr-2 whitespace-nowrap">Date</th>
+                  <th className={th}>Sets</th>
+                  <th className={th}>Reps</th>
+                  <th className={th}>E1RM</th>
+                  <th className={th}>Tgt%</th>
+                  <th className={th}>Tgt</th>
+                  <th className={th}>Wt</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dates.map((date) => {
+                  const entries = byDate.get(date) ?? []
+                  const isExpanded = expandedDates.has(date)
+
+                  // Session summary: best E1RM, heaviest set's pct + weight
+                  let bestOrm = 0
+                  let heaviest: LogEntry | null = null
+                  for (const e of entries) {
+                    const orm = calcE1rm(e)
+                    if (orm != null && orm > bestOrm) bestOrm = orm
+                    if (heaviest === null || (e.value ?? 0) > (heaviest.value ?? 0)) heaviest = e
+                  }
+                  const sessionE1rm = bestOrm > 0 ? r5(bestOrm) : null
+                  const tgtPct = heaviest?.pct ?? null
+                  const tgt = sessionE1rm != null && tgtPct != null ? r5(sessionE1rm * tgtPct / 100) : null
+                  const maxWt = heaviest?.value ?? null
+                  // Reps: first set's reps as representative
+                  const repsSummary = entries[0]?.reps ?? null
+
+                  return (
+                    <>
+                      {/* Collapsed date row */}
+                      <tr
+                        key={date}
+                        className="border-t border-[#3a3a5a] cursor-pointer active:bg-[#1a1a2e]/40"
+                        onClick={() => toggleDate(date)}
+                      >
+                        <td className="py-2 pr-2 whitespace-nowrap">
+                          <span className="flex items-center gap-1 text-[11px] font-medium text-gray-300">
+                            <span className="text-gray-500">{isExpanded ? <ChevronDown /> : <ChevronRight />}</span>
+                            {formatDate(date)}
+                          </span>
+                        </td>
+                        <td className={`${td} py-2 text-gray-300`}>{entries.length}</td>
+                        <td className={`${td} py-2 text-gray-300`}>{repsSummary ?? '—'}</td>
+                        <td className={`${td} py-2 text-white font-semibold`}>{sessionE1rm ?? '—'}</td>
+                        <td className={`${td} py-2 text-gray-300`}>{tgtPct != null ? `${tgtPct}%` : '—'}</td>
+                        <td className={`${td} py-2 text-gray-300`}>{tgt ?? '—'}</td>
+                        <td className={`${td} py-2 text-gray-300`}>{maxWt ?? '—'}</td>
+                      </tr>
+
+                      {/* Expanded per-set rows */}
+                      {isExpanded && entries.map((e) => {
+                        const setOrm = calcE1rm(e)
+                        const setOrmRounded = setOrm != null ? r5(setOrm) : null
+                        const setTgt = setOrmRounded != null && e.pct != null ? r5(setOrmRounded * e.pct / 100) : null
+                        return (
+                          <tr key={`${date}-${e.set}`} className="bg-[#1a1a2e]/60">
+                            <td className="py-1.5 pr-2 pl-4 text-[10px] text-gray-500 whitespace-nowrap">Set {e.set}</td>
+                            <td className={`${td} py-1.5 text-gray-500`}>—</td>
+                            <td className={`${td} py-1.5 text-gray-400`}>{e.reps}</td>
+                            <td className={`${td} py-1.5 text-gray-400`}>{setOrmRounded ?? '—'}</td>
+                            <td className={`${td} py-1.5 text-gray-400`}>{e.pct != null ? `${e.pct}%` : '—'}</td>
+                            <td className={`${td} py-1.5 text-gray-400`}>{setTgt ?? '—'}</td>
+                            <td className={`${td} py-1.5 text-gray-300 font-medium`}>{e.value}</td>
+                          </tr>
+                        )
+                      })}
+                    </>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
