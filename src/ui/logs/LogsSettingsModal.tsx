@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 
 export interface LogsPaneConfig {
   id: string
@@ -20,7 +20,6 @@ export function loadPaneConfig(): LogsPaneConfig[] {
   if (!saved) return DEFAULT_PANES
   try {
     const parsed = JSON.parse(saved) as LogsPaneConfig[]
-    // Merge with defaults in case new panes were added
     const ids = parsed.map((p) => p.id)
     const merged = [...parsed]
     for (const def of DEFAULT_PANES) {
@@ -36,6 +35,16 @@ function savePaneConfig(panes: LogsPaneConfig[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(panes))
 }
 
+function DragHandle() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      <line x1="3" y1="5" x2="13" y2="5" />
+      <line x1="3" y1="8" x2="13" y2="8" />
+      <line x1="3" y1="11" x2="13" y2="11" />
+    </svg>
+  )
+}
+
 interface LogsSettingsModalProps {
   panes: LogsPaneConfig[]
   onChange: (panes: LogsPaneConfig[]) => void
@@ -44,32 +53,66 @@ interface LogsSettingsModalProps {
 
 export function LogsSettingsModal({ panes, onChange, onClose }: LogsSettingsModalProps) {
   const [local, setLocal] = useState<LogsPaneConfig[]>([...panes])
+  const listRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<{ id: string; from: number; to: number } | null>(null)
+  const [dragState, setDragState] = useState<{ id: string; from: number; to: number } | null>(null)
 
   const togglePane = (id: string) => {
     setLocal((prev) => prev.map((p) => p.id === id ? { ...p, enabled: !p.enabled } : p))
   }
 
-  const moveUp = (index: number) => {
-    if (index === 0) return
-    setLocal((prev) => {
-      const next = [...prev]
-      const temp = next[index - 1]
-      next[index - 1] = next[index]
-      next[index] = temp
-      return next
-    })
+  const getTargetIndex = (clientY: number): number => {
+    if (!listRef.current) return 0
+    const children = Array.from(listRef.current.children) as HTMLElement[]
+    for (let i = 0; i < children.length; i++) {
+      const rect = children[i].getBoundingClientRect()
+      if (clientY < rect.top + rect.height / 2) return i
+    }
+    return children.length - 1
   }
 
-  const moveDown = (index: number) => {
-    if (index >= local.length - 1) return
-    setLocal((prev) => {
-      const next = [...prev]
-      const temp = next[index + 1]
-      next[index + 1] = next[index]
-      next[index] = temp
-      return next
-    })
+  const startDrag = (e: React.PointerEvent<HTMLButtonElement>, id: string) => {
+    const from = local.findIndex((p) => p.id === id)
+    if (from === -1) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    const state = { id, from, to: from }
+    dragRef.current = state
+    setDragState(state)
   }
+
+  const onDragMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (!dragRef.current) return
+    const to = getTargetIndex(e.clientY)
+    if (to !== dragRef.current.to) {
+      const next = { ...dragRef.current, to }
+      dragRef.current = next
+      setDragState(next)
+    }
+  }
+
+  const endDrag = () => {
+    if (!dragRef.current) return
+    const { from, to } = dragRef.current
+    if (from !== to) {
+      setLocal((prev) => {
+        const next = [...prev]
+        const [item] = next.splice(from, 1)
+        next.splice(to, 0, item)
+        return next
+      })
+    }
+    dragRef.current = null
+    setDragState(null)
+  }
+
+  const displayItems = dragState && dragState.from !== dragState.to
+    ? (() => {
+        const next = [...local]
+        const [item] = next.splice(dragState.from, 1)
+        next.splice(dragState.to, 0, item)
+        return next
+      })()
+    : local
 
   const handleSave = () => {
     savePaneConfig(local)
@@ -84,14 +127,14 @@ export function LogsSettingsModal({ panes, onChange, onClose }: LogsSettingsModa
         <h2 className="text-base font-bold text-center mb-1">Customize Logs</h2>
         <p className="text-xs text-gray-400 text-center mb-4">Toggle and reorder your dashboard panes</p>
 
-        <div className="space-y-2">
-          {local.map((pane, index) => (
+        <div className="space-y-2" ref={listRef}>
+          {displayItems.map((pane) => (
             <div key={pane.id}
-              className={`flex items-center gap-2 rounded-[10px] p-3 ${pane.enabled ? 'bg-[#2a2a4a]' : 'bg-[#2a2a4a]/50'}`}>
+              className={`flex items-center gap-2 rounded-[10px] p-3 ${
+                pane.enabled ? 'bg-[#2a2a4a]' : 'bg-[#2a2a4a]/50'
+              } ${dragState?.id === pane.id ? 'opacity-40' : ''}`}>
 
-              {/* Toggle */}
-              <button onClick={() => togglePane(pane.id)}
-                className="flex-shrink-0">
+              <button onClick={() => togglePane(pane.id)} className="flex-shrink-0">
                 {pane.enabled ? (
                   <div className="w-5 h-5 bg-[#6c63ff] rounded flex items-center justify-center text-xs">✓</div>
                 ) : (
@@ -99,24 +142,20 @@ export function LogsSettingsModal({ panes, onChange, onClose }: LogsSettingsModa
                 )}
               </button>
 
-              {/* Label */}
               <span className={`flex-1 text-sm ${pane.enabled ? 'text-white' : 'text-gray-500'}`}>
                 {pane.label}
               </span>
 
-              {/* Reorder buttons */}
-              <div className="flex flex-col gap-0.5">
-                <button onClick={() => moveUp(index)}
-                  className={`text-[10px] px-1 ${index === 0 ? 'text-[#2a2a4a]' : 'text-gray-500 active:text-white'}`}
-                  disabled={index === 0}>
-                  ▲
-                </button>
-                <button onClick={() => moveDown(index)}
-                  className={`text-[10px] px-1 ${index === local.length - 1 ? 'text-[#2a2a4a]' : 'text-gray-500 active:text-white'}`}
-                  disabled={index === local.length - 1}>
-                  ▼
-                </button>
-              </div>
+              <button
+                onPointerDown={(e) => startDrag(e, pane.id)}
+                onPointerMove={onDragMove}
+                onPointerUp={endDrag}
+                onPointerCancel={endDrag}
+                className="text-gray-500 p-1 active:text-gray-300 cursor-grab"
+                style={{ touchAction: 'none' }}
+              >
+                <DragHandle />
+              </button>
             </div>
           ))}
         </div>
