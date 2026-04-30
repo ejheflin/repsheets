@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { ExerciseRow } from './ExerciseRow'
+import { ExerciseHistorySheet } from './ExerciseHistorySheet'
 import { SupersetGroup } from './SupersetGroup'
 import { FinishWorkoutSheet } from './FinishWorkoutSheet'
 import { RoutineUpdatePrompt } from './RoutineUpdatePrompt'
@@ -50,6 +51,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([])
   const [confirmEditSession, setConfirmEditSession] = useState<RecentSession | null>(null)
   const [sessionsFetchKey, setSessionsFetchKey] = useState(0)
+  const [historyExercise, setHistoryExercise] = useState<WorkoutExercise | null>(null)
 
   const isEditMode = !!workout?.editMode
 
@@ -316,6 +318,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
               onUpdateAllSets={(field, val) => updateAllSets(exIdx, field, val)}
               onUpdateNotes={(notes) => updateNotes(exIdx, notes)}
               onAddSet={isEditMode ? undefined : () => addSet(exIdx)}
+              onShowHistory={() => setHistoryExercise(ex)}
               tourId={exIdx === 0 ? 'first-exercise' : undefined} />
           )
         })
@@ -339,6 +342,14 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
           exercises={routineUpdateExercises}
           onUpdate={() => setRoutineUpdateExercises(null)}
           onDismiss={() => setRoutineUpdateExercises(null)} />
+      )}
+
+      {historyExercise && workout && (
+        <ExerciseHistorySheet
+          exercise={historyExercise}
+          logs={myLogs}
+          program={workout.program}
+          onClose={() => setHistoryExercise(null)} />
       )}
 
       {showDiscard && (

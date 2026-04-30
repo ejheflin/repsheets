@@ -45,6 +45,7 @@ interface ExerciseRowProps {
   onUpdateAllSets: (field: 'reps' | 'value', val: number | null) => void
   onUpdateNotes: (notes: string) => void
   onAddSet?: () => void
+  onShowHistory?: () => void
   tourId?: string
 }
 
@@ -78,7 +79,7 @@ export function ExerciseRow({
   calculatedE1RM,
   exerciseSettings,
   onSaveSettings,
-  onToggleExpand, onToggleExercise, onToggleSet, onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet, tourId,
+  onToggleExpand, onToggleExercise, onToggleSet, onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet, onShowHistory, tourId,
 }: ExerciseRowProps) {
   const [showNotes, setShowNotes] = useState(false)
   const [showMaxSettings, setShowMaxSettings] = useState(false)
@@ -155,6 +156,14 @@ export function ExerciseRow({
               className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#3a3a5a]"
             >+</button>
           </div>
+          {onShowHistory && (
+            <button onClick={onShowHistory} className="flex-shrink-0 flex items-center justify-center w-7 active:opacity-60">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="8" cy="8" r="6.5" />
+                <polyline points="8 4.5 8 8 10.5 10" />
+              </svg>
+            </button>
+          )}
           <div className="flex-1 text-center">
             {showSlashedTargets ? (
               <button
