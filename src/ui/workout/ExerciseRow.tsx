@@ -108,7 +108,7 @@ export function ExerciseRow({
         type="text"
         value={userNotes}
         onChange={(e) => onUpdateNotes(e.target.value)}
-        className="w-full bg-[#1a1a2e] border border-[#3a3a5a] rounded text-xs text-gray-300 px-2 py-1.5 outline-none focus:border-[#6c63ff]"
+        className="w-full bg-[#1a1a2e] border border-[#3a3a5a] rounded text-gray-300 px-2 py-1.5 outline-none focus:border-[#6c63ff]" style={{ fontSize: 16 }}
         placeholder="Add a note..."
         autoFocus
       />
@@ -162,9 +162,9 @@ export function ExerciseRow({
           </div>
           {onShowHistory ? (
             <button onClick={onShowHistory} className="flex items-center justify-center w-8 active:opacity-60">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M2.5 8a5.5 5.5 0 1 0 1.1-3.3" />
-                <polyline points="2.5 3.5 2.5 6.5 5.5 6.5" />
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 2.5 a5.5 5.5 0 1 0 -5.5 5.5" />
+                <polyline points="1.5 6.5 2.5 8 3.5 6.5" />
                 <polyline points="8 5 8 8 10 10" />
               </svg>
             </button>
