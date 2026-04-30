@@ -166,7 +166,7 @@ export function ExerciseRow({
                 <PlateCalculator weight={summaryValue} unit={unit} exercise={exercise.exercise} />
               ) : null}
             </div>
-            <div className="flex items-center justify-center mt-1.5">
+            <div className="flex items-center justify-center">
               {showSlashedTargets ? (
                 <button
                   onClick={() => setShowMaxSettings(true)}
@@ -193,7 +193,7 @@ export function ExerciseRow({
                 <div className="w-[22px] h-[22px] border-2 border-[#444] rounded-md" />
               )}
             </button>
-            <button onClick={() => setShowNotes(!showNotes)} className="w-7 flex items-center justify-center mt-1.5">
+            <button onClick={() => setShowNotes(!showNotes)} className="w-7 flex items-center justify-center">
               <NotesIcon hasNotes={hasUserNotes} />
             </button>
           </div>
