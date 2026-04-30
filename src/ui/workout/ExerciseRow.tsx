@@ -141,7 +141,7 @@ export function ExerciseRow({
         </div>
         <div className="flex items-center mt-1.5 ml-5">
           <button onClick={onToggleExpand} className="text-xs text-gray-500 mr-2 w-7 flex-shrink-0 text-left">{exercise.sets.length}×</button>
-          <div className="flex-1 flex items-center justify-center gap-1">
+          <div className="flex-1 flex items-center justify-end gap-1">
             <button
               onClick={() => onUpdateAllSets('reps', Math.max(0, (summaryReps ?? 0) - 1))}
               className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#3a3a5a]"
@@ -157,14 +157,14 @@ export function ExerciseRow({
             >+</button>
           </div>
           {onShowHistory && (
-            <button onClick={onShowHistory} className="flex-shrink-0 flex items-center justify-center w-7 active:opacity-60">
+            <button onClick={onShowHistory} className="flex-shrink-0 flex items-center justify-center w-8 active:opacity-60">
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="8" cy="8" r="6.5" />
                 <polyline points="8 4.5 8 8 10.5 10" />
               </svg>
             </button>
           )}
-          <div className="flex-1 text-center">
+          <div className="flex-1 flex items-center justify-start">
             {showSlashedTargets ? (
               <button
                 onClick={() => setShowMaxSettings(true)}
