@@ -4,7 +4,7 @@ let idCounter = 0
 import { PlateSettingsModal, loadPlateSettings, type PlateSettingsData } from './PlateSettings'
 
 const LBS_PLATES = [55, 45, 35, 25, 15, 10, 5, 2.5]
-const KG_PLATES = [25, 20, 15, 10, 5, 2.5, 1.25]
+const KG_PLATES = [25, 20, 15, 10, 5, 2.5, 1]
 const BAR_WEIGHT_LBS = 45
 const BAR_WEIGHT_KG = 20
 
@@ -32,7 +32,7 @@ function isWeightUnit(unit: string): boolean {
   return u === 'lbs' || u === 'lb' || u === 'kg' || u === 'kgs'
 }
 
-function getPlates(weight: number, unit: string, available: number[]): number[] {
+function getPlates(weight: number, unit: string, available: number[], maxPerSide: number): number[] {
   const isKg = unit.toLowerCase() === 'kg' || unit.toLowerCase() === 'kgs'
   const barWeight = isKg ? BAR_WEIGHT_KG : BAR_WEIGHT_LBS
   const allPlates = isKg ? KG_PLATES : LBS_PLATES
@@ -43,7 +43,7 @@ function getPlates(weight: number, unit: string, available: number[]): number[] 
 
   const plates: number[] = []
   for (const plate of usablePlates) {
-    while (remaining >= plate) {
+    while (remaining >= plate && plates.length < maxPerSide) {
       plates.push(plate)
       remaining -= plate
     }
@@ -113,7 +113,8 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
 
   if (!weight || isNaN(weight) || !isWeightUnit(unit)) return null
 
-  const plates = getPlates(weight, unit, settings.availablePlates)
+  const maxPerSide = settings.maxPlates !== null ? settings.maxPlates / 2 : Infinity
+  const plates = getPlates(weight, unit, settings.availablePlates, maxPerSide)
   if (plates.length === 0) return null
 
   const plateWidth = 8
