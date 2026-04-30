@@ -193,7 +193,7 @@ export function ExerciseProgressChart({
                   <Bar key={s} dataKey={s} fill={CHART_COLORS[i % CHART_COLORS.length]} radius={[3, 3, 0, 0]} barSize={16} />
                 ))}
                 {hasOrm && (
-                  <Line type="monotone" dataKey="orm" name="Est. 1RM"
+                  <Line type="monotone" dataKey="orm" name="E1RM"
                     stroke="#a78bfa" strokeWidth={1.5} strokeDasharray="4 3"
                     dot={{ r: 2.5, fill: '#a78bfa', strokeWidth: 0 }} connectNulls={true} />
                 )}
@@ -214,7 +214,7 @@ export function ExerciseProgressChart({
                     connectNulls={true} />
                 ))}
                 {hasOrm && (
-                  <Line type="monotone" dataKey="orm" name="Est. 1RM"
+                  <Line type="monotone" dataKey="orm" name="E1RM"
                     stroke="#a78bfa" strokeWidth={1.5} strokeDasharray="4 3"
                     dot={{ r: 2.5, fill: '#a78bfa', strokeWidth: 0 }} connectNulls={true} />
                 )}
