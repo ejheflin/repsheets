@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+@keyframes slideUpSheet {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
 /* Suppress the browser focus outline that Recharts applies to its SVG on click */
 .recharts-wrapper:focus,
 .recharts-wrapper svg:focus {
