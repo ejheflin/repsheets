@@ -159,8 +159,9 @@ export function ExerciseRow({
           {onShowHistory && (
             <button onClick={onShowHistory} className="flex-shrink-0 flex items-center justify-center w-8 active:opacity-60">
               <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="8" cy="8" r="6.5" />
-                <polyline points="8 4.5 8 8 10.5 10" />
+                <path d="M2.5 8a5.5 5.5 0 1 0 1.1-3.3" />
+                <polyline points="2.5 3.5 2.5 6.5 5.5 6.5" />
+                <polyline points="8 5 8 8 10 10" />
               </svg>
             </button>
           )}
