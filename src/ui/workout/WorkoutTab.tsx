@@ -99,20 +99,15 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   }, [])
 
   useEffect(() => {
-    if (!spreadsheetId || !user || !navigator.onLine) return
+    if (!spreadsheetId || !user || !athleteName || !navigator.onLine) return
     fetchLogEntriesWithRows(spreadsheetId)
       .then((entries) => {
-        const athlete = (() => {
-          const parts = user.name.trim().split(/\s+/)
-          if (parts.length < 2) return parts[0] || ''
-          return `${parts[0]} ${parts[parts.length - 1][0]}`
-        })()
         const sessionMap = new Map<string, RecentSession>()
         for (const entry of entries) {
-          if (entry.athlete !== athlete) continue
+          if (entry.athlete !== athleteName) continue
           const key = `${entry.date}||${entry.program}||${entry.routine}`
           if (!sessionMap.has(key)) {
-            sessionMap.set(key, { date: entry.date, athlete, program: entry.program, routine: entry.routine, exerciseCount: 0, entries: [] })
+            sessionMap.set(key, { date: entry.date, athlete: athleteName, program: entry.program, routine: entry.routine, exerciseCount: 0, entries: [] })
           }
           const session = sessionMap.get(key)!
           session.entries.push(entry)
@@ -122,7 +117,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
         setRecentSessions(sorted)
       })
       .catch(() => {})
-  }, [spreadsheetId, user, sessionsFetchKey])
+  }, [spreadsheetId, user, athleteName, sessionsFetchKey])
 
   const handleEditSession = useCallback(async (session: RecentSession) => {
     await loadPastWorkout(session.entries, session.program, session.routine, session.athlete, session.date)
