@@ -39,22 +39,32 @@ export function ExerciseHistorySheet({ exercise, logs, program, onClose }: Props
 
     const setNumbers = [...new Set(relevant.map((l) => l.set))].sort((a, b) => a - b)
 
-    // Row label: most recently logged reps + pct for each set number
-    const setLabels = new Map<number, { reps: number | null; pct: number | null }>()
+    // Most recently logged reps per set number (for row labels)
+    const latestReps = new Map<number, number | null>()
     for (const setNum of setNumbers) {
       const entries = relevant.filter((l) => l.set === setNum)
-      const latest = entries[entries.length - 1]
-      setLabels.set(setNum, { reps: latest?.reps ?? null, pct: latest?.pct ?? null })
+      latestReps.set(setNum, entries[entries.length - 1]?.reps ?? null)
     }
 
-    // E1RM per date
+    // Per date: E1RM, and the heaviest-set's pct + value as "Target % / Target"
     const e1rmByDate = new Map<string, number>()
+    const targetPctByDate = new Map<string, number | null>()
+    const targetValByDate = new Map<string, number>()
+
     for (const date of dates) {
       const dateMap = byDateSet.get(date)
       if (!dateMap) continue
+
       let maxOrm = 0
+      let heaviest: LogEntry | null = null
+
       for (const [, log] of dateMap) {
         if (log.value == null) continue
+
+        // Track heaviest entry for Target % / Target rows
+        if (heaviest === null || log.value > (heaviest.value ?? 0)) heaviest = log
+
+        // E1RM
         let orm = 0
         if (log.pct != null && log.pct > 0) {
           orm = log.value / (log.pct / 100)
@@ -63,21 +73,29 @@ export function ExerciseHistorySheet({ exercise, logs, program, onClose }: Props
         }
         if (orm > maxOrm) maxOrm = orm
       }
+
       if (maxOrm > 0) e1rmByDate.set(date, Math.round(maxOrm / 5) * 5)
+      if (heaviest) {
+        targetPctByDate.set(date, heaviest.pct ?? null)
+        targetValByDate.set(date, heaviest.value!)
+      }
     }
 
     const buildLabel = (setNum: number): string => {
-      const { reps, pct } = setLabels.get(setNum) ?? { reps: null, pct: null }
-      const r = reps != null ? `${reps}r` : '?r'
-      return pct != null ? `${setNum}×${r} @ ${pct}%` : `${setNum}×${r}`
+      const reps = latestReps.get(setNum)
+      return reps != null ? `${setNum}×${reps}` : `${setNum}`
     }
+
+    const divider = 'border-b-2 border-[#6c63ff]/30'
+    const summaryCell = 'text-center py-2 px-2 tabular-nums'
+    const setCell = 'text-center py-1.5 px-2 text-gray-200 tabular-nums'
 
     return (
       <div className="overflow-x-auto">
         <table className="w-full text-[11px]">
           <thead>
             <tr>
-              <th className="text-left text-gray-500 font-normal pb-2 pr-3 whitespace-nowrap">Set</th>
+              <th className="text-left text-gray-500 font-normal pb-2 pr-3 whitespace-nowrap"></th>
               {dates.map((d) => (
                 <th key={d} className="text-center text-gray-500 font-normal pb-2 px-2 whitespace-nowrap">
                   {formatDate(d)}
@@ -86,21 +104,42 @@ export function ExerciseHistorySheet({ exercise, logs, program, onClose }: Props
             </tr>
           </thead>
           <tbody>
-            <tr className="border-b-2 border-[#3a3a5a]">
+            {/* Summary section */}
+            <tr>
               <td className="text-[#6c63ff] font-semibold py-2 pr-3 whitespace-nowrap">E1RM</td>
               {dates.map((d) => (
-                <td key={d} className="text-center py-2 px-2 text-white font-semibold tabular-nums">
+                <td key={d} className={`${summaryCell} text-white font-semibold`}>
                   {e1rmByDate.has(d) ? e1rmByDate.get(d) : '—'}
                 </td>
               ))}
             </tr>
+            <tr>
+              <td className="text-[#6c63ff] font-semibold py-2 pr-3 whitespace-nowrap">Target %</td>
+              {dates.map((d) => {
+                const pct = targetPctByDate.get(d)
+                return (
+                  <td key={d} className={`${summaryCell} text-white font-semibold`}>
+                    {pct != null ? `${pct}%` : '—'}
+                  </td>
+                )
+              })}
+            </tr>
+            <tr className={divider}>
+              <td className="text-[#6c63ff] font-semibold py-2 pr-3 whitespace-nowrap">Target</td>
+              {dates.map((d) => (
+                <td key={d} className={`${summaryCell} text-white font-semibold`}>
+                  {targetValByDate.has(d) ? targetValByDate.get(d) : '—'}
+                </td>
+              ))}
+            </tr>
+            {/* Per-set history */}
             {setNumbers.map((setNum) => (
               <tr key={setNum} className="border-b border-[#3a3a5a] last:border-b-0">
-                <td className="text-gray-400 py-2 pr-3 whitespace-nowrap">{buildLabel(setNum)}</td>
+                <td className="text-gray-400 py-1.5 pr-3 whitespace-nowrap">{buildLabel(setNum)}</td>
                 {dates.map((d) => {
                   const entry = byDateSet.get(d)?.get(setNum)
                   return (
-                    <td key={d} className="text-center py-2 px-2 text-gray-200 tabular-nums">
+                    <td key={d} className={setCell}>
                       {entry?.value != null ? entry.value : '—'}
                     </td>
                   )
