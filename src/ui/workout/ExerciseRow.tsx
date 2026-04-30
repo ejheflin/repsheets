@@ -206,15 +206,18 @@ export function ExerciseRow({
 
   return (
     <div className="bg-[#2a2a4a] rounded-[10px] mb-1.5 px-3 py-2.5">
-      <div className="flex items-center mb-2">
-        <button onClick={onToggleExpand} className="mr-1.5 flex items-center"><ChevronDown /></button>
-        <button onClick={onToggleExpand} className="flex-1 text-left font-bold text-[15px] min-w-0 truncate">{exercise.exercise}</button>
-        <div className={`flex-shrink-0 flex items-center ${valueHasMismatch ? 'invisible' : ''}`}>
+      {/* cols 1-3 fixed to match collapsed row-2 widths (w-7, reps group, w-8) so space-between places col 4 identically */}
+      <div className="grid mb-2" style={{ gridTemplateColumns: '28px 104px 32px auto auto', justifyContent: 'space-between' }}>
+        <div className="flex items-center min-w-0" style={{ gridColumn: '1 / 4' }}>
+          <button onClick={onToggleExpand} className="mr-1.5 flex items-center"><ChevronDown /></button>
+          <button onClick={onToggleExpand} className="text-left min-w-0 overflow-hidden font-bold text-[15px] truncate">{exercise.exercise}</button>
+        </div>
+        <div className={`flex items-center justify-center ${valueHasMismatch ? 'invisible' : ''}`}>
           {summaryValue && !showSlashedTargets ? (
             <PlateCalculator weight={summaryValue} unit={unit} exercise={exercise.exercise} />
           ) : null}
         </div>
-        <button onClick={onToggleExercise} className="ml-2">
+        <button onClick={onToggleExercise} className="flex items-center justify-end">
           {allCompleted ? (
             <div className="w-[22px] h-[22px] bg-[#6c63ff] rounded-md flex items-center justify-center text-xs">✓</div>
           ) : (
