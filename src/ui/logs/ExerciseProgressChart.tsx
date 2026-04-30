@@ -79,7 +79,7 @@ export function ExerciseProgressChart({
   }, [selectedExercise])
 
   // Build chart data
-  const { data, series, hasOrm } = useMemo<{ data: Record<string, string | number | undefined>[]; series: string[]; hasOrm: boolean }>(() => {
+  const { data, series, hasOrm } = useMemo(() => {
     if (!selectedExercise) return { data: [], series: [] as string[], hasOrm: false }
 
     const effectiveLimit = limit === 0 ? 9999 : limit
@@ -110,23 +110,6 @@ export function ExerciseProgressChart({
     const pct = Math.round((delta / first) * 100)
     return { first, last, delta, pct }
   }, [data, showAllAthletes])
-
-  const lastDotLabel = useMemo(() => {
-    if (!progressDelta) return undefined
-    const { delta, pct } = progressDelta
-    const color = delta >= 0 ? '#4ade80' : '#f87171'
-    const sign = delta >= 0 ? '+' : ''
-    const lastIdx = data.length - 1
-    return function LastLabel(props: { x?: number; y?: number; index?: number }) {
-      const { x, y, index } = props
-      if (index !== lastIdx || x == null || y == null) return null
-      return (
-        <text x={x} y={y - 10} fill={color} fontSize={10} textAnchor="middle" fontWeight="600">
-          {sign}{delta} ({sign}{pct}%)
-        </text>
-      )
-    }
-  }, [progressDelta, data.length])
 
   if (uniqueExercises.length === 0) return null
 
@@ -228,8 +211,7 @@ export function ExerciseProgressChart({
                 {series.map((s, i) => (
                   <Line key={s} type="monotone" dataKey={s} stroke={CHART_COLORS[i % CHART_COLORS.length]}
                     strokeWidth={2} dot={{ r: 3, fill: CHART_COLORS[i % CHART_COLORS.length] }}
-                    connectNulls={true}
-                    label={i === 0 && lastDotLabel ? lastDotLabel : undefined} />
+                    connectNulls={true} />
                 ))}
                 {hasOrm && (
                   <Line type="monotone" dataKey="orm" name="Est. 1RM"
