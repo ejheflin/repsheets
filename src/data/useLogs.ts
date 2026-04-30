@@ -4,6 +4,7 @@ import { useSheetContext } from './useSheetContext'
 import { fetchLogEntries } from '../sheets/sheetsApi'
 import { saveLogs, getLogs } from './db'
 import { AuthExpiredError } from '../auth/authFetch'
+import { localDateString } from '../utils'
 import type { LogEntry } from '../types'
 
 export interface ExerciseHistoryPoint {
@@ -231,7 +232,7 @@ export function useLogs() {
     const now = new Date()
     const fourWeeksAgo = new Date(now)
     fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28)
-    const cutoff = fourWeeksAgo.toISOString().split('T')[0]
+    const cutoff = localDateString(fourWeeksAgo)
 
     return Array.from(stats.entries()).map(([name, { dates, sortedDates }]) => {
       const recentDates = [...dates].filter((d) => d >= cutoff)
@@ -240,7 +241,7 @@ export function useLogs() {
       // Calculate streak
       let streak = 0
       const sorted = sortedDates.sort((a, b) => b.localeCompare(a))
-      const today = now.toISOString().split('T')[0]
+      const today = localDateString(now)
       let checkDate = today
       for (const d of sorted) {
         if (d === checkDate || d === getPrevDay(checkDate)) {
@@ -265,7 +266,6 @@ export function useLogs() {
 }
 
 function getPrevDay(dateStr: string): string {
-  const d = new Date(dateStr)
-  d.setDate(d.getDate() - 1)
-  return d.toISOString().split('T')[0]
+  const [y, mo, d] = dateStr.split('-').map(Number)
+  return localDateString(new Date(y, mo - 1, d - 1))
 }

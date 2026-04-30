@@ -4,6 +4,7 @@ import { useSheetContext } from './useSheetContext'
 import { expandRoutine } from '../workout/setInference'
 import { resolveSetValues } from '../workout/autofill'
 import { fetchRoutineRows, fetchLogEntries, appendLogEntries, updateLogRows, type IndexedLogEntry } from '../sheets/sheetsApi'
+import { localDateString } from '../utils'
 import { saveWorkout, getWorkout, clearWorkout, saveLogs, getLogs, queueLogEntries } from './db'
 import { checkPendingSync } from './syncEngine'
 import type { RoutineRow, WorkoutState, WorkoutExercise, LogEntry, EditModeState } from '../types'
@@ -347,7 +348,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     if (!workout || !spreadsheetId || !user) return
     if (workout.editMode) return
 
-    const today = new Date().toISOString().split('T')[0]
+    const today = localDateString()
     const entries: LogEntry[] = []
 
     for (const ex of workout.exercises) {
