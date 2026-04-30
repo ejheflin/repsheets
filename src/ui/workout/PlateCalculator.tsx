@@ -142,8 +142,13 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerLeave}
-        className="flex-shrink-0 select-none"
+        className="flex-shrink-0 select-none flex flex-col items-center"
       >
+        {!hidden && (
+          <span className="text-[9px] text-gray-500 leading-none mb-0.5 tabular-nums">
+            {plates.join('/')}
+          </span>
+        )}
         <svg width={svgWidth} height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`}
           className="block" style={{ opacity: hidden ? 0 : 1, transition: 'opacity 0.3s' }}>
           <defs>
