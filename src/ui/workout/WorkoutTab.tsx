@@ -40,7 +40,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const { spreadsheetId } = useSheetContext()
   const { settings: exerciseSettings, saveSettings } = useExerciseSettings(spreadsheetId)
   const { user } = useAuth()
-  const { myLogs } = useLogs()
+  const { myLogs, athleteName } = useLogs()
   const [showFinish, setShowFinish] = useState(false)
   const [showDiscard, setShowDiscard] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -53,20 +53,13 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
 
   const isEditMode = !!workout?.editMode
 
-  const athleteName = useMemo(() => {
-    if (!user) return ''
-    const parts = user.name.trim().split(/\s+/)
-    if (parts.length < 2) return parts[0] || ''
-    return `${parts[0]} ${parts[parts.length - 1][0]}`
-  }, [user])
-
   const rawE1RMMap = useMemo(() => {
     const map = new Map<string, number | null>()
     if (!workout) return map
     for (const ex of workout.exercises) {
       if (ex.sets.some((s) => s.pct != null)) {
         const setToPct = new Map(ex.sets.map((s) => [s.setNumber, s.pct]))
-        map.set(ex.exercise, estimateOneRepMax(myLogs, ex.exercise, athleteName, setToPct))
+        map.set(ex.exercise, estimateOneRepMax(myLogs, ex.exercise, athleteName ?? '', setToPct))
       }
     }
     return map

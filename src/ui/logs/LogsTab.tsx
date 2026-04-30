@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useRef } from 'react'
 import { useLogs } from '../../data/useLogs'
+import { useAlias } from '../../data/AliasProvider'
 import { useRoutines } from '../../data/useRoutines'
 import { useAuth } from '../../auth/useAuth'
 import { AuthExpiredError } from '../../auth/authFetch'
@@ -32,8 +33,9 @@ export function LogsTab() {
     isLoading, refresh, allLogs, workoutDates, athleteDates,
     exerciseHistory, exerciseHistoryByAthlete, personalRecords,
     uniqueExercises, lastLoggedProgram,
-    athletes, isShared, selectedAthlete, setSelectedAthlete,
+    athletes, isShared, selectedAthlete, setSelectedAthlete, athleteName,
   } = useLogs()
+  const { alias, saveAlias } = useAlias()
   const { allRows } = useRoutines(null)
   const { login } = useAuth()
   const { spreadsheetId } = useSheetContext()
@@ -42,6 +44,10 @@ export function LogsTab() {
   const [showHevyImport, setShowHevyImport] = useState(false)
   const [showStrongImport, setShowStrongImport] = useState(false)
   const [panes, setPanes] = useState<LogsPaneConfig[]>(loadPaneConfig)
+  const [showRenameModal, setShowRenameModal] = useState(false)
+  const [renameValue, setRenameValue] = useState('')
+  const [isSavingAlias, setIsSavingAlias] = useState(false)
+  const renameInputRef = useRef<HTMLInputElement>(null)
 
   const allRoutines = useMemo(() => {
     return [...new Set(allRows.map((r) => r.routine))]
@@ -72,6 +78,25 @@ export function LogsTab() {
       }
     }
     setIsRefreshing(false)
+  }
+
+  const handleOpenRename = () => {
+    setRenameValue(alias ?? athleteName ?? '')
+    setShowRenameModal(true)
+    setTimeout(() => renameInputRef.current?.focus(), 50)
+  }
+
+  const handleSaveAlias = async () => {
+    const trimmed = renameValue.trim()
+    if (!trimmed || !athleteName) return
+    setIsSavingAlias(true)
+    try {
+      await saveAlias(trimmed, athleteName)
+      await refresh()
+    } finally {
+      setIsSavingAlias(false)
+      setShowRenameModal(false)
+    }
   }
 
   const isPaneEnabled = (id: string) => {
@@ -133,7 +158,7 @@ export function LogsTab() {
 
       {isShared && (
         <div className="sticky top-0 z-10 bg-[#1a1a2e] -mx-4 px-4 pb-2 mb-1">
-          <AthleteFilter athletes={athletes} selected={selectedAthlete} onSelect={setSelectedAthlete} />
+          <AthleteFilter athletes={athletes} selected={selectedAthlete} onSelect={setSelectedAthlete} onLongPressMe={handleOpenRename} />
         </div>
       )}
 
@@ -159,6 +184,34 @@ export function LogsTab() {
       )}
       {showStrongImport && (
         <ImportStrongModal onClose={() => setShowStrongImport(false)} onDone={refresh} />
+      )}
+
+      {showRenameModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setShowRenameModal(false)}>
+          <div className="bg-[#2a2a4a] rounded-t-[20px] w-full max-w-md p-5 pb-8" onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm font-semibold mb-1">Set your display name</p>
+            <p className="text-[11px] text-gray-400 mb-4">This updates your name across all entries in this sheet.</p>
+            <input
+              ref={renameInputRef}
+              type="text"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveAlias()}
+              placeholder="Display name"
+              className="w-full bg-[#1a1a2e] rounded-[10px] px-3 py-2.5 text-sm text-white placeholder-gray-500 outline-none mb-3"
+            />
+            <div className="flex gap-2">
+              <button onClick={() => setShowRenameModal(false)}
+                className="flex-1 py-2.5 rounded-[10px] bg-[#1a1a2e] text-gray-400 text-sm">
+                Cancel
+              </button>
+              <button onClick={handleSaveAlias} disabled={isSavingAlias || !renameValue.trim()}
+                className="flex-1 py-2.5 rounded-[10px] bg-[#6c63ff] text-white text-sm font-medium disabled:opacity-50">
+                {isSavingAlias ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

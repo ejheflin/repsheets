@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, createContext, useContext, type ReactNode } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { useSheetContext } from './useSheetContext'
+import { useAlias } from './AliasProvider'
 import { expandRoutine } from '../workout/setInference'
 import { resolveSetValues } from '../workout/autofill'
 import { fetchRoutineRows, fetchLogEntries, appendLogEntries, updateLogRows, type IndexedLogEntry } from '../sheets/sheetsApi'
@@ -40,6 +41,7 @@ const WorkoutContext = createContext<WorkoutContextValue | null>(null)
 export function WorkoutProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const { spreadsheetId } = useSheetContext()
+  const { alias } = useAlias()
   const [workout, setWorkout] = useState<WorkoutState | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -103,7 +105,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
                 logs,
                 prev.program,
                 prev.routine,
-                formatAthleteName(user.name)
+                alias ?? formatAthleteName(user.name)
               )
               if (resolved.reps !== null) set.reps = resolved.reps
               if (resolved.value !== null) set.value = resolved.value
@@ -159,7 +161,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         supersetGroup: firstSet?.supersetGroup ?? null,
         isExpanded: false,
         sets: sets.map((s) => {
-          const resolved = resolveSetValues(s, logs, program, routineName, formatAthleteName(user.name))
+          const resolved = resolveSetValues(s, logs, program, routineName, alias ?? formatAthleteName(user.name))
           return {
             setNumber: s.setNumber,
             reps: resolved.reps,
@@ -356,7 +358,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         if (logOnlyCompleted && !set.completed) continue
         entries.push({
           date: today,
-          athlete: formatAthleteName(user.name),
+          athlete: alias ?? formatAthleteName(user.name),
           program: workout.program,
           routine: workout.routine,
           exercise: ex.exercise,

@@ -6,6 +6,7 @@ const DRIVE_BASE = 'https://www.googleapis.com/drive/v3'
 const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets'
 const UPLOAD_BASE = 'https://www.googleapis.com/upload/drive/v3/files'
 const REGISTRY_KEY = 'repsheets_registry_id'
+const ALIAS_KEY = 'repsheets_alias_id'
 const OLD_JOINED_KEY = 'repsheets_joined_sheets'
 const MIGRATION_KEY = 'repsheets_registry_migrated'
 
@@ -160,6 +161,65 @@ async function migrateOldJoinedSheets(): Promise<void> {
   } catch {
     migrationAttempted = false // allow retry next session if registry unavailable
   }
+}
+
+// ─── Athlete alias ─────────────────────────────────────────────────────────
+
+async function getAliasFileId(): Promise<string> {
+  const cached = localStorage.getItem(ALIAS_KEY)
+  if (cached) {
+    try {
+      const res = await authFetch(`${DRIVE_BASE}/files/${cached}?fields=id,trashed`)
+      if (res.ok) {
+        const data = await res.json()
+        if (!data.trashed) return cached
+      }
+    } catch {}
+    localStorage.removeItem(ALIAS_KEY)
+  }
+
+  const q = encodeURIComponent("name='repsheets.alias'")
+  const searchRes = await authFetch(
+    `${DRIVE_BASE}/files?spaces=appDataFolder&q=${q}&fields=files(id)&pageSize=1`
+  )
+  if (searchRes.ok) {
+    const data = await searchRes.json()
+    if (data.files?.length > 0) {
+      localStorage.setItem(ALIAS_KEY, data.files[0].id)
+      return data.files[0].id
+    }
+  }
+
+  const createRes = await authFetch(`${DRIVE_BASE}/files`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'repsheets.alias', parents: ['appDataFolder'] }),
+  })
+  if (!createRes.ok) throw new Error('Failed to create alias file')
+  const created = await createRes.json()
+  localStorage.setItem(ALIAS_KEY, created.id)
+  return created.id
+}
+
+export async function readAlias(): Promise<string | null> {
+  try {
+    const fileId = await getAliasFileId()
+    const res = await authFetch(`${DRIVE_BASE}/files/${fileId}?alt=media`)
+    if (!res.ok) return null
+    const text = await res.text()
+    if (!text.trim()) return null
+    return JSON.parse(text).alias ?? null
+  } catch { return null }
+}
+
+export async function writeAlias(alias: string): Promise<void> {
+  const fileId = await getAliasFileId()
+  const res = await authFetch(`${UPLOAD_BASE}/${fileId}?uploadType=media`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ alias }),
+  })
+  if (!res.ok) throw new Error('Failed to write alias')
 }
 
 // ─── Schema check ──────────────────────────────────────────────────────────
