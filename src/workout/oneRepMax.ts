@@ -26,7 +26,7 @@ export function estimateOneRepMax(
     if (log.exercise !== exercise) continue
     if (log.value === null || log.value <= 0) continue
 
-    const pct = setToPct?.get(log.set)
+    const pct = (log.pct != null && log.pct > 0) ? log.pct : setToPct?.get(log.set)
     let est: number
     if (pct != null && pct > 0) {
       est = log.value / (pct / 100)
