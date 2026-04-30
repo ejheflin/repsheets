@@ -35,7 +35,7 @@ const SETTINGS_KEY = 'repsheets_plate_settings'
 export interface PlateSettingsData {
   availablePlates: number[]
   colorMap: Record<number, string>
-  maxPlates: number | null
+  plateCounts: Record<number, number | null>
 }
 
 const DEFAULT_LBS_COLORS: Record<number, string> = {
@@ -67,13 +67,14 @@ export function loadPlateSettings(): PlateSettingsData {
       const availablePlates = (parsed.availablePlates ?? []).map((p: number) => p === 1.25 ? 1 : p)
       const colorMap = { ...parsed.colorMap }
       if (colorMap[1.25] !== undefined) { colorMap[1] = colorMap[1.25]; delete colorMap[1.25] }
-      return { maxPlates: null, ...parsed, availablePlates, colorMap }
+      const { maxPlates: _m, ...rest } = parsed
+      return { plateCounts: {}, ...rest, availablePlates, colorMap }
     }
   } catch {}
   return {
     availablePlates: LBS_PLATE_OPTIONS.filter((p) => p !== 55),
     colorMap: { ...DEFAULT_LBS_COLORS, ...DEFAULT_KG_COLORS },
-    maxPlates: null,
+    plateCounts: {},
   }
 }
 
@@ -108,6 +109,13 @@ export function PlateSettingsModal({ onClose, onChange }: PlateSettingsModalProp
     setEditingPlate(null)
   }
 
+  const setPlateCount = (plate: number, count: number | null) => {
+    setSettings((prev) => ({
+      ...prev,
+      plateCounts: { ...prev.plateCounts, [plate]: count },
+    }))
+  }
+
   const handleClose = () => {
     savePlateSettings(settings)
     onChange(settings)
@@ -119,37 +127,14 @@ export function PlateSettingsModal({ onClose, onChange }: PlateSettingsModalProp
       <div className="w-full bg-[#1a1a2e] rounded-t-2xl p-5 max-h-[80vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}>
         <h2 className="text-base font-bold text-center mb-1">Plate Settings</h2>
-        <p className="text-xs text-gray-400 text-center mb-4">Toggle available plates and customize colors</p>
-
-        <div className="flex items-center justify-between bg-[#2a2a4a] rounded-[10px] p-3 mb-4">
-          <span className="text-sm font-semibold">Plates in gym</span>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSettings((prev) => ({
-                ...prev,
-                maxPlates: prev.maxPlates !== null && prev.maxPlates <= 2 ? null : prev.maxPlates !== null ? prev.maxPlates - 2 : null,
-              }))}
-              disabled={settings.maxPlates === null}
-              className="w-8 h-8 rounded-[10px] bg-[#1a1a2e] text-lg font-bold flex items-center justify-center active:opacity-80 disabled:opacity-30"
-            >−</button>
-            <span className="text-sm font-semibold w-8 text-center tabular-nums">
-              {settings.maxPlates === null ? '∞' : settings.maxPlates}
-            </span>
-            <button
-              onClick={() => setSettings((prev) => ({
-                ...prev,
-                maxPlates: prev.maxPlates === null ? 2 : prev.maxPlates + 2,
-              }))}
-              className="w-8 h-8 rounded-[10px] bg-[#1a1a2e] text-lg font-bold flex items-center justify-center active:opacity-80"
-            >+</button>
-          </div>
-        </div>
+        <p className="text-xs text-gray-400 text-center mb-4">Toggle plates, set counts, and customize colors</p>
 
         <div className="space-y-2">
           {LBS_PLATE_OPTIONS.map((plate) => {
             const enabled = settings.availablePlates.includes(plate)
             const color = settings.colorMap[plate] ?? 'rgba(108,99,255,0.35)'
             const kgLabel = LBS_TO_KG_LABEL[plate]
+            const count = settings.plateCounts[plate] ?? null
             return (
               <div key={plate}>
                 <div className="flex items-center gap-3 bg-[#2a2a4a] rounded-[10px] p-3">
@@ -164,10 +149,27 @@ export function PlateSettingsModal({ onClose, onChange }: PlateSettingsModalProp
                     {plate} lbs{kgLabel ? ` / ${kgLabel}` : ''}
                   </span>
                   {enabled && (
-                    <button onClick={() => setEditingPlate(editingPlate === plate ? null : plate)}
-                      className="w-6 h-6 rounded-full border border-[#555]"
-                      style={{ backgroundColor: color }}
-                    />
+                    <>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setPlateCount(plate, count !== null && count <= 2 ? null : count !== null ? count - 2 : null)}
+                          disabled={count === null}
+                          className="w-6 h-6 rounded bg-[#1a1a2e] text-sm font-bold flex items-center justify-center active:opacity-80 disabled:opacity-30"
+                        >−</button>
+                        <span className="text-xs font-semibold w-5 text-center tabular-nums">
+                          {count === null ? '∞' : count}
+                        </span>
+                        <button
+                          onClick={() => setPlateCount(plate, count === null ? 2 : count + 2)}
+                          className="w-6 h-6 rounded bg-[#1a1a2e] text-sm font-bold flex items-center justify-center active:opacity-80"
+                        >+</button>
+                      </div>
+                      <button
+                        onClick={() => setEditingPlate(editingPlate === plate ? null : plate)}
+                        className="w-6 h-6 rounded-full border border-[#555] flex-shrink-0"
+                        style={{ backgroundColor: color }}
+                      />
+                    </>
                   )}
                 </div>
 

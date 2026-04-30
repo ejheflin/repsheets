@@ -32,7 +32,7 @@ function isWeightUnit(unit: string): boolean {
   return u === 'lbs' || u === 'lb' || u === 'kg' || u === 'kgs'
 }
 
-function getPlates(weight: number, unit: string, available: number[], maxPerSide: number): number[] {
+function getPlates(weight: number, unit: string, available: number[], plateCounts: Record<number, number | null>): number[] {
   const isKg = unit.toLowerCase() === 'kg' || unit.toLowerCase() === 'kgs'
   const barWeight = isKg ? BAR_WEIGHT_KG : BAR_WEIGHT_LBS
   const allPlates = isKg ? KG_PLATES : LBS_PLATES
@@ -43,9 +43,13 @@ function getPlates(weight: number, unit: string, available: number[], maxPerSide
 
   const plates: number[] = []
   for (const plate of usablePlates) {
-    while (remaining >= plate && plates.length < maxPerSide) {
+    const total = plateCounts[plate] ?? null
+    const maxPerSide = total !== null ? Math.floor(total / 2) : Infinity
+    let used = 0
+    while (remaining >= plate && used < maxPerSide) {
       plates.push(plate)
       remaining -= plate
+      used++
     }
   }
   return plates
@@ -113,8 +117,7 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
 
   if (!weight || isNaN(weight) || !isWeightUnit(unit)) return null
 
-  const maxPerSide = settings.maxPlates !== null ? settings.maxPlates / 2 : Infinity
-  const plates = getPlates(weight, unit, settings.availablePlates, maxPerSide)
+  const plates = getPlates(weight, unit, settings.availablePlates, settings.plateCounts)
   if (plates.length === 0) return null
 
   const plateWidth = 8
