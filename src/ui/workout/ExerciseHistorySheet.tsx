@@ -5,6 +5,7 @@ interface Props {
   exercise: WorkoutExercise
   logs: LogEntry[]
   program: string
+  e1rm?: number | null
   onClose: () => void
 }
 
@@ -45,7 +46,7 @@ function ChevronDown() {
   )
 }
 
-export function ExerciseHistorySheet({ exercise, logs, program, onClose }: Props) {
+export function ExerciseHistorySheet({ exercise, logs, program, e1rm, onClose }: Props) {
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set())
 
   const toggleDate = (date: string) => {
@@ -93,9 +94,14 @@ export function ExerciseHistorySheet({ exercise, logs, program, onClose }: Props
         style={{ animation: 'slideUpSheet 0.25s ease' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-4 pt-4 pb-2 border-b border-[#3a3a5a] flex-shrink-0">
-          <p className="text-sm font-semibold">{exercise.exercise}</p>
-          <p className="text-[10px] text-gray-500 mt-0.5">History — {program}</p>
+        <div className="px-4 pt-4 pb-2 border-b border-[#3a3a5a] flex-shrink-0 flex justify-between items-start">
+          <div>
+            <p className="text-sm font-semibold">{exercise.exercise}</p>
+            <p className="text-[10px] text-gray-500 mt-0.5">History — {program}</p>
+          </div>
+          {e1rm != null && (
+            <p className="text-[10px] text-gray-400 pt-0.5">Current E1RM: <span className="text-white font-semibold">{e1rm}</span></p>
+          )}
         </div>
 
         <div className="overflow-y-auto pb-8">

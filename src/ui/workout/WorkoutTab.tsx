@@ -344,6 +344,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
           exercise={historyExercise}
           logs={myLogs}
           program={workout.program}
+          e1rm={rawE1RMMap.get(historyExercise.exercise) ?? null}
           onClose={() => setHistoryExercise(null)} />
       )}
 
