@@ -199,7 +199,6 @@ export function ExerciseRow({
                   {...(dragHandleListeners ?? {})}
                   {...(dragAttributes ?? {})}
                 >
-                  {dragHandleListeners && <DragHandleIcon />}
                   <div className="min-w-0">
                     <div className="font-semibold text-sm truncate">{exercise.exercise}</div>
                     {exercise.notes && (

@@ -30,7 +30,7 @@ export function SetRow({
     : null
 
   return (
-    <div className="flex items-center py-1.5">
+    <div className="flex items-center py-1.5 bg-[#2a2a4a]">
       <div className="w-7 text-xs text-gray-500">{setNumber}</div>
       <div className="flex-1 flex items-center justify-center gap-1">
         <button
