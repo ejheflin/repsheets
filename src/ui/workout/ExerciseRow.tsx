@@ -8,19 +8,6 @@ import { SwipeableRow } from '../shared/SwipeableRow'
 import type { SwipeAction } from '../shared/SwipeableRow'
 import type { WorkoutExercise, ExerciseSettings } from '../../types'
 
-function DragHandleIcon() {
-  return (
-    <svg width="12" height="18" viewBox="0 0 12 18" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round">
-      <circle cx="4" cy="4" r="1" fill="#555" stroke="none" />
-      <circle cx="8" cy="4" r="1" fill="#555" stroke="none" />
-      <circle cx="4" cy="9" r="1" fill="#555" stroke="none" />
-      <circle cx="8" cy="9" r="1" fill="#555" stroke="none" />
-      <circle cx="4" cy="14" r="1" fill="#555" stroke="none" />
-      <circle cx="8" cy="14" r="1" fill="#555" stroke="none" />
-    </svg>
-  )
-}
-
 function SwapIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -88,6 +75,7 @@ interface ExerciseRowProps {
   onRemoveExercise: () => void
   onRenameExercise: (newName: string) => void
   onRemoveSet: (setIdx: number) => void
+  historyExercises?: string[]
   dragHandleListeners?: SyntheticListenerMap
   dragAttributes?: DraggableAttributes
   isDragging?: boolean
@@ -124,7 +112,7 @@ export function ExerciseRow({
   calculatedE1RM,
   exerciseSettings,
   onSaveSettings,
-  onToggleExpand, onToggleExercise, onToggleSet, onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet, onShowHistory, onRemoveExercise, onRenameExercise, onRemoveSet, dragHandleListeners, dragAttributes, isDragging, tourId,
+  onToggleExpand, onToggleExercise, onToggleSet, onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet, onShowHistory, onRemoveExercise, onRenameExercise, onRemoveSet, historyExercises, dragHandleListeners, dragAttributes, isDragging, tourId,
 }: ExerciseRowProps) {
   const [showNotes, setShowNotes] = useState(false)
   const [showMaxSettings, setShowMaxSettings] = useState(false)
@@ -285,14 +273,24 @@ export function ExerciseRow({
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => setShowSwap(false)}>
             <div className="bg-[#2a2a4a] rounded-[10px] p-5 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
               <div className="font-semibold text-[15px] mb-1">Swap Exercise</div>
-              <div className="text-[13px] text-gray-400 mb-4">This only affects your current workout — the routine is not changed.</div>
+              <div className="text-[13px] text-gray-400 mb-3">This only affects your current workout — the routine is not changed.</div>
+              {historyExercises && historyExercises.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto pb-3 mb-3 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
+                  {historyExercises.map((name) => (
+                    <button
+                      key={name}
+                      onClick={() => { onRenameExercise(name); setShowSwap(false) }}
+                      className="flex-shrink-0 bg-[#3a3a5a] rounded-full px-3 py-1.5 text-sm text-white active:bg-[#6c63ff] active:opacity-80"
+                    >{name}</button>
+                  ))}
+                </div>
+              )}
               <input
                 type="text"
                 value={swapName}
                 onChange={(e) => setSwapName(e.target.value)}
                 className="w-full bg-[#1a1a2e] border border-[#6c63ff] rounded-[8px] px-3 py-2.5 text-sm outline-none"
                 style={{ fontSize: 16 }}
-                autoFocus
                 onFocus={(e) => e.target.select()}
               />
               <div className="flex gap-2 mt-3">
