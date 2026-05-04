@@ -597,7 +597,7 @@ function PRCelebrationImage({ onDismiss }: { onDismiss: () => void }) {
       <div style={{
         position: 'absolute',
         top: 120,
-        left: 228,
+        left: 220,
         background: 'white',
         borderRadius: 10,
         padding: '6px 10px',
@@ -606,7 +606,7 @@ function PRCelebrationImage({ onDismiss }: { onDismiss: () => void }) {
         {/* tail at top-left corner pointing upper-left toward character */}
         <div style={{
           position: 'absolute',
-          top: -12,
+          top: -7,
           left: 0,
           width: 0,
           height: 0,
@@ -614,7 +614,8 @@ function PRCelebrationImage({ onDismiss }: { onDismiss: () => void }) {
           borderRight: '12px solid transparent',
         }} />
         <span style={{ fontWeight: 800, fontSize: 13, color: '#1a1a2e', letterSpacing: '0.02em', display: 'block', whiteSpace: 'nowrap' }}>I SAW</span>
-        <span style={{ fontWeight: 800, fontSize: 13, color: '#1a1a2e', letterSpacing: '0.02em', display: 'block', whiteSpace: 'nowrap' }}>THAT PR</span>
+        <span style={{ fontWeight: 800, fontSize: 13, color: '#1a1a2e', letterSpacing: '0.02em', display: 'block', whiteSpace: 'nowrap' }}>THAT</span>
+        <span style={{ fontWeight: 800, fontSize: 13, color: '#1a1a2e', letterSpacing: '0.02em', display: 'block', whiteSpace: 'nowrap' }}>PR</span>
       </div>
       <img
         src="/ISawThatPR.webp"
