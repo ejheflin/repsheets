@@ -1,3 +1,5 @@
+import { useRef, useEffect } from 'react'
+
 interface SetRowProps {
   setNumber: number
   reps: number | null
@@ -29,6 +31,16 @@ export function SetRow({
     ? targetWeight != null ? `${pct}%/${targetWeight}` : `${pct}%`
     : null
 
+  const valueRef = useRef<HTMLInputElement>(null)
+  const prevValue = useRef(value)
+  useEffect(() => {
+    const prev = prevValue.current
+    prevValue.current = value
+    if (value != null && prev == null && document.activeElement === valueRef.current) {
+      valueRef.current?.select()
+    }
+  }, [value])
+
   return (
     <div className="flex items-center py-1.5 bg-[#2a2a4a]">
       <div className="w-7 text-xs text-gray-500">{setNumber}</div>
@@ -54,7 +66,7 @@ export function SetRow({
         </button>
       )}
       <div className="flex-1 text-center">
-        <input type="text" inputMode="decimal" value={value ?? ''}
+        <input ref={valueRef} type="text" inputMode="decimal" value={value ?? ''}
           onChange={(e) => onValueChange(e.target.value ? Number(e.target.value) : null)}
           onFocus={(e) => e.target.select()}
           className={`w-16 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}

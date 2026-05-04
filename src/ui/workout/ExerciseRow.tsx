@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { DraggableAttributes } from '@dnd-kit/core'
 import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities'
 import { SetRow } from './SetRow'
@@ -121,6 +121,17 @@ export function ExerciseRow({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [swapName, setSwapName] = useState(exercise.exercise)
   const [deletingSetIdx, setDeletingSetIdx] = useState<number | null>(null)
+
+  const summaryValueRef = useRef<HTMLInputElement>(null)
+  const prevSummaryValue = useRef(exercise.sets[0]?.value ?? null)
+  useEffect(() => {
+    const current = exercise.sets[0]?.value ?? null
+    const prev = prevSummaryValue.current
+    prevSummaryValue.current = current
+    if (current != null && prev == null && document.activeElement === summaryValueRef.current) {
+      summaryValueRef.current?.select()
+    }
+  }, [exercise.sets])
   const allCompleted = exercise.sets.every((s) => s.completed)
   const unit = exercise.sets[0]?.unit ?? ''
 
@@ -248,7 +259,7 @@ export function ExerciseRow({
                     {buildSlashedTargets(exercise.sets, oneRepMax)}
                   </button>
                 ) : (
-                  <input type="text" inputMode="decimal" value={summaryValue ?? ''}
+                  <input ref={summaryValueRef} type="text" inputMode="decimal" value={summaryValue ?? ''}
                     onChange={(e) => onUpdateAllSets('value', e.target.value ? Number(e.target.value) : null)}
                     onFocus={(e) => e.target.select()}
                     className={`w-16 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
