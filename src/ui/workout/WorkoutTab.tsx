@@ -60,6 +60,18 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const [historyExercise, setHistoryExercise] = useState<WorkoutExercise | null>(null)
   const [deletingExerciseIdx, setDeletingExerciseIdx] = useState<number | null>(null)
 
+  const historyExerciseNames = useMemo(() => {
+    const seen = new Set<string>()
+    const names: string[] = []
+    for (const entry of myLogs) {
+      if (!seen.has(entry.exercise)) {
+        seen.add(entry.exercise)
+        names.push(entry.exercise)
+      }
+    }
+    return names
+  }, [myLogs])
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { delay: 400, tolerance: 5 } })
   )
@@ -325,6 +337,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
                 <SortableExerciseRow
                   key={ex.exercise}
                   ex={ex}
+                  historyExercises={historyExerciseNames.filter((n) => n !== ex.exercise)}
                   isDeleting={deletingExerciseIdx === exIdx}
                   isEditMode={isEditMode}
                   oneRepMax={oneRepMaxMap.get(ex.exercise) ?? null}
@@ -398,6 +411,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
 
 interface SortableExerciseRowProps {
   ex: WorkoutExercise
+  historyExercises: string[]
   isDeleting: boolean
   isEditMode: boolean
   oneRepMax: number | null
@@ -420,7 +434,7 @@ interface SortableExerciseRowProps {
 }
 
 function SortableExerciseRow({
-  ex, isDeleting, isEditMode,
+  ex, historyExercises, isDeleting, isEditMode,
   oneRepMax, calculatedE1RM, exerciseSettings,
   onSaveSettings, onToggleExpand, onToggleExercise, onToggleSet,
   onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet, onShowHistory,
@@ -463,6 +477,7 @@ function SortableExerciseRow({
         onRemoveExercise={onStartDelete}
         onRenameExercise={onRenameExercise}
         onRemoveSet={onRemoveSet}
+        historyExercises={historyExercises}
         dragHandleListeners={isEditMode ? undefined : listeners}
         dragAttributes={isEditMode ? undefined : attributes}
         isDragging={isDragging}
