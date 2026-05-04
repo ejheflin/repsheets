@@ -275,7 +275,7 @@ export function ExerciseRow({
               <div className="font-semibold text-[15px] mb-1">Swap Exercise</div>
               <div className="text-[13px] text-gray-400 mb-3">This only affects your current workout — the routine is not changed.</div>
               {historyExercises && historyExercises.length > 0 && (
-                <div className="flex gap-2 overflow-x-auto pb-3 mb-3 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
+                <div className="flex flex-wrap gap-2 mb-3">
                   {historyExercises.map((name) => (
                     <button
                       key={name}
