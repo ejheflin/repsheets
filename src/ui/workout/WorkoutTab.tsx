@@ -498,10 +498,29 @@ function SortableExerciseRow({
       <div
         style={{
           animation: isNewPR && !isDragging ? 'prLift 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards' : undefined,
-          position: isNewPR ? 'relative' : undefined,
+          position: 'relative',
           zIndex: isNewPR ? 5 : undefined,
         }}
       >
+        {isNewPR && !isDragging && [0, 0.18, 0.36].map((delay, i) => (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              borderRadius: '50%',
+              border: `2px solid ${['#6c63ff', '#9d97ff', '#c8c5ff'][i]}`,
+              animationName: 'prRipple',
+              animationDuration: '0.9s',
+              animationDelay: `${delay}s`,
+              animationTimingFunction: 'ease-out',
+              animationFillMode: 'forwards',
+              pointerEvents: 'none',
+              zIndex: -1,
+            }}
+          />
+        ))}
       <ExerciseRow
         exercise={ex}
         isPR={isPR}
