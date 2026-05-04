@@ -27,14 +27,8 @@ export function resolveSetValues(
   }
 
   if (latest) {
-    return {
-      reps: latest.reps,
-      value: latest.value,
-    }
+    return { reps: latest.reps, value: latest.value }
   }
 
-  return {
-    reps: set.reps,
-    value: set.value,
-  }
+  return { reps: set.reps, value: set.value }
 }
