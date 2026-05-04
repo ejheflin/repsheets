@@ -61,7 +61,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const [deletingExerciseIdx, setDeletingExerciseIdx] = useState<number | null>(null)
 
   const prExerciseNames = useMemo(() => {
-    if (!workout || isEditMode) return new Set<string>()
+    if (!workout || workout.editMode) return new Set<string>()
     const prSet = new Set<string>()
     for (const ex of workout.exercises) {
       let historicalMax = 0
@@ -76,7 +76,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
       }
     }
     return prSet
-  }, [workout, myLogs, isEditMode])
+  }, [workout, myLogs])
 
   const [newPRExercises, setNewPRExercises] = useState(new Set<string>())
   const prevPRNamesRef = useRef(new Set<string>())
