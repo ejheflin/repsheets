@@ -32,6 +32,8 @@ interface WorkoutContextValue {
   updateNotes: (exerciseIdx: number, notes: string) => void
   toggleExpanded: (exerciseIdx: number) => void
   addSet: (exerciseIdx: number) => void
+  removeExercise: (exerciseIdx: number) => void
+  renameExercise: (exerciseIdx: number, newName: string) => void
   finishWorkout: (logOnlyCompleted: boolean) => Promise<{ entries: LogEntry[]; exercisesWithAddedSets: WorkoutExercise[] } | undefined>
   discardWorkout: () => Promise<void>
 }
@@ -270,6 +272,26 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const removeExercise = useCallback((exerciseIdx: number) => {
+    setWorkout((prev) => {
+      if (!prev) return prev
+      const next = structuredClone(prev)
+      next.exercises.splice(exerciseIdx, 1)
+      return next
+    })
+  }, [])
+
+  const renameExercise = useCallback((exerciseIdx: number, newName: string) => {
+    const trimmed = newName.trim()
+    if (!trimmed) return
+    setWorkout((prev) => {
+      if (!prev) return prev
+      const next = structuredClone(prev)
+      next.exercises[exerciseIdx].exercise = trimmed
+      return next
+    })
+  }, [])
+
   const loadPastWorkout = useCallback(async (
     entries: IndexedLogEntry[],
     program: string,
@@ -398,7 +420,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     <WorkoutContext.Provider value={{
       workout, isLoading, startWorkout, loadPastWorkout, updateEditDate, saveEditedWorkout,
       toggleSet, toggleExercise, updateSet, updateAllSets, updateNotes, toggleExpanded,
-      addSet, finishWorkout, discardWorkout,
+      addSet, removeExercise, renameExercise, finishWorkout, discardWorkout,
     }}>
       {children}
     </WorkoutContext.Provider>

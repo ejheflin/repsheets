@@ -36,7 +36,7 @@ interface WorkoutTabProps {
 export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const {
     workout, toggleSet, toggleExercise, updateSet, updateAllSets, updateNotes,
-    toggleExpanded, addSet, finishWorkout, discardWorkout, saveEditedWorkout, updateEditDate, loadPastWorkout,
+    toggleExpanded, addSet, removeExercise, renameExercise, finishWorkout, discardWorkout, saveEditedWorkout, updateEditDate, loadPastWorkout,
   } = useWorkout()
   const { spreadsheetId } = useSheetContext()
   const { settings: exerciseSettings, saveSettings } = useExerciseSettings(spreadsheetId)
@@ -314,6 +314,8 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
               onUpdateNotes={(notes) => updateNotes(exIdx, notes)}
               onAddSet={isEditMode ? undefined : () => addSet(exIdx)}
               onShowHistory={() => setHistoryExercise(ex)}
+              onRemoveExercise={() => removeExercise(exIdx)}
+              onRenameExercise={(name) => renameExercise(exIdx, name)}
               tourId={exIdx === 0 ? 'first-exercise' : undefined} />
           )
         })
