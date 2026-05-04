@@ -581,10 +581,7 @@ function PRCelebrationImage({ onDismiss }: { onDismiss: () => void }) {
   }, [onDismiss])
 
   return (
-    <img
-      src="/ISawThatPR.webp"
-      alt=""
-      draggable={false}
+    <div
       style={{
         position: 'fixed',
         bottom: 80,
@@ -593,8 +590,47 @@ function PRCelebrationImage({ onDismiss }: { onDismiss: () => void }) {
         zIndex: 40,
         pointerEvents: 'none',
         transform: entered ? 'translateX(0)' : 'translateX(-110%)',
-        transition: entered ? 'transform 0.4s ease-out' : 'none',
+        transition: entered ? 'transform 1.5s ease-out' : 'none',
       }}
-    />
+    >
+      {/* Speech bubble */}
+      <div style={{
+        position: 'absolute',
+        top: 16,
+        left: 12,
+        background: 'white',
+        borderRadius: 10,
+        padding: '6px 10px',
+        maxWidth: 160,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+      }}>
+        <span style={{
+          fontWeight: 800,
+          fontSize: 13,
+          color: '#1a1a2e',
+          whiteSpace: 'nowrap',
+          letterSpacing: '0.02em',
+        }}>
+          I SAW THAT PR
+        </span>
+        {/* tail pointing down-left toward character */}
+        <div style={{
+          position: 'absolute',
+          bottom: -10,
+          left: 16,
+          width: 0,
+          height: 0,
+          borderLeft: '7px solid transparent',
+          borderRight: '7px solid transparent',
+          borderTop: '10px solid white',
+        }} />
+      </div>
+      <img
+        src="/ISawThatPR.webp"
+        alt=""
+        draggable={false}
+        style={{ width: '100%', display: 'block' }}
+      />
+    </div>
   )
 }
