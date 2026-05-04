@@ -6,6 +6,19 @@ import { SwipeableRow } from '../shared/SwipeableRow'
 import type { SwipeAction } from '../shared/SwipeableRow'
 import type { WorkoutExercise, ExerciseSettings } from '../../types'
 
+function DragHandleIcon() {
+  return (
+    <svg width="12" height="18" viewBox="0 0 12 18" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round">
+      <circle cx="4" cy="4" r="1" fill="#555" stroke="none" />
+      <circle cx="8" cy="4" r="1" fill="#555" stroke="none" />
+      <circle cx="4" cy="9" r="1" fill="#555" stroke="none" />
+      <circle cx="8" cy="9" r="1" fill="#555" stroke="none" />
+      <circle cx="4" cy="14" r="1" fill="#555" stroke="none" />
+      <circle cx="8" cy="14" r="1" fill="#555" stroke="none" />
+    </svg>
+  )
+}
+
 function SwapIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -73,6 +86,9 @@ interface ExerciseRowProps {
   onRemoveExercise: () => void
   onRenameExercise: (newName: string) => void
   onRemoveSet: (setIdx: number) => void
+  dragHandleListeners?: Record<string, unknown>
+  dragAttributes?: Record<string, unknown>
+  isDragging?: boolean
   tourId?: string
 }
 
@@ -106,7 +122,7 @@ export function ExerciseRow({
   calculatedE1RM,
   exerciseSettings,
   onSaveSettings,
-  onToggleExpand, onToggleExercise, onToggleSet, onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet, onShowHistory, onRemoveExercise, onRenameExercise, onRemoveSet, tourId,
+  onToggleExpand, onToggleExercise, onToggleSet, onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet, onShowHistory, onRemoveExercise, onRenameExercise, onRemoveSet, dragHandleListeners, dragAttributes, isDragging, tourId,
 }: ExerciseRowProps) {
   const [showNotes, setShowNotes] = useState(false)
   const [showMaxSettings, setShowMaxSettings] = useState(false)
@@ -165,17 +181,29 @@ export function ExerciseRow({
     return (
       <>
         <SwipeableRow actions={swipeActions} className="mb-1.5 rounded-[10px]">
-          <div data-tour={tourId ? 'exercise-row' : undefined} className="bg-[#2a2a4a] rounded-[10px] px-3 py-2.5">
+          <div
+            data-tour={tourId ? 'exercise-row' : undefined}
+            className="bg-[#2a2a4a] rounded-[10px] px-3 py-2.5"
+            style={isDragging ? { boxShadow: '0 8px 24px rgba(0,0,0,0.6)', border: '1.5px solid #6c63ff', transform: 'scale(1.03)' } : undefined}
+          >
             <div className="grid gap-y-1.5" style={{ gridTemplateColumns: 'auto auto auto auto auto', justifyContent: 'space-between' }}>
 
               {/* Row 1: exercise name spans cols 1-3, plate calc col 4, checkbox col 5 */}
               <div className="flex items-center min-w-0" style={{ gridColumn: '1 / 4' }}>
                 <button onClick={onToggleExpand} className="mr-1.5 flex items-center self-stretch"><ChevronRight /></button>
-                <button onClick={onToggleExpand} className="text-left min-w-0 overflow-hidden">
-                  <div className="font-semibold text-sm truncate">{exercise.exercise}</div>
-                  {exercise.notes && (
-                    <div className="text-[10px] text-[#6c63ff] mt-0.5 truncate">▸ {exercise.notes}</div>
-                  )}
+                <button
+                  onClick={onToggleExpand}
+                  className="text-left min-w-0 overflow-hidden flex items-center gap-1.5"
+                  {...(dragHandleListeners ?? {})}
+                  {...(dragAttributes ?? {})}
+                >
+                  {dragHandleListeners && <DragHandleIcon />}
+                  <div className="min-w-0">
+                    <div className="font-semibold text-sm truncate">{exercise.exercise}</div>
+                    {exercise.notes && (
+                      <div className="text-[10px] text-[#6c63ff] mt-0.5 truncate">▸ {exercise.notes}</div>
+                    )}
+                  </div>
                 </button>
               </div>
               <div className="flex items-center justify-center">
