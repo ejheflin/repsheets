@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { useAuth } from '../auth/useAuth'
 import { readAlias, writeAlias } from '../sheets/driveApi'
 import { fetchLogEntriesWithRows, updateLogRows } from '../sheets/sheetsApi'
+import { saveLogs } from './db'
 import { useSheetContext } from './useSheetContext'
 
 interface AliasContextValue {
@@ -36,6 +37,12 @@ export function AliasProvider({ children }: { children: ReactNode }) {
       rowIndex: e.rowIndex,
       entry: { ...e, athlete: newAlias },
     })))
+
+    // Keep local IndexedDB cache in sync so autofill works even when offline
+    const updatedCache = entries.map(({ rowIndex: _r, ...e }) =>
+      e.athlete === currentName ? { ...e, athlete: newAlias } : e
+    )
+    await saveLogs(spreadsheetId, updatedCache)
   }, [spreadsheetId])
 
   return (
