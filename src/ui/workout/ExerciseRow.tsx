@@ -79,6 +79,7 @@ interface ExerciseRowProps {
   dragHandleListeners?: SyntheticListenerMap
   dragAttributes?: DraggableAttributes
   isDragging?: boolean
+  isPR?: boolean
   tourId?: string
 }
 
@@ -112,7 +113,7 @@ export function ExerciseRow({
   calculatedE1RM,
   exerciseSettings,
   onSaveSettings,
-  onToggleExpand, onToggleExercise, onToggleSet, onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet, onShowHistory, onRemoveExercise, onRenameExercise, onRemoveSet, historyExercises, dragHandleListeners, dragAttributes, isDragging, tourId,
+  onToggleExpand, onToggleExercise, onToggleSet, onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet, onShowHistory, onRemoveExercise, onRenameExercise, onRemoveSet, historyExercises, dragHandleListeners, dragAttributes, isDragging, isPR, tourId,
 }: ExerciseRowProps) {
   const [showNotes, setShowNotes] = useState(false)
   const [showMaxSettings, setShowMaxSettings] = useState(false)
@@ -174,7 +175,10 @@ export function ExerciseRow({
           <div
             data-tour={tourId ? 'exercise-row' : undefined}
             className="bg-[#2a2a4a] rounded-[10px] px-3 py-2.5"
-            style={isDragging ? { boxShadow: '0 8px 24px rgba(0,0,0,0.6)', border: '1.5px solid #6c63ff', transform: 'scale(1.03)' } : undefined}
+            style={isDragging
+              ? { boxShadow: '0 8px 24px rgba(0,0,0,0.6)', border: '1.5px solid #6c63ff', transform: 'scale(1.03)' }
+              : isPR ? { border: '1.5px solid #6c63ff', boxShadow: '0 0 12px rgba(108,99,255,0.25)' }
+              : undefined}
           >
             <div className="grid gap-y-1.5" style={{ gridTemplateColumns: 'auto auto auto auto auto', justifyContent: 'space-between' }}>
 
@@ -183,16 +187,21 @@ export function ExerciseRow({
                 <button onClick={onToggleExpand} className="mr-1.5 flex items-center self-stretch"><ChevronRight /></button>
                 <button
                   onClick={onToggleExpand}
-                  className="text-left min-w-0 overflow-hidden flex items-center gap-1.5"
+                  className="text-left min-w-0 flex items-center gap-1.5"
                   {...(dragHandleListeners ?? {})}
                   {...(dragAttributes ?? {})}
                 >
-                  <div className="min-w-0">
+                  <div className="min-w-0 overflow-hidden">
                     <div className="font-semibold text-sm truncate">{exercise.exercise}</div>
                     {exercise.notes && (
                       <div className="text-[10px] text-[#6c63ff] mt-0.5 truncate">▸ {exercise.notes}</div>
                     )}
                   </div>
+                  {isPR && (
+                    <span className="flex-shrink-0 text-[10px] font-bold bg-[#6c63ff] text-white px-1.5 py-0.5 rounded-full leading-none pointer-events-none">
+                      PR
+                    </span>
+                  )}
                 </button>
               </div>
               <div className="flex items-center justify-center">
@@ -331,12 +340,22 @@ export function ExerciseRow({
   }
 
   return (
-    <div className="bg-[#2a2a4a] rounded-[10px] mb-1.5 px-3 py-2.5">
+    <div
+      className="bg-[#2a2a4a] rounded-[10px] mb-1.5 px-3 py-2.5"
+      style={isPR ? { border: '1.5px solid #6c63ff', boxShadow: '0 0 12px rgba(108,99,255,0.25)' } : undefined}
+    >
       {/* cols 1-3 fixed to match collapsed row-2 widths (w-7, reps group, w-8) so space-between places col 4 identically */}
       <div className="grid mb-2" style={{ gridTemplateColumns: '28px 104px 32px auto auto', justifyContent: 'space-between' }}>
         <div className="flex items-center min-w-0" style={{ gridColumn: '1 / 4' }}>
           <button onClick={onToggleExpand} className="mr-1.5 flex items-center"><ChevronDown /></button>
-          <button onClick={onToggleExpand} className="text-left min-w-0 overflow-hidden font-bold text-[15px] truncate">{exercise.exercise}</button>
+          <button onClick={onToggleExpand} className="text-left min-w-0 flex items-center gap-1.5 font-bold text-[15px]">
+            <span className="truncate min-w-0 overflow-hidden">{exercise.exercise}</span>
+            {isPR && (
+              <span className="flex-shrink-0 text-[10px] font-bold bg-[#6c63ff] text-white px-1.5 py-0.5 rounded-full leading-none pointer-events-none">
+                PR
+              </span>
+            )}
+          </button>
         </div>
         <div className={`flex items-center justify-center ${valueHasMismatch ? 'invisible' : ''}`}>
           {summaryValue && !showSlashedTargets ? (

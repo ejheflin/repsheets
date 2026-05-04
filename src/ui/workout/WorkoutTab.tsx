@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   DndContext, PointerSensor, useSensor, useSensors, closestCenter,
   type DragEndEvent,
@@ -59,6 +59,36 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const [sessionsFetchKey, setSessionsFetchKey] = useState(0)
   const [historyExercise, setHistoryExercise] = useState<WorkoutExercise | null>(null)
   const [deletingExerciseIdx, setDeletingExerciseIdx] = useState<number | null>(null)
+
+  const prExerciseNames = useMemo(() => {
+    if (!workout || isEditMode) return new Set<string>()
+    const prSet = new Set<string>()
+    for (const ex of workout.exercises) {
+      let historicalMax = 0
+      for (const log of myLogs) {
+        if (log.exercise === ex.exercise && log.value != null) {
+          historicalMax = Math.max(historicalMax, log.value)
+        }
+      }
+      if (historicalMax === 0) continue
+      if (ex.sets.some((s) => s.value != null && s.value > historicalMax)) {
+        prSet.add(ex.exercise)
+      }
+    }
+    return prSet
+  }, [workout, myLogs, isEditMode])
+
+  const [newPRExercises, setNewPRExercises] = useState(new Set<string>())
+  const prevPRNamesRef = useRef(new Set<string>())
+  useEffect(() => {
+    const prev = prevPRNamesRef.current
+    const newOnes = new Set([...prExerciseNames].filter((n) => !prev.has(n)))
+    prevPRNamesRef.current = new Set(prExerciseNames)
+    if (newOnes.size === 0) return
+    setNewPRExercises(newOnes)
+    const t = setTimeout(() => setNewPRExercises(new Set()), 950)
+    return () => clearTimeout(t)
+  }, [prExerciseNames])
 
   const historyExerciseNames = useMemo(() => {
     const seen = new Set<string>()
@@ -339,6 +369,8 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
                   key={ex.exercise}
                   ex={ex}
                   historyExercises={historyExerciseNames.filter((n) => n !== ex.exercise)}
+                  isPR={prExerciseNames.has(ex.exercise)}
+                  isNewPR={newPRExercises.has(ex.exercise)}
                   isDeleting={deletingExerciseIdx === exIdx}
                   isEditMode={isEditMode}
                   oneRepMax={oneRepMaxMap.get(ex.exercise) ?? null}
@@ -413,6 +445,8 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
 interface SortableExerciseRowProps {
   ex: WorkoutExercise
   historyExercises: string[]
+  isPR: boolean
+  isNewPR: boolean
   isDeleting: boolean
   isEditMode: boolean
   oneRepMax: number | null
@@ -435,7 +469,7 @@ interface SortableExerciseRowProps {
 }
 
 function SortableExerciseRow({
-  ex, historyExercises, isDeleting, isEditMode,
+  ex, historyExercises, isPR, isNewPR, isDeleting, isEditMode,
   oneRepMax, calculatedE1RM, exerciseSettings,
   onSaveSettings, onToggleExpand, onToggleExercise, onToggleSet,
   onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet, onShowHistory,
@@ -461,8 +495,16 @@ function SortableExerciseRow({
         if (e.propertyName === 'max-height' && isDeleting) onDeleteDone()
       }}
     >
+      <div
+        style={{
+          animation: isNewPR && !isDragging ? 'prLift 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards' : undefined,
+          position: isNewPR ? 'relative' : undefined,
+          zIndex: isNewPR ? 5 : undefined,
+        }}
+      >
       <ExerciseRow
         exercise={ex}
+        isPR={isPR}
         oneRepMax={oneRepMax}
         calculatedE1RM={calculatedE1RM}
         exerciseSettings={exerciseSettings}
@@ -484,6 +526,7 @@ function SortableExerciseRow({
         isDragging={isDragging}
         tourId={tourId}
       />
+      </div>
     </div>
   )
 }
