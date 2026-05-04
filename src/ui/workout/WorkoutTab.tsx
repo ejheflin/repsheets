@@ -52,6 +52,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const [confirmEditSession, setConfirmEditSession] = useState<RecentSession | null>(null)
   const [sessionsFetchKey, setSessionsFetchKey] = useState(0)
   const [historyExercise, setHistoryExercise] = useState<WorkoutExercise | null>(null)
+  const [deletingExerciseIdx, setDeletingExerciseIdx] = useState<number | null>(null)
 
   const isEditMode = !!workout?.editMode
 
@@ -300,24 +301,41 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
       {groups.map((group, gIdx) => {
         const content = group.exerciseIndices.map((exIdx) => {
           const ex = workout.exercises[exIdx]
+          const isDeleting = deletingExerciseIdx === exIdx
           return (
-            <ExerciseRow key={exIdx} exercise={ex}
-              oneRepMax={oneRepMaxMap.get(ex.exercise) ?? null}
-              calculatedE1RM={rawE1RMMap.get(ex.exercise) ?? null}
-              exerciseSettings={exerciseSettings[ex.exercise] ?? {}}
-              onSaveSettings={(s) => saveSettings(ex.exercise, s)}
-              onToggleExpand={() => toggleExpanded(exIdx)}
-              onToggleExercise={() => toggleExercise(exIdx)}
-              onToggleSet={(setIdx) => toggleSet(exIdx, setIdx)}
-              onUpdateSet={(setIdx, field, val) => updateSet(exIdx, setIdx, field, val)}
-              onUpdateAllSets={(field, val) => updateAllSets(exIdx, field, val)}
-              onUpdateNotes={(notes) => updateNotes(exIdx, notes)}
-              onAddSet={isEditMode ? undefined : () => addSet(exIdx)}
-              onShowHistory={() => setHistoryExercise(ex)}
-              onRemoveExercise={() => removeExercise(exIdx)}
-              onRenameExercise={(name) => renameExercise(exIdx, name)}
-              onRemoveSet={(setIdx) => removeSet(exIdx, setIdx)}
-              tourId={exIdx === 0 ? 'first-exercise' : undefined} />
+            <div
+              key={exIdx}
+              style={{
+                maxHeight: isDeleting ? 0 : '120px',
+                opacity: isDeleting ? 0 : 1,
+                overflow: 'hidden',
+                transition: isDeleting ? 'max-height 0.25s ease, opacity 0.15s ease' : 'none',
+              }}
+              onTransitionEnd={(e) => {
+                if (e.propertyName === 'max-height' && isDeleting) {
+                  removeExercise(exIdx)
+                  setDeletingExerciseIdx(null)
+                }
+              }}
+            >
+              <ExerciseRow exercise={ex}
+                oneRepMax={oneRepMaxMap.get(ex.exercise) ?? null}
+                calculatedE1RM={rawE1RMMap.get(ex.exercise) ?? null}
+                exerciseSettings={exerciseSettings[ex.exercise] ?? {}}
+                onSaveSettings={(s) => saveSettings(ex.exercise, s)}
+                onToggleExpand={() => toggleExpanded(exIdx)}
+                onToggleExercise={() => toggleExercise(exIdx)}
+                onToggleSet={(setIdx) => toggleSet(exIdx, setIdx)}
+                onUpdateSet={(setIdx, field, val) => updateSet(exIdx, setIdx, field, val)}
+                onUpdateAllSets={(field, val) => updateAllSets(exIdx, field, val)}
+                onUpdateNotes={(notes) => updateNotes(exIdx, notes)}
+                onAddSet={isEditMode ? undefined : () => addSet(exIdx)}
+                onShowHistory={() => setHistoryExercise(ex)}
+                onRemoveExercise={() => setDeletingExerciseIdx(exIdx)}
+                onRenameExercise={(name) => renameExercise(exIdx, name)}
+                onRemoveSet={(setIdx) => removeSet(exIdx, setIdx)}
+                tourId={exIdx === 0 ? 'first-exercise' : undefined} />
+            </div>
           )
         })
         return group.supersetGroup ? (
