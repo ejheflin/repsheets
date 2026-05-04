@@ -160,7 +160,7 @@ export function useLogs() {
   const exerciseHistoryByAthlete = useCallback((exerciseName: string, limit: number = 10) => {
     // Group by date → athlete → max weight
     const byDate = new Map<string, Map<string, number>>()
-    for (const log of allLogs) {
+    for (const log of logs) {
       if (log.exercise !== exerciseName || log.value === null) continue
       if (!byDate.has(log.date)) byDate.set(log.date, new Map())
       const dateMap = byDate.get(log.date)!
@@ -168,7 +168,7 @@ export function useLogs() {
       if (log.value > current) dateMap.set(log.athlete, log.value)
     }
     const sortedDates = [...byDate.keys()].sort().slice(-limit)
-    const athleteNames = [...new Set(allLogs.filter((l) => l.exercise === exerciseName).map((l) => l.athlete))]
+    const athleteNames = [...new Set(logs.filter((l) => l.exercise === exerciseName).map((l) => l.athlete))]
     return {
       dates: sortedDates,
       athletes: athleteNames,
@@ -182,7 +182,7 @@ export function useLogs() {
         return entry
       }),
     }
-  }, [allLogs])
+  }, [logs])
 
   // Last logged program (most recent log entry's program)
   const lastLoggedProgram = useMemo(() => {

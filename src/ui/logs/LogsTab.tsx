@@ -120,7 +120,7 @@ export function LogsTab() {
             programExercises={programExercises}
             lastLoggedProgram={lastLoggedProgram}
             isShared={isShared}
-            showAllAthletes={selectedAthletes.includes('__all__')}
+            showAllAthletes={selectedAthletes.includes('__all__') || selectedAthletes.length > 1}
           />
         )
       case 'records':
