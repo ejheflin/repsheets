@@ -593,37 +593,28 @@ function PRCelebrationImage({ onDismiss }: { onDismiss: () => void }) {
         transition: entered ? 'transform 1.5s ease-out' : 'none',
       }}
     >
-      {/* Speech bubble */}
+      {/* Speech bubble — sits to the right of the image, no overlap */}
       <div style={{
         position: 'absolute',
-        top: 16,
-        left: 12,
+        top: 120,
+        left: 228,
         background: 'white',
         borderRadius: 10,
         padding: '6px 10px',
-        maxWidth: 160,
         boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
       }}>
-        <span style={{
-          fontWeight: 800,
-          fontSize: 13,
-          color: '#1a1a2e',
-          whiteSpace: 'nowrap',
-          letterSpacing: '0.02em',
-        }}>
-          I SAW THAT PR
-        </span>
-        {/* tail pointing down-left toward character */}
+        {/* tail at top-left corner pointing upper-left toward character */}
         <div style={{
           position: 'absolute',
-          bottom: -10,
-          left: 16,
+          top: -12,
+          left: 0,
           width: 0,
           height: 0,
-          borderLeft: '7px solid transparent',
-          borderRight: '7px solid transparent',
-          borderTop: '10px solid white',
+          borderBottom: '12px solid white',
+          borderRight: '12px solid transparent',
         }} />
+        <span style={{ fontWeight: 800, fontSize: 13, color: '#1a1a2e', letterSpacing: '0.02em', display: 'block', whiteSpace: 'nowrap' }}>I SAW</span>
+        <span style={{ fontWeight: 800, fontSize: 13, color: '#1a1a2e', letterSpacing: '0.02em', display: 'block', whiteSpace: 'nowrap' }}>THAT PR</span>
       </div>
       <img
         src="/ISawThatPR.webp"
