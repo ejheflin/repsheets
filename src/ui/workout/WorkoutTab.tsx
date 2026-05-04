@@ -231,6 +231,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
     const result = await finishWorkout(logOnlyCompleted)
     setShowFinish(false)
     if (result) {
+      setSessionsFetchKey((k) => k + 1)
       setShowSavedToast(true)
       setTimeout(() => setShowSavedToast(false), 2500)
     }
