@@ -45,7 +45,7 @@ const WorkoutContext = createContext<WorkoutContextValue | null>(null)
 export function WorkoutProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const { spreadsheetId } = useSheetContext()
-  const { alias } = useAlias()
+  const { alias, isLoadingAlias } = useAlias()
   const [workout, setWorkout] = useState<WorkoutState | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -65,7 +65,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   // Refresh persisted workout from Google Sheets on load
   const hasRefreshed = useRef(false)
   useEffect(() => {
-    if (hasRefreshed.current || !workout || workout.editMode || !spreadsheetId || !user || isLoading) return
+    if (hasRefreshed.current || !workout || workout.editMode || !spreadsheetId || !user || isLoading || isLoadingAlias) return
     hasRefreshed.current = true
 
     const refreshWorkout = async () => {
@@ -129,7 +129,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     }
 
     refreshWorkout()
-  }, [workout, spreadsheetId, user, isLoading])
+  }, [workout, spreadsheetId, user, isLoading, isLoadingAlias, alias])
 
   const startWorkout = useCallback(async (
     program: string,
@@ -187,7 +187,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     }
 
     setWorkout(state)
-  }, [spreadsheetId, user])
+  }, [spreadsheetId, user, alias])
 
   const toggleSet = useCallback((exerciseIdx: number, setIdx: number) => {
     setWorkout((prev) => {
