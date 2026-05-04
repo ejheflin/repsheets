@@ -559,10 +559,12 @@ function SortableExerciseRow({
 
 function PRCelebrationImage({ onDismiss }: { onDismiss: () => void }) {
   const [entered, setEntered] = useState(false)
+  const [bubbleVisible, setBubbleVisible] = useState(false)
 
   useEffect(() => {
-    const t = setTimeout(() => setEntered(true), 10)
-    return () => clearTimeout(t)
+    const t1 = setTimeout(() => setEntered(true), 10)
+    const t2 = setTimeout(() => setBubbleVisible(true), 1500)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [])
 
   useEffect(() => {
@@ -593,20 +595,22 @@ function PRCelebrationImage({ onDismiss }: { onDismiss: () => void }) {
         transition: entered ? 'transform 1.5s ease-out' : 'none',
       }}
     >
-      {/* Speech bubble — sits to the right of the image, no overlap */}
+      {/* Speech bubble — appears in place after slide-in completes */}
       <div style={{
         position: 'absolute',
         top: 120,
-        left: 220,
+        left: 73,
         background: 'white',
         borderRadius: 10,
         padding: '6px 10px',
         boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+        opacity: bubbleVisible ? 1 : 0,
+        transition: bubbleVisible ? 'opacity 0.2s ease' : 'none',
       }}>
         {/* tail at top-left corner pointing upper-left toward character */}
         <div style={{
           position: 'absolute',
-          top: -7,
+          top: -5,
           left: 0,
           width: 0,
           height: 0,
