@@ -126,7 +126,7 @@ export function PlateSettingsModal({ onClose, onChange }: PlateSettingsModalProp
     <div className="fixed inset-0 bg-black/60 flex items-end z-50" onClick={handleClose}>
       <div className="w-full bg-[#1a1a2e] rounded-t-2xl p-5 max-h-[80vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-base font-bold text-center mb-1">Plate Settings</h2>
+        <h2 className="text-base font-bold text-center mb-1 text-white">Plate Settings</h2>
         <p className="text-xs text-gray-400 text-center mb-4">Toggle plates, set counts, and customize colors</p>
 
         <div className="space-y-2">
@@ -154,14 +154,14 @@ export function PlateSettingsModal({ onClose, onChange }: PlateSettingsModalProp
                         <button
                           onClick={() => setPlateCount(plate, count !== null && count <= 2 ? null : count !== null ? count - 2 : null)}
                           disabled={count === null}
-                          className="w-6 h-6 rounded bg-[#1a1a2e] text-sm font-bold flex items-center justify-center active:opacity-80 disabled:opacity-30"
+                          className="w-6 h-6 rounded bg-[#1a1a2e] text-sm font-bold text-white flex items-center justify-center active:opacity-80 disabled:opacity-30"
                         >−</button>
-                        <span className="text-xs font-semibold w-5 text-center tabular-nums">
+                        <span className="text-xs font-semibold w-5 text-center tabular-nums text-white">
                           {count === null ? '∞' : count}
                         </span>
                         <button
                           onClick={() => setPlateCount(plate, count === null ? 2 : count + 2)}
-                          className="w-6 h-6 rounded bg-[#1a1a2e] text-sm font-bold flex items-center justify-center active:opacity-80"
+                          className="w-6 h-6 rounded bg-[#1a1a2e] text-sm font-bold text-white flex items-center justify-center active:opacity-80"
                         >+</button>
                       </div>
                       <button
