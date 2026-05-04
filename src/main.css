@@ -5,6 +5,13 @@
   to   { transform: translateY(0); }
 }
 
+@keyframes prLift {
+  0%   { transform: translateY(0) scale(1); }
+  30%  { transform: translateY(-12px) scale(1.025); }
+  70%  { transform: translateY(-12px) scale(1.025); }
+  100% { transform: translateY(0) scale(1); }
+}
+
 /* Suppress the browser focus outline that Recharts applies to its SVG on click */
 .recharts-wrapper:focus,
 .recharts-wrapper svg:focus {
