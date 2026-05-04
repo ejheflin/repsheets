@@ -324,7 +324,6 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
               return (
                 <SortableExerciseRow
                   key={ex.exercise}
-                  exIdx={exIdx}
                   ex={ex}
                   isDeleting={deletingExerciseIdx === exIdx}
                   isEditMode={isEditMode}
@@ -398,7 +397,6 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
 }
 
 interface SortableExerciseRowProps {
-  exIdx: number
   ex: WorkoutExercise
   isDeleting: boolean
   isEditMode: boolean
@@ -422,7 +420,7 @@ interface SortableExerciseRowProps {
 }
 
 function SortableExerciseRow({
-  exIdx, ex, isDeleting, isEditMode,
+  ex, isDeleting, isEditMode,
   oneRepMax, calculatedE1RM, exerciseSettings,
   onSaveSettings, onToggleExpand, onToggleExercise, onToggleSet,
   onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet, onShowHistory,

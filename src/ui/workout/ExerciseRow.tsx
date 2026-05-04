@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import type { DraggableAttributes } from '@dnd-kit/core'
+import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities'
 import { SetRow } from './SetRow'
 import { PlateCalculator } from './PlateCalculator'
 import { ExerciseMaxSettings } from './ExerciseMaxSettings'
@@ -86,8 +88,8 @@ interface ExerciseRowProps {
   onRemoveExercise: () => void
   onRenameExercise: (newName: string) => void
   onRemoveSet: (setIdx: number) => void
-  dragHandleListeners?: Record<string, unknown>
-  dragAttributes?: Record<string, unknown>
+  dragHandleListeners?: SyntheticListenerMap
+  dragAttributes?: DraggableAttributes
   isDragging?: boolean
   tourId?: string
 }
