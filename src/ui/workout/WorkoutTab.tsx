@@ -59,6 +59,12 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const [sessionsFetchKey, setSessionsFetchKey] = useState(0)
   const [historyExercise, setHistoryExercise] = useState<WorkoutExercise | null>(null)
   const [deletingExerciseIdx, setDeletingExerciseIdx] = useState<number | null>(null)
+  const [showPRCelebration, setShowPRCelebration] = useState(false)
+
+  // TEMPORARY: fire whenever no workout is active so the animation can be tested
+  useEffect(() => {
+    if (!workout) setShowPRCelebration(true)
+  }, [workout])
 
   const prExerciseNames = useMemo(() => {
     if (!workout || workout.editMode) return new Set<string>()
@@ -198,6 +204,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
     return (
       <>
         {savedToast}
+        {showPRCelebration && <PRCelebrationImage onDismiss={() => setShowPRCelebration(false)} />}
         <div className="text-center mt-20">
           <p className="text-gray-400">No workout in progress.</p>
           <p className="text-gray-500 text-sm mt-2">Pick a <button onClick={onGoToRoutines} className="text-[#6c63ff] underline">routine</button> to get started.</p>
@@ -547,5 +554,47 @@ function SortableExerciseRow({
       />
       </div>
     </div>
+  )
+}
+
+function PRCelebrationImage({ onDismiss }: { onDismiss: () => void }) {
+  const [entered, setEntered] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => setEntered(true), 10)
+    return () => clearTimeout(t)
+  }, [])
+
+  useEffect(() => {
+    let dismissed = false
+    const dismiss = () => {
+      if (dismissed) return
+      dismissed = true
+      onDismiss()
+    }
+    document.addEventListener('touchstart', dismiss, { passive: true })
+    document.addEventListener('click', dismiss)
+    return () => {
+      document.removeEventListener('touchstart', dismiss)
+      document.removeEventListener('click', dismiss)
+    }
+  }, [onDismiss])
+
+  return (
+    <img
+      src="/ISawThatPR.webp"
+      alt=""
+      draggable={false}
+      style={{
+        position: 'fixed',
+        bottom: 80,
+        left: 0,
+        width: 220,
+        zIndex: 40,
+        pointerEvents: 'none',
+        transform: entered ? 'translateX(0)' : 'translateX(-110%)',
+        transition: entered ? 'transform 0.4s ease-out' : 'none',
+      }}
+    />
   )
 }
