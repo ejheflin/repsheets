@@ -233,7 +233,9 @@ export function DemoApp() {
                         onUpdateSet={(si, f, v) => updateSet(i, si, f, v)}
                         onUpdateAllSets={(f, v) => updateAllSets(i, f, v)}
                         onUpdateNotes={() => {}}
-                        onAddSet={() => addSet(i)} />
+                        onAddSet={() => addSet(i)}
+                        onRemoveExercise={() => {}}
+                        onRenameExercise={() => {}} />
                     ))}
                     {showFinish && (
                       <FinishWorkoutSheet
