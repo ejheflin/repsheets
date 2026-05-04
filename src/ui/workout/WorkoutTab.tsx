@@ -61,11 +61,6 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const [deletingExerciseIdx, setDeletingExerciseIdx] = useState<number | null>(null)
   const [showPRCelebration, setShowPRCelebration] = useState(false)
 
-  // TEMPORARY: fire whenever no workout is active so the animation can be tested
-  useEffect(() => {
-    if (!workout) setShowPRCelebration(true)
-  }, [workout])
-
   const prExerciseNames = useMemo(() => {
     if (!workout || workout.editMode) return new Set<string>()
     const prSet = new Set<string>()
@@ -265,10 +260,12 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const allChecked = workout.exercises.every((ex) => ex.sets.every((s) => s.completed))
 
   const doFinish = async (logOnlyCompleted: boolean) => {
+    const hasPR = prExerciseNames.size > 0
     const result = await finishWorkout(logOnlyCompleted)
     setShowFinish(false)
     if (result) {
       setSessionsFetchKey((k) => k + 1)
+      if (hasPR) setShowPRCelebration(true)
       setShowSavedToast(true)
       setTimeout(() => setShowSavedToast(false), 2500)
     }
