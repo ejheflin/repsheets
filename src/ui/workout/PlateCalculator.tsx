@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 
 let idCounter = 0
 import { PlateSettingsModal, loadPlateSettings, type PlateSettingsData } from './PlateSettings'
@@ -143,8 +144,8 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
   return (
     <>
       <button
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
+        onPointerDown={(e) => { e.stopPropagation(); handlePointerDown() }}
+        onPointerUp={(e) => { e.stopPropagation(); handlePointerUp() }}
         onPointerLeave={handlePointerLeave}
         className="flex-shrink-0 select-none flex flex-col items-center"
       >
@@ -216,11 +217,12 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
         </svg>
       </button>
 
-      {showSettings && (
+      {showSettings && createPortal(
         <PlateSettingsModal
           onClose={() => setShowSettings(false)}
           onChange={(data) => setSettings(data)}
-        />
+        />,
+        document.body
       )}
     </>
   )
