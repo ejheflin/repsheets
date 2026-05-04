@@ -174,7 +174,7 @@ export function ExerciseRow({
         <SwipeableRow actions={swipeActions} className="mb-1.5 rounded-[10px]">
           <div
             data-tour={tourId ? 'exercise-row' : undefined}
-            className="bg-[#2a2a4a] rounded-[10px] px-3 py-2.5"
+            className="relative bg-[#2a2a4a] rounded-[10px] px-3 py-2.5"
             style={isDragging
               ? { boxShadow: '0 8px 24px rgba(0,0,0,0.6)', border: '1.5px solid #6c63ff', transform: 'scale(1.03)' }
               : isPR ? { border: '1.5px solid #6c63ff', boxShadow: '0 0 12px rgba(108,99,255,0.25)' }
@@ -197,11 +197,6 @@ export function ExerciseRow({
                       <div className="text-[10px] text-[#6c63ff] mt-0.5 truncate">▸ {exercise.notes}</div>
                     )}
                   </div>
-                  {isPR && (
-                    <span className="flex-shrink-0 text-[10px] font-bold bg-[#6c63ff] text-white px-1.5 py-0.5 rounded-full leading-none pointer-events-none">
-                      PR
-                    </span>
-                  )}
                 </button>
               </div>
               <div className="flex items-center justify-center">
@@ -275,6 +270,11 @@ export function ExerciseRow({
                 onClose={() => setShowMaxSettings(false)}
               />
             )}
+            {isPR && (
+              <span className="absolute top-1.5 right-2 text-[10px] font-bold bg-[#6c63ff] text-white px-1.5 py-0.5 rounded-full leading-none pointer-events-none">
+                PR
+              </span>
+            )}
           </div>
         </SwipeableRow>
 
@@ -341,21 +341,14 @@ export function ExerciseRow({
 
   return (
     <div
-      className="bg-[#2a2a4a] rounded-[10px] mb-1.5 px-3 py-2.5"
+      className="relative bg-[#2a2a4a] rounded-[10px] mb-1.5 px-3 py-2.5"
       style={isPR ? { border: '1.5px solid #6c63ff', boxShadow: '0 0 12px rgba(108,99,255,0.25)' } : undefined}
     >
       {/* cols 1-3 fixed to match collapsed row-2 widths (w-7, reps group, w-8) so space-between places col 4 identically */}
       <div className="grid mb-2" style={{ gridTemplateColumns: '28px 104px 32px auto auto', justifyContent: 'space-between' }}>
         <div className="flex items-center min-w-0" style={{ gridColumn: '1 / 4' }}>
           <button onClick={onToggleExpand} className="mr-1.5 flex items-center"><ChevronDown /></button>
-          <button onClick={onToggleExpand} className="text-left min-w-0 flex items-center gap-1.5 font-bold text-[15px]">
-            <span className="truncate min-w-0 overflow-hidden">{exercise.exercise}</span>
-            {isPR && (
-              <span className="flex-shrink-0 text-[10px] font-bold bg-[#6c63ff] text-white px-1.5 py-0.5 rounded-full leading-none pointer-events-none">
-                PR
-              </span>
-            )}
-          </button>
+          <button onClick={onToggleExpand} className="text-left min-w-0 overflow-hidden font-bold text-[15px] truncate">{exercise.exercise}</button>
         </div>
         <div className={`flex items-center justify-center ${valueHasMismatch ? 'invisible' : ''}`}>
           {summaryValue && !showSlashedTargets ? (
@@ -444,6 +437,11 @@ export function ExerciseRow({
           onSave={(s) => { onSaveSettings?.(s); setShowMaxSettings(false) }}
           onClose={() => setShowMaxSettings(false)}
         />
+      )}
+      {isPR && (
+        <span className="absolute top-1.5 right-2 text-[10px] font-bold bg-[#6c63ff] text-white px-1.5 py-0.5 rounded-full leading-none pointer-events-none">
+          PR
+        </span>
       )}
     </div>
   )
