@@ -1,4 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import {
+  DndContext, PointerSensor, useSensor, useSensors, closestCenter,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { ExerciseRow } from './ExerciseRow'
 import { ExerciseHistorySheet } from './ExerciseHistorySheet'
 import { SupersetGroup } from './SupersetGroup'
@@ -36,7 +42,7 @@ interface WorkoutTabProps {
 export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const {
     workout, toggleSet, toggleExercise, updateSet, updateAllSets, updateNotes,
-    toggleExpanded, addSet, removeSet, removeExercise, renameExercise, finishWorkout, discardWorkout, saveEditedWorkout, updateEditDate, loadPastWorkout,
+    toggleExpanded, addSet, removeSet, reorderExercises, removeExercise, renameExercise, finishWorkout, discardWorkout, saveEditedWorkout, updateEditDate, loadPastWorkout,
   } = useWorkout()
   const { spreadsheetId } = useSheetContext()
   const { settings: exerciseSettings, saveSettings } = useExerciseSettings(spreadsheetId)
@@ -53,6 +59,18 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const [sessionsFetchKey, setSessionsFetchKey] = useState(0)
   const [historyExercise, setHistoryExercise] = useState<WorkoutExercise | null>(null)
   const [deletingExerciseIdx, setDeletingExerciseIdx] = useState<number | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { delay: 400, tolerance: 5 } })
+  )
+
+  const handleDragEnd = useCallback(({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id || !workout) return
+    const exercises = workout.exercises
+    const fromIdx = exercises.findIndex((ex) => ex.exercise === active.id)
+    const toIdx = exercises.findIndex((ex) => ex.exercise === over.id)
+    if (fromIdx !== -1 && toIdx !== -1) reorderExercises(fromIdx, toIdx)
+  }, [workout, reorderExercises])
 
   const isEditMode = !!workout?.editMode
 
@@ -298,52 +316,46 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
         )}
       </div>
 
-      {groups.map((group, gIdx) => {
-        const content = group.exerciseIndices.map((exIdx) => {
-          const ex = workout.exercises[exIdx]
-          const isDeleting = deletingExerciseIdx === exIdx
-          return (
-            <div
-              key={exIdx}
-              style={{
-                maxHeight: isDeleting ? 0 : '120px',
-                opacity: isDeleting ? 0 : 1,
-                overflow: 'hidden',
-                transition: isDeleting ? 'max-height 0.25s ease, opacity 0.15s ease' : 'none',
-              }}
-              onTransitionEnd={(e) => {
-                if (e.propertyName === 'max-height' && isDeleting) {
-                  removeExercise(exIdx)
-                  setDeletingExerciseIdx(null)
-                }
-              }}
-            >
-              <ExerciseRow exercise={ex}
-                oneRepMax={oneRepMaxMap.get(ex.exercise) ?? null}
-                calculatedE1RM={rawE1RMMap.get(ex.exercise) ?? null}
-                exerciseSettings={exerciseSettings[ex.exercise] ?? {}}
-                onSaveSettings={(s) => saveSettings(ex.exercise, s)}
-                onToggleExpand={() => toggleExpanded(exIdx)}
-                onToggleExercise={() => toggleExercise(exIdx)}
-                onToggleSet={(setIdx) => toggleSet(exIdx, setIdx)}
-                onUpdateSet={(setIdx, field, val) => updateSet(exIdx, setIdx, field, val)}
-                onUpdateAllSets={(field, val) => updateAllSets(exIdx, field, val)}
-                onUpdateNotes={(notes) => updateNotes(exIdx, notes)}
-                onAddSet={isEditMode ? undefined : () => addSet(exIdx)}
-                onShowHistory={() => setHistoryExercise(ex)}
-                onRemoveExercise={() => setDeletingExerciseIdx(exIdx)}
-                onRenameExercise={(name) => renameExercise(exIdx, name)}
-                onRemoveSet={(setIdx) => removeSet(exIdx, setIdx)}
-                tourId={exIdx === 0 ? 'first-exercise' : undefined} />
-            </div>
-          )
-        })
-        return group.supersetGroup ? (
-          <SupersetGroup key={gIdx}>{content}</SupersetGroup>
-        ) : (
-          <div key={gIdx}>{content}</div>
-        )
-      })}
+      <DndContext sensors={isEditMode ? [] : sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={workout.exercises.map((ex) => ex.exercise)} strategy={verticalListSortingStrategy}>
+          {groups.map((group, gIdx) => {
+            const content = group.exerciseIndices.map((exIdx) => {
+              const ex = workout.exercises[exIdx]
+              return (
+                <SortableExerciseRow
+                  key={ex.exercise}
+                  exIdx={exIdx}
+                  ex={ex}
+                  isDeleting={deletingExerciseIdx === exIdx}
+                  isEditMode={isEditMode}
+                  oneRepMax={oneRepMaxMap.get(ex.exercise) ?? null}
+                  calculatedE1RM={rawE1RMMap.get(ex.exercise) ?? null}
+                  exerciseSettings={exerciseSettings[ex.exercise] ?? {}}
+                  onSaveSettings={(s) => saveSettings(ex.exercise, s)}
+                  onToggleExpand={() => toggleExpanded(exIdx)}
+                  onToggleExercise={() => toggleExercise(exIdx)}
+                  onToggleSet={(setIdx) => toggleSet(exIdx, setIdx)}
+                  onUpdateSet={(setIdx, field, val) => updateSet(exIdx, setIdx, field, val)}
+                  onUpdateAllSets={(field, val) => updateAllSets(exIdx, field, val)}
+                  onUpdateNotes={(notes) => updateNotes(exIdx, notes)}
+                  onAddSet={() => addSet(exIdx)}
+                  onShowHistory={() => setHistoryExercise(ex)}
+                  onStartDelete={() => setDeletingExerciseIdx(exIdx)}
+                  onDeleteDone={() => { removeExercise(exIdx); setDeletingExerciseIdx(null) }}
+                  onRenameExercise={(name) => renameExercise(exIdx, name)}
+                  onRemoveSet={(setIdx) => removeSet(exIdx, setIdx)}
+                  tourId={exIdx === 0 ? 'first-exercise' : undefined}
+                />
+              )
+            })
+            return group.supersetGroup ? (
+              <SupersetGroup key={gIdx}>{content}</SupersetGroup>
+            ) : (
+              <div key={gIdx}>{content}</div>
+            )
+          })}
+        </SortableContext>
+      </DndContext>
 
       {showFinish && (
         <FinishWorkoutSheet
@@ -381,6 +393,83 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+interface SortableExerciseRowProps {
+  exIdx: number
+  ex: WorkoutExercise
+  isDeleting: boolean
+  isEditMode: boolean
+  oneRepMax: number | null
+  calculatedE1RM: number | null
+  exerciseSettings: import('../../types').ExerciseSettings
+  onSaveSettings: (s: import('../../types').ExerciseSettings) => void
+  onToggleExpand: () => void
+  onToggleExercise: () => void
+  onToggleSet: (setIdx: number) => void
+  onUpdateSet: (setIdx: number, field: 'reps' | 'value', val: number | null) => void
+  onUpdateAllSets: (field: 'reps' | 'value', val: number | null) => void
+  onUpdateNotes: (notes: string) => void
+  onAddSet: () => void
+  onShowHistory: () => void
+  onStartDelete: () => void
+  onDeleteDone: () => void
+  onRenameExercise: (name: string) => void
+  onRemoveSet: (setIdx: number) => void
+  tourId?: string
+}
+
+function SortableExerciseRow({
+  exIdx, ex, isDeleting, isEditMode,
+  oneRepMax, calculatedE1RM, exerciseSettings,
+  onSaveSettings, onToggleExpand, onToggleExercise, onToggleSet,
+  onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet, onShowHistory,
+  onStartDelete, onDeleteDone, onRenameExercise, onRemoveSet, tourId,
+}: SortableExerciseRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: ex.exercise })
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition: isDeleting
+          ? 'max-height 0.25s ease, opacity 0.15s ease'
+          : isDragging ? 'none' : transition ?? undefined,
+        maxHeight: isDeleting ? 0 : undefined,
+        opacity: isDeleting ? 0 : 1,
+        overflow: isDeleting ? 'hidden' : 'visible',
+        zIndex: isDragging ? 10 : undefined,
+        position: 'relative',
+      }}
+      onTransitionEnd={(e) => {
+        if (e.propertyName === 'max-height' && isDeleting) onDeleteDone()
+      }}
+    >
+      <ExerciseRow
+        exercise={ex}
+        oneRepMax={oneRepMax}
+        calculatedE1RM={calculatedE1RM}
+        exerciseSettings={exerciseSettings}
+        onSaveSettings={onSaveSettings}
+        onToggleExpand={onToggleExpand}
+        onToggleExercise={onToggleExercise}
+        onToggleSet={onToggleSet}
+        onUpdateSet={onUpdateSet}
+        onUpdateAllSets={onUpdateAllSets}
+        onUpdateNotes={onUpdateNotes}
+        onAddSet={isEditMode ? undefined : onAddSet}
+        onShowHistory={onShowHistory}
+        onRemoveExercise={onStartDelete}
+        onRenameExercise={onRenameExercise}
+        onRemoveSet={onRemoveSet}
+        dragHandleListeners={isEditMode ? undefined : listeners}
+        dragAttributes={isEditMode ? undefined : attributes}
+        isDragging={isDragging}
+        tourId={tourId}
+      />
     </div>
   )
 }
