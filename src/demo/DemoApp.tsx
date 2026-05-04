@@ -235,7 +235,8 @@ export function DemoApp() {
                         onUpdateNotes={() => {}}
                         onAddSet={() => addSet(i)}
                         onRemoveExercise={() => {}}
-                        onRenameExercise={() => {}} />
+                        onRenameExercise={() => {}}
+                        onRemoveSet={() => {}} />
                     ))}
                     {showFinish && (
                       <FinishWorkoutSheet
