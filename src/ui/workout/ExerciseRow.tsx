@@ -72,6 +72,7 @@ interface ExerciseRowProps {
   onShowHistory?: () => void
   onRemoveExercise: () => void
   onRenameExercise: (newName: string) => void
+  onRemoveSet: (setIdx: number) => void
   tourId?: string
 }
 
@@ -105,13 +106,14 @@ export function ExerciseRow({
   calculatedE1RM,
   exerciseSettings,
   onSaveSettings,
-  onToggleExpand, onToggleExercise, onToggleSet, onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet, onShowHistory, onRemoveExercise, onRenameExercise, tourId,
+  onToggleExpand, onToggleExercise, onToggleSet, onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet, onShowHistory, onRemoveExercise, onRenameExercise, onRemoveSet, tourId,
 }: ExerciseRowProps) {
   const [showNotes, setShowNotes] = useState(false)
   const [showMaxSettings, setShowMaxSettings] = useState(false)
   const [showSwap, setShowSwap] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [swapName, setSwapName] = useState(exercise.exercise)
+  const [deletingSetIdx, setDeletingSetIdx] = useState<number | null>(null)
   const allCompleted = exercise.sets.every((s) => s.completed)
   const unit = exercise.sets[0]?.unit ?? ''
 
@@ -162,7 +164,7 @@ export function ExerciseRow({
   if (!exercise.isExpanded) {
     return (
       <>
-        <SwipeableRow actions={swipeActions} className="mb-1.5">
+        <SwipeableRow actions={swipeActions} className="mb-1.5 rounded-[10px]">
           <div data-tour={tourId ? 'exercise-row' : undefined} className="bg-[#2a2a4a] rounded-[10px] px-3 py-2.5">
             <div className="grid gap-y-1.5" style={{ gridTemplateColumns: 'auto auto auto auto auto', justifyContent: 'space-between' }}>
 
@@ -338,18 +340,42 @@ export function ExerciseRow({
           <div className="flex-1 text-center">{unit || 'Value'}</div>
           <div className="w-7" />
         </div>
-        {exercise.sets.map((set, setIdx) => (
-          <SetRow key={set.setNumber} setNumber={set.setNumber} reps={set.reps}
-            value={set.value} unit={unit} completed={set.completed}
-            pct={set.pct}
-            oneRepMax={oneRepMax}
-            repsFlag={set.reps !== summaryReps}
-            valueFlag={!showSlashedTargets && set.value !== summaryValue}
-            onToggle={() => onToggleSet(setIdx)}
-            onRepsChange={(v) => onUpdateSet(setIdx, 'reps', v)}
-            onValueChange={(v) => onUpdateSet(setIdx, 'value', v)}
-            onTargetClick={set.pct != null ? () => setShowMaxSettings(true) : undefined} />
-        ))}
+        {exercise.sets.map((set, setIdx) => {
+          const isDeleting = deletingSetIdx === setIdx
+          return (
+            <div
+              key={set.setNumber}
+              className={setIdx < exercise.sets.length - 1 ? 'border-b border-[#3a3a5a]' : ''}
+              style={{
+                maxHeight: isDeleting ? 0 : '100px',
+                opacity: isDeleting ? 0 : 1,
+                overflow: 'hidden',
+                transition: isDeleting ? 'max-height 0.25s ease, opacity 0.15s ease' : 'none',
+              }}
+              onTransitionEnd={(e) => {
+                if (e.propertyName === 'max-height' && isDeleting) {
+                  onRemoveSet(setIdx)
+                  setDeletingSetIdx(null)
+                }
+              }}
+            >
+              <SwipeableRow
+                actions={[{ label: 'Delete', icon: <TrashIcon />, color: '#c0392b', onClick: () => setDeletingSetIdx(setIdx) }]}
+              >
+                <SetRow setNumber={set.setNumber} reps={set.reps}
+                  value={set.value} unit={unit} completed={set.completed}
+                  pct={set.pct}
+                  oneRepMax={oneRepMax}
+                  repsFlag={set.reps !== summaryReps}
+                  valueFlag={!showSlashedTargets && set.value !== summaryValue}
+                  onToggle={() => onToggleSet(setIdx)}
+                  onRepsChange={(v) => onUpdateSet(setIdx, 'reps', v)}
+                  onValueChange={(v) => onUpdateSet(setIdx, 'value', v)}
+                  onTargetClick={set.pct != null ? () => setShowMaxSettings(true) : undefined} />
+              </SwipeableRow>
+            </div>
+          )
+        })}
         <div className="flex items-center mt-1">
           {onAddSet && (
             <button onClick={onAddSet}
