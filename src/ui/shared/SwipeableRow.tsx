@@ -19,6 +19,8 @@ const BUTTON_WIDTH = 72
 export function SwipeableRow({ actions, children, className }: SwipeableRowProps) {
   const actionWidth = actions.length * BUTTON_WIDTH
   const { offset, transitioning, isOpen, contentRef, close } = useSwipeActions({ actionWidth })
+  // Buttons start fully off-screen to the right; slide in as content slides out
+  const actionOffset = actionWidth + offset
   const outerRef = useRef<HTMLDivElement>(null)
 
   // Close when a touch starts outside this row
@@ -35,7 +37,11 @@ export function SwipeableRow({ actions, children, className }: SwipeableRowProps
 
   return (
     <div ref={outerRef} className={`relative overflow-hidden ${className ?? ''}`}>
-      <div className="absolute right-0 top-0 bottom-0 flex overflow-hidden rounded-r-[10px]" style={{ width: actionWidth }}>
+      <div className="absolute right-0 top-0 bottom-0 flex" style={{
+        width: actionWidth,
+        transform: `translateX(${actionOffset}px)`,
+        transition: transitioning ? 'transform 0.2s ease' : 'none',
+      }}>
         {actions.map((action, i) => (
           <button
             key={i}
@@ -56,7 +62,6 @@ export function SwipeableRow({ actions, children, className }: SwipeableRowProps
           transform: `translateX(${offset}px)`,
           transition: transitioning ? 'transform 0.2s ease' : 'none',
           position: 'relative',
-          zIndex: 1,
         }}
       >
         {children}
