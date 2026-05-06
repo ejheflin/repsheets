@@ -79,6 +79,21 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
     return prSet
   }, [workout, myLogs])
 
+  const top3HeaviestExercises = useMemo(() => {
+    const maxByExercise = new Map<string, number>()
+    for (const log of myLogs) {
+      if (log.value == null) continue
+      const current = maxByExercise.get(log.exercise) ?? 0
+      if (log.value > current) maxByExercise.set(log.exercise, log.value)
+    }
+    return new Set(
+      [...maxByExercise.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([name]) => name)
+    )
+  }, [myLogs])
+
   const [newPRExercises, setNewPRExercises] = useState(new Set<string>())
   const prevPRNamesRef = useRef(new Set<string>())
   useEffect(() => {
@@ -265,7 +280,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
     setShowFinish(false)
     if (result) {
       setSessionsFetchKey((k) => k + 1)
-      if (hasPR) setShowPRCelebration(true)
+      if (hasPR && [...prExerciseNames].some((n) => top3HeaviestExercises.has(n))) setShowPRCelebration(true)
       setShowSavedToast(true)
       setTimeout(() => setShowSavedToast(false), 2500)
     }
@@ -506,25 +521,6 @@ function SortableExerciseRow({
           zIndex: isNewPR ? 5 : undefined,
         }}
       >
-        {isNewPR && !isDragging && [0, 0.18, 0.36].map((delay, i) => (
-          <div
-            key={i}
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              borderRadius: '50%',
-              border: `2px solid ${['#6c63ff', '#9d97ff', '#c8c5ff'][i]}`,
-              animationName: 'prRipple',
-              animationDuration: '0.9s',
-              animationDelay: `${delay}s`,
-              animationTimingFunction: 'ease-out',
-              animationFillMode: 'forwards',
-              pointerEvents: 'none',
-              zIndex: -1,
-            }}
-          />
-        ))}
       <ExerciseRow
         exercise={ex}
         isPR={isPR}

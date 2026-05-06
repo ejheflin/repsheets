@@ -35,7 +35,7 @@ export function SwipeableRow({ actions, children, className }: SwipeableRowProps
 
   return (
     <div ref={outerRef} className={`relative overflow-hidden ${className ?? ''}`}>
-      <div className="absolute right-0 top-0 bottom-0 flex" style={{ width: actionWidth }}>
+      <div className="absolute right-0 top-0 bottom-0 flex overflow-hidden rounded-r-[10px]" style={{ width: actionWidth }}>
         {actions.map((action, i) => (
           <button
             key={i}
