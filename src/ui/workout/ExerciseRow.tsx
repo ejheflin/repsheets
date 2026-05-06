@@ -124,13 +124,15 @@ export function ExerciseRow({
 
   const summaryValueRef = useRef<HTMLInputElement>(null)
   const prevSummaryValue = useRef(exercise.sets[0]?.value ?? null)
+  const summaryValueUserTyped = useRef(false)
   useEffect(() => {
     const current = exercise.sets[0]?.value ?? null
     const prev = prevSummaryValue.current
     prevSummaryValue.current = current
-    if (current != null && prev == null && document.activeElement === summaryValueRef.current) {
+    if (current != null && prev == null && !summaryValueUserTyped.current && document.activeElement === summaryValueRef.current) {
       summaryValueRef.current?.select()
     }
+    summaryValueUserTyped.current = false
   }, [exercise.sets])
   const allCompleted = exercise.sets.every((s) => s.completed)
   const unit = exercise.sets[0]?.unit ?? ''
@@ -260,7 +262,7 @@ export function ExerciseRow({
                   </button>
                 ) : (
                   <input ref={summaryValueRef} type="text" inputMode="decimal" value={summaryValue ?? ''}
-                    onChange={(e) => onUpdateAllSets('value', e.target.value ? Number(e.target.value) : null)}
+                    onChange={(e) => { summaryValueUserTyped.current = true; onUpdateAllSets('value', e.target.value ? Number(e.target.value) : null) }}
                     onFocus={(e) => e.target.select()}
                     className={`w-16 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
                     placeholder="—" />
