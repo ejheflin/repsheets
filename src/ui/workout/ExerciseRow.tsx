@@ -261,7 +261,7 @@ export function ExerciseRow({
                     {buildSlashedTargets(exercise.sets, oneRepMax)}
                   </button>
                 ) : (
-                  <input ref={summaryValueRef} type="text" inputMode="decimal" value={summaryValue ?? ''}
+                  <input ref={summaryValueRef} type="text" inputMode="decimal" value={summaryValue != null ? Math.round(summaryValue) : ''}
                     onChange={(e) => { summaryValueUserTyped.current = true; onUpdateAllSets('value', e.target.value ? Number(e.target.value) : null) }}
                     onFocus={(e) => e.target.select()}
                     className={`w-16 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}

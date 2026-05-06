@@ -55,16 +55,17 @@ export async function fetchPublicRoutineRows(spreadsheetId: string): Promise<Rou
     const num = rawValue ? parseFloat(rawValue) : NaN
     const isDecimalPct = !isNaN(num) && num > 0 && num < 1 && !rawValue.endsWith('%')
     const isPct = rawValue.endsWith('%') || isDecimalPct
-    const pct: number | null = isPct
+    const rawPct = isPct
       ? (rawValue.endsWith('%') ? parseFloat(rawValue) || null : num * 100)
       : null
+    const pct: number | null = rawPct != null ? Math.round(rawPct) : null
     return {
       program: row[0] ?? '',
       routine: row[1] ?? '',
       exercise: row[2] ?? '',
       sets: String(row[3] ?? '1'),
       reps: row[4] ? Number(row[4]) : null,
-      value: isPct ? null : (rawValue ? Number(rawValue) : null),
+      value: isPct ? null : (rawValue ? Math.round(Number(rawValue)) : null),
       pct,
       unit: row[6] ?? '',
       notes: row[7] ?? '',
@@ -80,16 +81,17 @@ export async function fetchRoutineRows(spreadsheetId: string): Promise<RoutineRo
     const num = rawValue ? parseFloat(rawValue) : NaN
     const isDecimalPct = !isNaN(num) && num > 0 && num < 1 && !rawValue.endsWith('%')
     const isPct = rawValue.endsWith('%') || isDecimalPct
-    const pct: number | null = isPct
+    const rawPct = isPct
       ? (rawValue.endsWith('%') ? parseFloat(rawValue) || null : num * 100)
       : null
+    const pct: number | null = rawPct != null ? Math.round(rawPct) : null
     return {
       program: row[0] ?? '',
       routine: row[1] ?? '',
       exercise: row[2] ?? '',
       sets: String(row[3] ?? '1'),
       reps: row[4] ? Number(row[4]) : null,
-      value: isPct ? null : (rawValue ? Number(rawValue) : null),
+      value: isPct ? null : (rawValue ? Math.round(Number(rawValue)) : null),
       pct,
       unit: row[6] ?? '',
       notes: row[7] ?? '',
