@@ -157,7 +157,7 @@ export function LogsTab() {
       </div>
 
       {isShared && (
-        <div className="sticky top-0 z-10 bg-[#1a1a2e] -mx-4 px-4 pb-2 mb-1">
+        <div style={{ top: 'env(safe-area-inset-top)' }} className="sticky z-10 bg-[#1a1a2e] -mx-4 px-4 pb-2 mb-1">
           <AthleteFilter athletes={athletes} selected={selectedAthletes} onToggle={toggleAthlete} onLongPressMe={handleOpenRename} />
         </div>
       )}
