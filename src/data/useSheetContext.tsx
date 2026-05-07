@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import { getPreference, setPreference } from './db'
+import { isGhostActive } from '../demo/ghostMode'
 
 interface SheetContextValue {
   spreadsheetId: string | null
@@ -16,6 +17,10 @@ export function SheetProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
+    if (isGhostActive()) {
+      setLoaded(true)
+      return
+    }
     getPreference('activeSheet').then((id) => {
       if (id) setId(id)
       setLoaded(true)
@@ -24,7 +29,7 @@ export function SheetProvider({ children }: { children: ReactNode }) {
 
   const setSpreadsheetId = (id: string) => {
     setId(id)
-    setPreference('activeSheet', id)
+    if (!isGhostActive()) setPreference('activeSheet', id)
   }
 
   if (!loaded) return null

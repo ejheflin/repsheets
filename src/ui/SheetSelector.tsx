@@ -4,6 +4,8 @@ import { useSheetContext } from '../data/useSheetContext'
 import { listRepSheets, createExampleSheet } from '../sheets/driveApi'
 import { fetchPublicRoutineRows } from '../sheets/sheetsApi'
 import { TEMPLATE_SHEET_ID } from '../config'
+import { isGhostActive } from '../demo/ghostMode'
+import { useGhostToggle } from '../demo/useGhostToggle'
 import type { RepSheet, RoutineRow } from '../types'
 
 type View = 'select' | 'create'
@@ -11,6 +13,7 @@ type View = 'select' | 'create'
 export function SheetSelector() {
   const { user } = useAuth()
   const { setSpreadsheetId } = useSheetContext()
+  const handleGhostToggle = useGhostToggle()
   const [sheets, setSheets] = useState<RepSheet[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [view, setView] = useState<View>('select')
@@ -23,6 +26,7 @@ export function SheetSelector() {
   const [error, setError] = useState('')
   useEffect(() => {
     if (!user) return
+    if (isGhostActive()) { setIsLoading(false); return }
     listRepSheets().then((s) => {
       setSheets(s)
       setIsLoading(false)
@@ -133,7 +137,7 @@ export function SheetSelector() {
 
   return (
     <div className="min-h-screen bg-[#1a1a2e] text-white p-6">
-      <h1 className="text-2xl font-bold mb-1">Welcome to repsheets</h1>
+      <h1 className="text-2xl font-bold mb-1" onClick={handleGhostToggle}>Welcome to repsheets</h1>
       <p className="text-gray-400 text-sm mb-6">
         {sheets.length > 0
           ? 'Select an existing sheet or create a new one'

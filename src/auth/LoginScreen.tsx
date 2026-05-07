@@ -1,6 +1,6 @@
 import { useAuth } from './useAuth'
-import { useDemo } from '../demo/DemoProvider'
-import { useState, useEffect, useRef } from 'react'
+import { useGhostToggle } from '../demo/useGhostToggle'
+import { useState, useEffect } from 'react'
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => void
@@ -68,22 +68,9 @@ function StaggeredBullets() {
 
 export function LoginScreen() {
   const { login } = useAuth()
-  const { startDemo } = useDemo()
+  const handleGhostToggle = useGhostToggle()
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showIOSHint, setShowIOSHint] = useState(false)
-
-  const tapCount = useRef(0)
-  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const handleIconTap = () => {
-    tapCount.current += 1
-    if (tapTimer.current) clearTimeout(tapTimer.current)
-    tapTimer.current = setTimeout(() => { tapCount.current = 0 }, 2000)
-    if (tapCount.current >= 7) {
-      tapCount.current = 0
-      if (tapTimer.current) clearTimeout(tapTimer.current)
-      startDemo()
-    }
-  }
 
   useEffect(() => {
     const isInstalled =
@@ -115,7 +102,7 @@ export function LoginScreen() {
   return (
     <div>
       <div className="min-h-screen bg-[#1a1a2e] flex flex-col items-center justify-center px-6 relative">
-        <img src="/icon-192.png" alt="repsheets" onClick={handleIconTap} className="w-44 h-44 mb-5 rounded-[22%] shadow-[0_6px_24px_rgba(0,0,0,0.6)]" />
+        <img src="/icon-192.png" alt="repsheets" onClick={handleGhostToggle} className="w-44 h-44 mb-5 rounded-[22%] shadow-[0_6px_24px_rgba(0,0,0,0.6)]" />
         <h1 className="text-4xl font-bold text-white mb-6">repsheets</h1>
         <StaggeredBullets />
         <div className="mt-10 flex flex-col items-center gap-3">
