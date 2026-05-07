@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+body {
+  background-color: #1a1a2e;
+}
+
 @keyframes slideUpSheet {
   from { transform: translateY(100%); }
   to   { transform: translateY(0); }
