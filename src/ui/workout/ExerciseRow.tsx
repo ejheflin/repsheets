@@ -153,6 +153,12 @@ export function ExerciseRow({
   const showSlashedTargets = exercise.sets.some((s) => s.pct != null) && !allSamePct
   const hasAnyPct = exercise.sets.some((s) => s.pct != null)
 
+  // Plate calculator: next unchecked set, or last set once all are done
+  const plateSet = exercise.sets.find((s) => !s.completed) ?? exercise.sets[exercise.sets.length - 1]
+  const nextPlateWeight = plateSet
+    ? (plateSet.pct != null ? targetWeight(plateSet.pct, oneRepMax) : plateSet.value)
+    : null
+
   const notesInput = showNotes ? (
     <div className="mt-1.5 ml-5">
       <input
@@ -213,8 +219,8 @@ export function ExerciseRow({
                 </button>
               </div>
               <div className="flex items-center justify-center">
-                {summaryValue && !showSlashedTargets ? (
-                  <PlateCalculator weight={summaryValue} unit={unit} exercise={exercise.exercise} />
+                {nextPlateWeight ? (
+                  <PlateCalculator weight={nextPlateWeight} unit={unit} exercise={exercise.exercise} />
                 ) : null}
               </div>
               <button data-tour={tourId ? 'exercise-checkbox' : undefined} onClick={onToggleExercise} className="flex items-center justify-end">
@@ -363,9 +369,9 @@ export function ExerciseRow({
           <button onClick={onToggleExpand} className="mr-1.5 flex items-center"><ChevronDown /></button>
           <button onClick={onToggleExpand} className="text-left min-w-0 overflow-hidden font-bold text-[15px] truncate">{exercise.exercise}</button>
         </div>
-        <div className={`flex items-center justify-center ${valueHasMismatch ? 'invisible' : ''}`}>
-          {summaryValue && !showSlashedTargets ? (
-            <PlateCalculator weight={summaryValue} unit={unit} exercise={exercise.exercise} />
+        <div className="flex items-center justify-center">
+          {nextPlateWeight ? (
+            <PlateCalculator weight={nextPlateWeight} unit={unit} exercise={exercise.exercise} />
           ) : null}
         </div>
         <button onClick={onToggleExercise} className="flex items-center justify-end">
