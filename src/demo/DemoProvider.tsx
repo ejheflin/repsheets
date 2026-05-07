@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
 
+const DEMO_KEY = 'repsheets_demo'
+
 interface DemoContextValue {
   isDemo: boolean
   startDemo: () => void
@@ -11,14 +13,13 @@ const DemoContext = createContext<DemoContextValue>({
 })
 
 export function DemoProvider({ children }: { children: ReactNode }) {
-  const [isDemo, setIsDemo] = useState(false)
+  const [isDemo, setIsDemo] = useState(() => localStorage.getItem(DEMO_KEY) === '1')
+
+  const startDemo = () => { localStorage.setItem(DEMO_KEY, '1'); setIsDemo(true) }
+  const exitDemo  = () => { localStorage.removeItem(DEMO_KEY);  setIsDemo(false) }
 
   return (
-    <DemoContext.Provider value={{
-      isDemo,
-      startDemo: () => setIsDemo(true),
-      exitDemo: () => setIsDemo(false),
-    }}>
+    <DemoContext.Provider value={{ isDemo, startDemo, exitDemo }}>
       {children}
     </DemoContext.Provider>
   )
