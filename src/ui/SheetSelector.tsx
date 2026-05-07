@@ -88,7 +88,7 @@ export function SheetSelector() {
 
   if (view === 'create') {
     return (
-      <div className="min-h-screen bg-[#1a1a2e] text-white p-6">
+      <div style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top))' }} className="min-h-screen bg-[#1a1a2e] text-white px-6 pb-6">
         <h1 className="text-2xl font-bold mb-1">Create Your Sheet</h1>
         <p className="text-gray-400 text-sm mb-6">Select programs to include in your workout sheet</p>
 
@@ -136,7 +136,7 @@ export function SheetSelector() {
   }
 
   return (
-    <div className="min-h-screen bg-[#1a1a2e] text-white p-6">
+    <div style={{ paddingTop: 'calc(1.5rem + env(safe-area-inset-top))' }} className="min-h-screen bg-[#1a1a2e] text-white px-6 pb-6">
       <h1 className="text-2xl font-bold mb-1" onClick={handleGhostToggle}>Welcome to repsheets</h1>
       <p className="text-gray-400 text-sm mb-6">
         {sheets.length > 0

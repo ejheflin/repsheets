@@ -34,7 +34,7 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-[#1a1a2e] text-white font-sans">
-      <div className="fixed top-0 left-0 right-0 z-10 bg-[#1a1a2e]">
+      <div style={{ paddingTop: 'env(safe-area-inset-top)' }} className="fixed top-0 left-0 right-0 z-10 bg-[#1a1a2e]">
         <div className="flex justify-between items-center px-4 py-2 text-[11px] text-gray-500 max-w-lg mx-auto">
           <span className="w-16 h-6" onClick={handleGhostToggle} />
           <button onClick={handleSyncTap}>
@@ -42,7 +42,7 @@ export function Layout({ children }: LayoutProps) {
           </button>
         </div>
       </div>
-      <div className="pt-8 pb-20 px-4 max-w-lg mx-auto">
+      <div style={{ paddingTop: 'calc(2rem + env(safe-area-inset-top))' }} className="pb-20 px-4 max-w-lg mx-auto">
         {children(activeTab, setActiveTab)}
       </div>
       <div className="max-w-lg mx-auto">
