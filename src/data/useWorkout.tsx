@@ -6,7 +6,7 @@ import { expandRoutine } from '../workout/setInference'
 import { resolveSetValues } from '../workout/autofill'
 import { fetchRoutineRows, fetchLogEntries, appendLogEntries, updateLogRows, type IndexedLogEntry } from '../sheets/sheetsApi'
 import { localDateString } from '../utils'
-import { saveWorkout, getWorkout, clearWorkout, saveLogs, getLogs, queueLogEntries } from './db'
+import { saveWorkout, getWorkout, clearWorkout, saveLogs, getLogs, queueLogEntries, saveRoutines } from './db'
 import { checkPendingSync } from './syncEngine'
 import type { RoutineRow, WorkoutState, WorkoutExercise, LogEntry, EditModeState } from '../types'
 
@@ -138,15 +138,25 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   ) => {
     if (!spreadsheetId || !user) return
 
-    const expanded = expandRoutine(routineRows)
+    const [routineResult, logResult] = await Promise.allSettled([
+      fetchRoutineRows(spreadsheetId).then(async (rows) => {
+        await saveRoutines(spreadsheetId, rows)
+        return rows
+      }),
+      fetchLogEntries(spreadsheetId).then(async (entries) => {
+        await saveLogs(spreadsheetId, entries)
+        return entries
+      }),
+    ])
 
-    let logs: LogEntry[] = []
-    try {
-      logs = await fetchLogEntries(spreadsheetId)
-      await saveLogs(spreadsheetId, logs)
-    } catch {
-      logs = await getLogs(spreadsheetId)
-    }
+    const freshRows = routineResult.status === 'fulfilled'
+      ? routineResult.value.filter((r) => r.program === program && r.routine === routineName)
+      : routineRows
+    const expanded = expandRoutine(freshRows)
+
+    const logs: LogEntry[] = logResult.status === 'fulfilled'
+      ? logResult.value
+      : await getLogs(spreadsheetId)
 
     const exerciseNames: string[] = []
     for (const s of expanded) {
