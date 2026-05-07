@@ -42,7 +42,7 @@ interface WorkoutTabProps {
 export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const {
     workout, toggleSet, toggleExercise, updateSet, updateAllSets, updateNotes,
-    toggleExpanded, addSet, removeSet, reorderExercises, removeExercise, renameExercise, finishWorkout, discardWorkout, saveEditedWorkout, updateEditDate, loadPastWorkout,
+    toggleExpanded, addSet, removeSet, reorderExercises, removeExercise, renameExercise, finishWorkout, discardWorkout, saveEditedWorkout, updateEditDate, loadPastWorkout, prefillPctValue,
   } = useWorkout()
   const { spreadsheetId } = useSheetContext()
   const { settings: exerciseSettings, saveSettings } = useExerciseSettings(spreadsheetId)
@@ -155,15 +155,15 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
     return map
   }, [rawE1RMMap, exerciseSettings])
 
-  // Pre-fill target weights for pct-based sets that have no log history
+  // Pre-fill target weights for pct-based sets with no log history; re-runs when 1RM changes
   useEffect(() => {
     if (!workout || workout.editMode) return
     workout.exercises.forEach((ex, exIdx) => {
       const orm = oneRepMaxMap.get(ex.exercise)
       if (orm == null) return
       ex.sets.forEach((set, setIdx) => {
-        if (set.pct != null && set.value === null) {
-          updateSet(exIdx, setIdx, 'value', Math.round(set.pct * orm / 100 / 5) * 5)
+        if (set.pct != null && !set.completed && (set.value === null || set.fromPct)) {
+          prefillPctValue(exIdx, setIdx, Math.round(set.pct * orm / 100 / 5) * 5)
         }
       })
     })

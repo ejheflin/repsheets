@@ -58,6 +58,7 @@ export interface WorkoutSet {
   completed: boolean
   isAdded: boolean      // true if user added this set (not in routine config)
   rowIndex?: number     // 1-based sheet row in Log tab; only set in edit mode
+  fromPct?: boolean     // true when value was computed from pct×1RM with no log history; cleared on manual edit
 }
 
 export interface EditModeState {

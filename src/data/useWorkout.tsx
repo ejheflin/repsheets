@@ -23,6 +23,7 @@ interface WorkoutContextValue {
   isLoading: boolean
   startWorkout: (program: string, routineName: string, routineRows: RoutineRow[]) => Promise<void>
   loadPastWorkout: (entries: IndexedLogEntry[], program: string, routine: string, athlete: string, date: string) => Promise<void>
+  prefillPctValue: (exerciseIdx: number, setIdx: number, value: number) => void
   updateEditDate: (date: string) => void
   saveEditedWorkout: () => Promise<void>
   toggleSet: (exerciseIdx: number, setIdx: number) => void
@@ -212,6 +213,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
             unit: s.unit,
             completed: false,
             isAdded: false,
+            fromPct: s.pct != null && resolved.value === null,
           }
         }),
       }
@@ -248,6 +250,17 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const prefillPctValue = useCallback((exerciseIdx: number, setIdx: number, value: number) => {
+    setWorkout((prev) => {
+      if (!prev) return prev
+      const next = structuredClone(prev)
+      const set = next.exercises[exerciseIdx].sets[setIdx]
+      set.value = value
+      set.fromPct = true
+      return next
+    })
+  }, [])
+
   const updateSet = useCallback((
     exerciseIdx: number,
     setIdx: number,
@@ -257,7 +270,9 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     setWorkout((prev) => {
       if (!prev) return prev
       const next = structuredClone(prev)
-      next.exercises[exerciseIdx].sets[setIdx][field] = val
+      const set = next.exercises[exerciseIdx].sets[setIdx]
+      set[field] = val
+      if (field === 'value') set.fromPct = false
       return next
     })
   }, [])
@@ -270,7 +285,10 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     setWorkout((prev) => {
       if (!prev) return prev
       const next = structuredClone(prev)
-      next.exercises[exerciseIdx].sets.forEach((s) => { s[field] = val })
+      next.exercises[exerciseIdx].sets.forEach((s) => {
+        s[field] = val
+        if (field === 'value') s.fromPct = false
+      })
       return next
     })
   }, [])
@@ -479,7 +497,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
 
   return (
     <WorkoutContext.Provider value={{
-      workout, isLoading, startWorkout, loadPastWorkout, updateEditDate, saveEditedWorkout,
+      workout, isLoading, startWorkout, loadPastWorkout, prefillPctValue, updateEditDate, saveEditedWorkout,
       toggleSet, toggleExercise, updateSet, updateAllSets, updateNotes, toggleExpanded,
       addSet, removeSet, reorderExercises, removeExercise, renameExercise, finishWorkout, discardWorkout,
     }}>
