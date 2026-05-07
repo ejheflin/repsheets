@@ -6,7 +6,7 @@ import { expandRoutine } from '../workout/setInference'
 import { resolveSetValues } from '../workout/autofill'
 import { fetchRoutineRows, fetchLogEntries, appendLogEntries, updateLogRows, type IndexedLogEntry } from '../sheets/sheetsApi'
 import { localDateString } from '../utils'
-import { saveWorkout, getWorkout, clearWorkout, saveLogs, getLogs, queueLogEntries, saveRoutines } from './db'
+import { saveWorkout, getWorkout, clearWorkout, saveLogs, getLogs, getRoutines, queueLogEntries, saveRoutines } from './db'
 import { checkPendingSync } from './syncEngine'
 import type { RoutineRow, WorkoutState, WorkoutExercise, LogEntry, EditModeState } from '../types'
 
@@ -50,11 +50,38 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    getWorkout().then((w) => {
-      if (w) setWorkout(w)
+    const load = async () => {
+      const w = await getWorkout()
+      if (!w) { setIsLoading(false); return }
+
+      // Backfill pct from cached routines so the target column is present before
+      // the async refresh effect runs (fixes saves predating pct support).
+      if (spreadsheetId) {
+        const cached = await getRoutines(spreadsheetId)
+        const routineRows = cached.filter((r) => r.program === w.program && r.routine === w.routine)
+        if (routineRows.length > 0) {
+          const expanded = expandRoutine(routineRows)
+          const patched = structuredClone(w)
+          for (const ex of patched.exercises) {
+            for (const set of ex.sets) {
+              if (set.pct !== undefined) continue
+              const match = expanded.find(
+                (s) => s.exercise === ex.exercise && s.setNumber === set.setNumber
+              )
+              if (match) set.pct = match.pct ?? null
+            }
+          }
+          setWorkout(patched)
+          setIsLoading(false)
+          return
+        }
+      }
+
+      setWorkout(w)
       setIsLoading(false)
-    })
-  }, [])
+    }
+    load()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (workout) {
@@ -149,9 +176,10 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       }),
     ])
 
-    const freshRows = routineResult.status === 'fulfilled'
+    const filtered = routineResult.status === 'fulfilled'
       ? routineResult.value.filter((r) => r.program === program && r.routine === routineName)
-      : routineRows
+      : []
+    const freshRows = filtered.length > 0 ? filtered : routineRows
     const expanded = expandRoutine(freshRows)
 
     const logs: LogEntry[] = logResult.status === 'fulfilled'
