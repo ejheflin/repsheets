@@ -1,20 +1,718 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" href="/favicon.png" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#1a1a2e" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>repsheets</title>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-    <script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "813326bc65264b59b0c78e32d9f9ef2f"}'></script>
-  </body>
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1a1a2e" />
+  <title>repsheets</title>
+  <script>
+    if (localStorage.getItem('repsheets_user')) {
+      location.replace('/app.html');
+    }
+    const _lp = new URLSearchParams(location.search);
+    if (_lp.has('join') || _lp.has('import') || _lp.has('test')) {
+      location.replace('/app.html' + location.search);
+    }
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #1a1a2e;
+      --surface: #2a2a4a;
+      --accent: #6c63ff;
+      --text: #e8e8f0;
+      --muted: #7878a0;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: radial-gradient(ellipse 80% 50% at 50% 0%, #2a2a4a 0%, var(--bg) 70%);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0;
+      z-index: 300; padding: 20px 32px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .wordmark { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.04em; }
+    .wordmark em { font-style: normal; color: var(--accent); }
+
+    .nav-cta {
+      background: var(--accent); color: white;
+      font-size: 0.85rem; font-weight: 600;
+      padding: 8px 18px; border-radius: 10px; cursor: pointer;
+      text-decoration: none; display: inline-block;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: auto; display: flex; flex-direction: column;
+      align-items: center; justify-content: flex-start;
+      text-align: center; padding: 110px 24px 8vh;
+      position: relative; overflow: hidden;
+    }
+
+    .hero-glow {
+      position: absolute; width: 800px; height: 600px; border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(108,99,255,0.16) 0%, transparent 65%);
+      top: 42%; left: 50%; transform: translate(-50%,-50%); pointer-events: none;
+    }
+
+    .hero-eyebrow {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 1.2rem;
+    }
+
+    .hero-logo {
+      border-radius: 16px; margin-bottom: 1.2rem; display: block; margin-left: auto; margin-right: auto;
+    }
+
+    .hero-title {
+      font-size: clamp(3rem, 9vw, 7rem); font-weight: 700;
+      letter-spacing: -0.04em; line-height: 1.02; margin-bottom: 1.4rem;
+    }
+
+    .hero-title em { font-style: normal; color: var(--accent); }
+
+    .hero-sub {
+      font-size: clamp(1rem, 2vw, 1.2rem); color: var(--muted);
+      max-width: 480px; line-height: 1.65; margin-bottom: 2.5rem;
+    }
+
+    .hero-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+    .btn-primary {
+      background: var(--accent); color: white; font-size: 1rem; font-weight: 600;
+      padding: 13px 26px; border-radius: 12px; border: none; cursor: pointer;
+    }
+
+    .btn-ghost {
+      background: transparent; color: var(--text); font-size: 1rem; font-weight: 500;
+      padding: 13px 26px; border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1); cursor: pointer;
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(108,99,255,0.22), transparent);
+      max-width: 800px; margin: 0 auto;
+    }
+
+    /* ── SCROLL STAGE ── */
+    .scroll-stage { position: relative; height: 460vh; }
+
+    .sticky-layer {
+      position: sticky; top: 0; height: 100svh; overflow: hidden;
+    }
+
+    #phone-canvas {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: block;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    #loading {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      color: var(--muted); font-size: 0.9rem;
+      letter-spacing: 0.05em; z-index: 11;
+      pointer-events: none;
+    }
+
+    /* ── COPY BLOCKS ── */
+    .copy-block {
+      position: absolute; opacity: 0;
+      max-width: 320px; pointer-events: none; z-index: 5;
+    }
+    #cp-1 { top: 8%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 48px); max-width: 600px; }
+    #cp-2 { bottom: 6%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 48px); max-width: 600px; }
+    #cp-4 { bottom: 2%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 48px); max-width: 600px; }
+    #cp-3 { bottom: 6%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 48px); max-width: 600px; }
+    #cp-1 .feat-list, #cp-2 .feat-list, #cp-3 .feat-list, #cp-4 .feat-list { color: #ffffff; font-weight: 700; }
+    #cp-1 .feat-tag, #cp-2 .feat-tag, #cp-3 .feat-tag, #cp-4 .feat-tag { font-size: 0.9rem; }
+    #cp-1 .feat-title, #cp-1 .feat-list li { opacity: 0; }
+
+    /* Desktop */
+    @media (min-width: 768px) {
+      #cp-1 { top: 8%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 96px); max-width: 700px; }
+      #cp-2 { bottom: 8%; left: 50%; top: auto; right: auto; transform: translateX(-50%); text-align: left; width: calc(100vw - 96px); max-width: 700px; }
+      #cp-3 { bottom: 8%; left: 50%; top: auto; right: auto; transform: translateX(-50%); text-align: left; width: calc(100vw - 96px); max-width: 700px; }
+      #cp-4 { top: auto; bottom: 8%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 96px); max-width: 700px; }
+    }
+
+    .feat-tag {
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 0.85rem;
+    }
+
+    .feat-title {
+      font-size: clamp(1.8rem, 3vw, 2.6rem); font-weight: 700;
+      letter-spacing: -0.035em; line-height: 1.07; margin-bottom: 1rem;
+    }
+
+    .feat-list {
+      list-style: none; padding: 0;
+      font-size: clamp(0.9rem, 1.5vw, 1rem); color: var(--muted); line-height: 1.75;
+    }
+    .feat-list li { padding-left: 1.1em; position: relative; margin-bottom: 0.3em; }
+    .feat-list li::before { content: '—'; position: absolute; left: 0; color: var(--accent); }
+
+    /* ── SPOTLIGHT ── */
+    .spotlight { padding: 14vh 48px; max-width: 960px; margin: 0 auto; text-align: center; }
+    .spotlight-icon { margin: 0 auto 2.5rem; display: block; }
+    .spotlight h2 {
+      font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 700;
+      letter-spacing: -0.035em; line-height: 1.1; margin-bottom: 1.2rem;
+    }
+    .spotlight h2 em { font-style: normal; color: var(--accent); }
+    .spotlight p { font-size: 1.05rem; color: var(--muted); line-height: 1.75; }
+
+    /* ── TRUST STRIP ── */
+    .trust {
+      display: flex; align-items: center; justify-content: center;
+      flex-wrap: wrap; gap: 36px; padding: 56px 40px;
+    }
+    .trust-item { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: var(--muted); }
+    .trust-item svg { color: var(--accent); flex-shrink: 0; }
+
+    /* ── CTA ── */
+    .cta { padding: 14vh 40px; text-align: center; position: relative; overflow: hidden; }
+    .cta-glow {
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 60% 60% at 50% 50%, rgba(108,99,255,0.13) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .cta h2 {
+      font-size: clamp(2.2rem, 5vw, 3.8rem); font-weight: 700;
+      letter-spacing: -0.04em; line-height: 1.05; margin-bottom: 0.75rem; position: relative;
+    }
+    .cta p { font-size: 1rem; color: var(--muted); margin-bottom: 2.5rem; position: relative; }
+    .cta-btn {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--accent); color: white; font-size: 1.05rem; font-weight: 600;
+      padding: 15px 32px; border-radius: 14px; cursor: pointer;
+      letter-spacing: -0.01em; position: relative;
+      box-shadow: 0 8px 32px rgba(108,99,255,0.3);
+      text-decoration: none;
+    }
+
+    footer {
+      padding: 28px 40px; text-align: center; font-size: 0.78rem; color: var(--muted);
+      border-top: 1px solid rgba(255,255,255,0.05);
+      display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;
+    }
+    footer a { color: #555; text-decoration: none; font-size: 0.72rem; }
+    footer a:hover { color: #888; }
+    footer .sep { color: var(--muted); font-size: 0.72rem; }
+
+    .anim-init { opacity: 0; transform: translateY(20px); }
+    .anim-scroll { opacity: 0; transform: translateY(22px); }
+  </style>
+</head>
+<body>
+
+<canvas id="phone-canvas"></canvas>
+<div id="loading">Loading model…</div>
+
+<nav>
+  <div class="wordmark">rep<em>sheets</em></div>
+  <a href="/app.html" class="nav-cta">Open app</a>
+</nav>
+
+<!-- ══ HERO ══ -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <img src="/icon-192.png" class="hero-logo anim-init" alt="repsheets" width="64" height="64">
+  <h1 class="hero-title anim-init">repsheets</h1>
+  <p class="hero-sub anim-init">A free Google Sheets workout tracker.</p>
+</section>
+
+<!-- ══ SCROLL STAGE ══ -->
+<div class="scroll-stage">
+  <div class="sticky-layer">
+    <div class="copy-block" id="cp-1">
+      <h2 class="feat-title">No account required.</h2>
+      <ul class="feat-list">
+        <li>Sign in with Google — start from a template or build your own routine.</li>
+        <li>Your data lives in a Google Sheet you own.</li>
+        <li>Customize it however you like.</li>
+        <li>Share with whomever you like.</li>
+      </ul>
+    </div>
+
+    <div class="copy-block" id="cp-2">
+      <div class="feat-tag">At a Glance</div>
+      <h2 class="feat-title">Less phone.<br>More workout.</h2>
+      <ul class="feat-list">
+        <li>No scrolling — sets, weights, targets, history, and plate math on one screen.</li>
+        <li>Drill into the details when you need them.</li>
+        <li>Skip the check marks — or don't.</li>
+      </ul>
+    </div>
+
+    <div class="copy-block" id="cp-3">
+      <div class="feat-tag">Full Control</div>
+      <h2 class="feat-title">Dial in your targets.</h2>
+      <ul class="feat-list">
+        <li>Set your 1RM or Training Max to autocalculate every set.</li>
+        <li>Or skip it and just log your lifts.</li>
+      </ul>
+    </div>
+
+    <div class="copy-block" id="cp-4">
+      <div class="feat-tag">Train Together</div>
+      <h2 class="feat-title">Multiple athletes.</h2>
+      <ul class="feat-list">
+        <li>Invite partners, coaches, or clients — log together.</li>
+        <li>Compare, compete, or stay accountable.</li>
+        <li>Share your program with anyone via link.</li>
+        <li>You own the sheet — revoke access any time.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ══ SPOTLIGHT ══ -->
+<section class="spotlight" id="spotlight">
+  <svg class="spotlight-icon" width="68" height="68" viewBox="0 0 68 68" fill="none">
+    <rect width="68" height="68" rx="13" fill="#1d6c3e"/>
+    <rect x="13" y="17" width="42" height="34" rx="3" fill="#2e8f52"/>
+    <line x1="13" y1="26" x2="55" y2="26" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+    <line x1="13" y1="35" x2="55" y2="35" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+    <line x1="13" y1="44" x2="55" y2="44" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+    <line x1="32" y1="17" x2="32" y2="51" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+  </svg>
+  <h2 class="anim-scroll">No databases.<br><em>Just your spreadsheet.</em></h2>
+  <p class="anim-scroll">Every set you log is a real row in a Google Sheet you own. Export it, share it with your coach, or analyze it however you like — repsheets gives you control of your workouts and your data.</p>
+</section>
+
+<div class="divider"></div>
+
+<div class="trust" id="trust-strip">
+  <div class="trust-item">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+    Add to Home Screen
+  </div>
+  <div class="trust-item">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 6s4-2 11-2 11 2 11 2M1 12s4-2 11-2 11 2 11 2"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+    Works offline
+  </div>
+  <div class="trust-item">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    No account needed
+  </div>
+  <div class="trust-item">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+    Free forever
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<section class="cta">
+  <div class="cta-glow"></div>
+  <h2 class="anim-scroll">Start logging.<br>Own your data.</h2>
+  <p class="anim-scroll">No credit card. No account. Just sign in with Google and go.</p>
+  <a href="/app.html" class="cta-btn anim-scroll">
+    Open repsheets
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+  </a>
+</section>
+
+<footer>
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/>
+  </svg>
+  <a href="https://github.com/ejheflin/repsheets" target="_blank" rel="noopener noreferrer">Open Source</a>
+  <span class="sep">·</span>
+  <a href="/privacy.html">Privacy Policy</a>
+  <span class="sep">·</span>
+  <a href="/tos.html">Terms</a>
+</footer>
+
+<!-- ══ THREE.JS + GSAP ══ -->
+<script type="module">
+import * as THREE          from 'three';
+import { GLTFLoader }      from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader }     from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { gsap }            from 'gsap';
+import { ScrollTrigger }   from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
+
+history.scrollRestoration = 'manual';
+window.scrollTo(0, 0);
+
+let stableH = window.innerHeight;
+
+// ─── HERO ENTRANCE ───────────────────────────────────────────────────────────
+gsap.utils.toArray('.hero .anim-init').forEach((el, i) => {
+  gsap.to(el, { opacity: 1, y: 0, duration: 0.75, ease: 'power2.out', delay: 0.15 + i * 0.18 });
+});
+
+// ─── RENDERER ────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('phone-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, stableH);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+// ─── SCENE & CAMERA ──────────────────────────────────────────────────────────
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(28, window.innerWidth / stableH, 0.01, 200);
+camera.position.set(0, 0, 12);
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const key = new THREE.DirectionalLight(0xffffff, 3.5);
+key.position.set(3, 6, 6); key.castShadow = true; scene.add(key);
+const fill = new THREE.DirectionalLight(0x8888ff, 0.7);
+fill.position.set(-4, 2, 4); scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffffff, 1.2);
+rim.position.set(0, -5, -4); scene.add(rim);
+
+// ─── VIDEOS + VIDEO TEXTURES ─────────────────────────────────────────────────
+const videos = [1, 2, 3, 4].map(n => {
+  const v = Object.assign(document.createElement('video'), {
+    loop: true, muted: true, playsInline: true, preload: 'auto',
+  });
+  Object.assign(v.style, {
+    position: 'fixed', top: '-2px', left: '-2px',
+    width: '1px', height: '1px', opacity: '0', pointerEvents: 'none',
+  });
+  v.innerHTML = `
+    <source src="/videos/screen0${n}.webm" type="video/webm">
+    <source src="/videos/screen0${n}.mp4"  type="video/mp4">
+  `;
+  document.body.appendChild(v);
+  return v;
+});
+
+// CanvasTexture avoids the VideoTexture readyState race — we only draw when
+// the video has data, so WebGL never sees a 0×0 incomplete texture.
+const videoCanvas = document.createElement('canvas');
+videoCanvas.width = 888; videoCanvas.height = 1920;
+const videoCtx = videoCanvas.getContext('2d');
+videoCtx.fillStyle = '#000';
+videoCtx.fillRect(0, 0, videoCanvas.width, videoCanvas.height);
+const canvasTexture = new THREE.CanvasTexture(videoCanvas);
+canvasTexture.colorSpace = THREE.SRGBColorSpace;
+canvasTexture.minFilter = THREE.LinearFilter;
+canvasTexture.magFilter = THREE.LinearFilter;
+
+let videoEnabled = false;
+
+function drawSsPng() {
+  videoCtx.save();
+  videoCtx.translate(videoCanvas.width, 0);
+  videoCtx.rotate(Math.PI / 2);
+  videoCtx.drawImage(ssImg, 0, 0, videoCanvas.height, videoCanvas.width);
+  videoCtx.restore();
+  canvasTexture.needsUpdate = true;
+  if (screenMesh?._screenTextures) screenMesh._screenTextures.forEach(t => { t.needsUpdate = true; });
+}
+
+const ssImg = new Image();
+ssImg.onload = () => { drawSsPng(); };
+ssImg.src = '/ss.png';
+
+let activeVideoIdx = 0;
+let screenMesh = null;
+
+function switchToVideo(idx) {
+  if (idx === activeVideoIdx) return;
+  videos[activeVideoIdx].pause();
+  activeVideoIdx = idx;
+  videos[activeVideoIdx].currentTime = 0;
+  videos[activeVideoIdx].play().catch(() => {});
+}
+
+// ─── LOAD MODEL ──────────────────────────────────────────────────────────────
+let phone = null, vpW = 0, vpH = 0, modelCentreY = 0;
+
+const draco = new DRACOLoader();
+draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.7/');
+
+const loader = new GLTFLoader();
+loader.setDRACOLoader(draco);
+
+loader.load(
+  '/models/iphone_15_pro_max.glb',
+  (gltf) => {
+    phone = gltf.scene;
+    scene.add(phone);
+
+    const screenTextures = [];
+    const matteDark = new THREE.MeshStandardMaterial({ color: 0x0d0d0d, metalness: 0.03, roughness: 0.97 });
+
+    phone.traverse(child => {
+      if (!child.isMesh) return;
+      const matName = child.material?.name ?? '';
+
+      if (matName === 'glass') {
+        child.material = new THREE.MeshBasicMaterial({
+          color: 0xbbccdd, transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide,
+        });
+      } else if (matName === 'backpanel') {
+        // Screen face occupies U:[0.378,0.622] V:[0.506,0.744] in the backpanel UV atlas.
+        // Values from Python analysis of the GLB geometry — matches the bezel mesh UV bounds exactly.
+        const uMin = 0.378, uMax = 0.622, vMin = 0.506, vMax = 0.744;
+        const uRange = uMax - uMin, vRange = vMax - vMin;
+        const tex = canvasTexture.clone();
+        tex.needsUpdate = true;
+        tex.repeat.set(1 / uRange, 1 / vRange);
+        tex.offset.set(-uMin / uRange, -vMin / vRange);
+        child.material = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+        screenTextures.push(tex);
+        if (!screenMesh) screenMesh = child;
+      } else if (matName === 'black') {
+        child.material = new THREE.MeshBasicMaterial({ color: 0x000000 });
+      } else {
+        child.material = matteDark;
+      }
+    });
+
+    screenMesh._screenTextures = screenTextures;
+    if (!screenMesh) console.warn('[repsheets] no backpanel mesh found');
+
+    const box    = new THREE.Box3().setFromObject(phone);
+    const centre = box.getCenter(new THREE.Vector3());
+    const size   = box.getSize(new THREE.Vector3());
+    modelCentreY = centre.y;
+    phone.position.sub(centre);
+
+    const vFOV = THREE.MathUtils.degToRad(camera.fov);
+    camera.position.z = (size.y / 2) / Math.tan(vFOV / 2) / 0.55;
+    vpH = 2 * Math.tan(vFOV / 2) * camera.position.z;
+    vpW = vpH * camera.aspect;
+
+    document.getElementById('loading').style.display = 'none';
+    initScrollAnimation();
+  },
+  undefined,
+  (err) => {
+    document.getElementById('loading').textContent = 'Could not load model — open with: npm run dev';
+    console.error('[repsheets] GLB load error:', err);
+  }
+);
+
+// ─── SCROLL ANIMATION ────────────────────────────────────────────────────────
+function initScrollAnimation() {
+  const isMobile = window.innerWidth < 768;
+  const xOff = isMobile ? vpW * 0.06 : vpW * 0.26;
+  const yOff = isMobile ? vpH * 0.28 : vpH * 0.46;
+  const heroY = -vpH * 0.56;
+
+  phone.rotation.set(0, 0, 0);
+  phone.position.set(0, heroY, 0);
+  phone.scale.set(1.5, 1.5, 1.5);
+
+  gsap.timeline({
+    scrollTrigger: {
+      trigger: '.hero',
+      start: 'top top',
+      end: 'bottom top',
+      scrub: true,
+      onLeave() {
+        gsap.set('#cp-1', { opacity: 1 });
+        gsap.fromTo('#cp-1 .feat-title',
+          { opacity: 0, y: 10 },
+          { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }
+        );
+        gsap.fromTo('#cp-1 .feat-list li',
+          { opacity: 0, y: 10 },
+          { opacity: 1, y: 0, duration: 0.45, stagger: 0.1, ease: 'power2.out', delay: 0.2 }
+        );
+      },
+      onEnterBack() {
+        gsap.set('#cp-1', { opacity: 0 });
+        gsap.set('#cp-1 .feat-title', { opacity: 0, y: 10 });
+        gsap.set('#cp-1 .feat-list li', { opacity: 0, y: 10 });
+      },
+    },
+  })
+  .to(phone.position, { x: 0, y: -vpH * 0.40, duration: 1, ease: 'none' }, 0)
+  .to(phone.rotation, { x: 0, y: 0, z: 0,                duration: 1, ease: 'none' }, 0)
+  .to(phone.scale,    { x: 1.25, y: 1.25, z: 1.25,       duration: 1, ease: 'none' }, 0);
+
+  const tl = gsap.timeline({
+    scrollTrigger: {
+      trigger: '.scroll-stage',
+      start: 'top top',
+      end: 'bottom bottom',
+      scrub: true,
+      onEnter() {
+        videoEnabled = true;
+        videos[activeVideoIdx].play().catch(() => {});
+      },
+      onEnterBack() {
+        videoEnabled = true;
+        videos[activeVideoIdx].play().catch(() => {});
+      },
+      onLeave() {
+        videos[activeVideoIdx].pause();
+      },
+      onLeaveBack() {
+        videoEnabled = false;
+        videos[activeVideoIdx].pause();
+        drawSsPng();
+      },
+      onUpdate(self) {
+        const p = self.progress;
+        if      (p < 0.18) switchToVideo(0);
+        else if (p < 0.43) switchToVideo(1);
+        else if (p < 0.67) switchToVideo(2);
+        else               switchToVideo(3);
+      },
+    },
+  });
+
+  tl
+    .to('#cp-1',        { opacity: 0, duration: 0.2 }, 0.5)
+    .to(phone.rotation, { x: 0, y: -0.30, z: 0,          duration: 0.7, ease: 'power1.inOut' }, 0.5)
+    .to(phone.position, { x: vpW * 0.18, y: 0,           duration: 0.7, ease: 'power1.inOut' }, 0.5)
+    .to('#cp-2',        { opacity: 1, duration: 0.2 }, 1.0)
+
+    .to('#cp-2',        { opacity: 0, duration: 0.2 }, 1.7)
+    .to(phone.rotation, { x: 0, y: 0.30, z: 0,            duration: 0.7, ease: 'power1.inOut' }, 1.7)
+    .to(phone.position, { x: -vpW * 0.18, y: 0,          duration: 0.7, ease: 'power1.inOut' }, 1.7)
+    .to('#cp-3',        { opacity: 1, duration: 0.2 }, 2.2)
+
+    .to('#cp-3',        { opacity: 0, duration: 0.2 }, 2.9)
+    .to(phone.rotation, { x: 0.55, y: 0, z: 0,            duration: 0.7, ease: 'power1.inOut' }, 2.9)
+    .to(phone.position, { x: 0,    y: 0,                  duration: 0.7, ease: 'power1.inOut' }, 2.9)
+    .to('#cp-4',        { opacity: 1, duration: 0.2 }, 3.4)
+    .to(phone.position, { y: vpH * 1.0, duration: 0.8, ease: 'power1.inOut' }, 3.7)
+    .to('#cp-4',        { y: '-120vh',  duration: 0.8, ease: 'power1.inOut' }, 3.7);
+}
+
+// ─── RENDER LOOP ─────────────────────────────────────────────────────────────
+renderer.setAnimationLoop(() => {
+  const v = videos[activeVideoIdx];
+  if (videoEnabled && v.readyState >= v.HAVE_CURRENT_DATA) {
+    // Draw video rotated 90° CW — the backpanel UV has an inherent 90° CCW
+    // orientation, so this cancels out and the video appears upright on screen.
+    videoCtx.save();
+    videoCtx.translate(videoCanvas.width, 0);
+    videoCtx.rotate(Math.PI / 2);
+    videoCtx.drawImage(v, 0, 0, videoCanvas.height, videoCanvas.width);
+    videoCtx.restore();
+    canvasTexture.needsUpdate = true;
+    if (screenMesh?._screenTextures) screenMesh._screenTextures.forEach(t => { t.needsUpdate = true; });
+  }
+  renderer.render(scene, camera);
+});
+
+let isExpanded = false;
+let preExpand = null;
+const caster = new THREE.Raycaster();
+const ptr = new THREE.Vector2();
+
+function expandPhone() {
+  if (isExpanded || !phone) return;
+  isExpanded = true;
+  document.body.style.overflow = 'hidden';
+  preExpand = {
+    px: phone.position.x, py: phone.position.y,
+    rx: phone.rotation.x, ry: phone.rotation.y, rz: phone.rotation.z,
+    sx: phone.scale.x,
+  };
+  ScrollTrigger.getAll().forEach(st => st.disable(false));
+  gsap.killTweensOf(phone.position);
+  gsap.killTweensOf(phone.rotation);
+  gsap.killTweensOf(phone.scale);
+  gsap.to(phone.position, { x: 0, y: -modelCentreY * 1.8, duration: 0.5, ease: 'power2.inOut' });
+  gsap.to(phone.rotation, { x: 0, y: 0, z: 0,            duration: 0.5, ease: 'power2.inOut' });
+  gsap.to(phone.scale,    { x: 1.8, y: 1.8, z: 1.8,      duration: 0.5, ease: 'power2.inOut' });
+}
+
+function collapsePhone() {
+  if (!isExpanded) return;
+  isExpanded = false;
+  document.body.style.cursor = '';
+  document.body.style.overflow = '';
+  gsap.to(phone.position, { x: preExpand.px, y: preExpand.py, duration: 0.5, ease: 'power2.inOut' });
+  gsap.to(phone.rotation, {
+    x: preExpand.rx, y: preExpand.ry, z: preExpand.rz,
+    duration: 0.5, ease: 'power2.inOut',
+    onComplete() { ScrollTrigger.getAll().forEach(st => st.enable(false)); },
+  });
+  gsap.to(phone.scale, { x: preExpand.sx, y: preExpand.sx, z: preExpand.sx, duration: 0.5, ease: 'power2.inOut' });
+}
+
+window.addEventListener('click', e => {
+  if (!phone) return;
+  if (isExpanded) { collapsePhone(); return; }
+  ptr.x =  (e.clientX / window.innerWidth)  * 2 - 1;
+  ptr.y = -(e.clientY / stableH) * 2 + 1;
+  caster.setFromCamera(ptr, camera);
+  if (caster.intersectObject(phone, true).length) expandPhone();
+});
+
+window.addEventListener('mousemove', e => {
+  if (!phone) return;
+  if (isExpanded) { document.body.style.cursor = 'pointer'; return; }
+  ptr.x =  (e.clientX / window.innerWidth)  * 2 - 1;
+  ptr.y = -(e.clientY / stableH) * 2 + 1;
+  caster.setFromCamera(ptr, camera);
+  document.body.style.cursor = caster.intersectObject(phone, true).length ? 'pointer' : '';
+});
+
+// ─── RESIZE ──────────────────────────────────────────────────────────────────
+let lastResizeW = window.innerWidth;
+window.addEventListener('resize', () => {
+  const widthChanged = window.innerWidth !== lastResizeW;
+  lastResizeW = window.innerWidth;
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  if (phone && widthChanged) {
+    stableH = window.innerHeight;
+    const vFOV = THREE.MathUtils.degToRad(camera.fov);
+    vpH = 2 * Math.tan(vFOV / 2) * camera.position.z;
+    vpW = vpH * camera.aspect;
+  }
+});
+
+// ─── NON-3D SCROLL ANIMATIONS ────────────────────────────────────────────────
+gsap.utils.toArray('.anim-scroll').forEach(el => {
+  gsap.to(el, {
+    opacity: 1, y: 0, duration: 0.65, ease: 'power2.out',
+    scrollTrigger: { trigger: el, start: 'top 80%', toggleActions: 'play none none reverse' },
+  });
+});
+
+gsap.from('#trust-strip .trust-item', {
+  opacity: 0, y: 14, duration: 0.5, stagger: 0.1,
+  scrollTrigger: { trigger: '#trust-strip', start: 'top 80%' },
+});
+
+gsap.from('.spotlight-icon', {
+  opacity: 0, scale: 0.88, duration: 0.55, ease: 'back.out(1.4)',
+  scrollTrigger: { trigger: '#spotlight', start: 'top 75%' },
+});
+</script>
+</body>
 </html>
