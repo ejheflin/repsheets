@@ -138,9 +138,9 @@
       max-width: 320px; pointer-events: none; z-index: 5;
     }
     #cp-1 { top: 8%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 48px); max-width: 600px; }
-    #cp-2 { bottom: 6%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 48px); max-width: 600px; }
-    #cp-4 { bottom: 2%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 48px); max-width: 600px; }
-    #cp-3 { bottom: 6%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 48px); max-width: 600px; }
+    #cp-2 { bottom: 10%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 48px); max-width: 600px; }
+    #cp-4 { bottom: 8%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 48px); max-width: 600px; }
+    #cp-3 { bottom: 10%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 48px); max-width: 600px; }
     #cp-1 .feat-list, #cp-2 .feat-list, #cp-3 .feat-list, #cp-4 .feat-list { color: #ffffff; font-weight: 700; }
     #cp-1 .feat-tag, #cp-2 .feat-tag, #cp-3 .feat-tag, #cp-4 .feat-tag { font-size: 0.9rem; }
     #cp-1 .feat-title, #cp-1 .feat-list li { opacity: 0; }
@@ -527,7 +527,7 @@ function initScrollAnimation() {
 
   phone.rotation.set(0, 0, 0);
   phone.position.set(0, heroY, 0);
-  phone.scale.set(1.5, 1.5, 1.5);
+  phone.scale.set(1.3, 1.3, 1.3);
 
   gsap.timeline({
     scrollTrigger: {
@@ -555,7 +555,7 @@ function initScrollAnimation() {
   })
   .to(phone.position, { x: 0, y: -vpH * 0.40, duration: 1, ease: 'none' }, 0)
   .to(phone.rotation, { x: 0, y: 0, z: 0,                duration: 1, ease: 'none' }, 0)
-  .to(phone.scale,    { x: 1.25, y: 1.25, z: 1.25,       duration: 1, ease: 'none' }, 0);
+  .to(phone.scale,    { x: 1.1, y: 1.1, z: 1.1,           duration: 1, ease: 'none' }, 0);
 
   const tl = gsap.timeline({
     scrollTrigger: {
@@ -645,7 +645,7 @@ function expandPhone() {
   gsap.killTweensOf(phone.scale);
   gsap.to(phone.position, { x: 0, y: -modelCentreY * 1.8, duration: 0.5, ease: 'power2.inOut' });
   gsap.to(phone.rotation, { x: 0, y: 0, z: 0,            duration: 0.5, ease: 'power2.inOut' });
-  gsap.to(phone.scale,    { x: 1.8, y: 1.8, z: 1.8,      duration: 0.5, ease: 'power2.inOut' });
+  gsap.to(phone.scale,    { x: 1.6, y: 1.6, z: 1.6,      duration: 0.5, ease: 'power2.inOut' });
 }
 
 function collapsePhone() {
