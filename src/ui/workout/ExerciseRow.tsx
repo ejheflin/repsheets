@@ -279,16 +279,6 @@ export function ExerciseRow({
               </button>
             </div>
             {notesInput}
-            {showMaxSettings && (
-              <ExerciseMaxSettings
-                exerciseName={exercise.exercise}
-                unit={unit}
-                calculatedE1RM={calculatedE1RM ?? null}
-                settings={exerciseSettings ?? {}}
-                onSave={(s) => { onSaveSettings?.(s); setShowMaxSettings(false) }}
-                onClose={() => setShowMaxSettings(false)}
-              />
-            )}
             {isPR && (
               <span className="absolute top-1.5 right-2 text-[10px] font-bold bg-[#6c63ff] text-white px-1.5 py-0.5 rounded-full leading-none pointer-events-none">
                 PR
@@ -296,6 +286,17 @@ export function ExerciseRow({
             )}
           </div>
         </SwipeableRow>
+
+        {showMaxSettings && (
+          <ExerciseMaxSettings
+            exerciseName={exercise.exercise}
+            unit={unit}
+            calculatedE1RM={calculatedE1RM ?? null}
+            settings={exerciseSettings ?? {}}
+            onSave={(s) => { onSaveSettings?.(s); setShowMaxSettings(false) }}
+            onClose={() => setShowMaxSettings(false)}
+          />
+        )}
 
         {showSwap && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={() => setShowSwap(false)}>
