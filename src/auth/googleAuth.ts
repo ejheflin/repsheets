@@ -198,21 +198,8 @@ export async function handleRedirectCode(): Promise<AuthUser | null> {
 
 export function initLogin(onSuccess: (user: AuthUser) => void, onError: (err: string) => void) {
   if (useCodeFlow()) {
-    if (isIOSPWA() && window.location.protocol === 'https:') {
-      // iOS redirects to Google via Safari then hands back to the PWA on return.
-      // This gets a refresh token so the Cloudflare worker handles all future silent renewal.
-      window.google.accounts.oauth2.initCodeClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope: SCOPES,
-        ux_mode: 'redirect',
-        redirect_uri: window.location.origin,
-        callback: () => {},
-        error_callback: (error) => { onError(error.type) },
-      }).requestCode()
-      return
-    }
-    if (isIOSPWA()) {
-      // Local dev (http): redirect requires https, fall back to token client
+    if (isIOSPWA() && window.location.protocol !== 'https:') {
+      // Local dev iOS PWA: redirect requires https, fall back to token client
       window.google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: SCOPES,
@@ -230,43 +217,33 @@ export function initLogin(onSuccess: (user: AuthUser) => void, onError: (err: st
       }).requestAccessToken()
       return
     }
-    // Popup mode for non-PWA browsers
-    const client = window.google.accounts.oauth2.initCodeClient({
+    // Redirect flow for all other cases (iOS PWA on HTTPS + all regular browsers)
+    window.google.accounts.oauth2.initCodeClient({
       client_id: GOOGLE_CLIENT_ID,
       scope: SCOPES,
-      ux_mode: 'popup',
-      callback: async (response) => {
-        if (response.error) { onError(response.error); return }
-        try {
-          const tokens = await exchangeCode(response.code)
-          storeRefreshToken(tokens.refresh_token)
-          const info = await fetchUserInfo(tokens.access_token)
-          const user: AuthUser = { ...info, accessToken: tokens.access_token, scopeVersion: SCOPE_VERSION }
-          storeUser(user)
-          onSuccess(user)
-        } catch (e) { console.error('Code exchange error:', e); onError(String(e)) }
-      },
+      ux_mode: 'redirect',
+      redirect_uri: window.location.origin,
+      callback: () => {},
       error_callback: (error) => { onError(error.type) },
-    })
-    client.requestCode()
-  } else {
-    // Implicit grant flow (original)
-    const client = window.google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
-      scope: SCOPES,
-      callback: async (response) => {
-        if (response.error) { onError(response.error); return }
-        try {
-          const info = await fetchUserInfo(response.access_token)
-          const user: AuthUser = { ...info, accessToken: response.access_token, scopeVersion: SCOPE_VERSION }
-          storeUser(user)
-          onSuccess(user)
-        } catch (e) { console.error('Login error:', e); onError(String(e)) }
-      },
-      error_callback: (error) => { onError(error.type) },
-    })
-    client.requestAccessToken()
+    }).requestCode()
+    return
   }
+  // Implicit grant flow (fallback, no worker)
+  const client = window.google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: SCOPES,
+    callback: async (response) => {
+      if (response.error) { onError(response.error); return }
+      try {
+        const info = await fetchUserInfo(response.access_token)
+        const user: AuthUser = { ...info, accessToken: response.access_token, scopeVersion: SCOPE_VERSION }
+        storeUser(user)
+        onSuccess(user)
+      } catch (e) { console.error('Login error:', e); onError(String(e)) }
+    },
+    error_callback: (error) => { onError(error.type) },
+  })
+  client.requestAccessToken()
 }
 
 export function refreshToken(): Promise<AuthUser | null> {

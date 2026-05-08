@@ -21,6 +21,8 @@ import { initSyncListeners, flushSync } from './data/syncEngine'
 import { registerSheetById } from './sheets/driveApi'
 import { AuthTest } from './ui/AuthTest'
 
+const LOGIN_REDIRECT_FLAG = 'repsheets_login_redirect'
+
 function getUrlParam(name: string): string | null {
   return new URLSearchParams(window.location.search).get(name)
 }
@@ -141,11 +143,33 @@ function MainApp() {
 }
 
 function AppContent() {
-  const { user, isLoading } = useAuth()
+  const { user, isLoading, login } = useAuth()
   const { isDemo } = useDemo()
   const { importSheetId, clearImport } = useImportParam()
   const { joinSheetId, clearJoin } = useJoinParam()
   const { showReAuth, clearReAuth } = useAuthExpiredHandler()
+
+  const [loginStatus] = useState<'pending' | 'failed'>(() => {
+    if (sessionStorage.getItem(LOGIN_REDIRECT_FLAG)) {
+      sessionStorage.removeItem(LOGIN_REDIRECT_FLAG)
+      return 'failed'
+    }
+    return 'pending'
+  })
+
+  const wasLoggedIn = useRef(false)
+  if (user) wasLoggedIn.current = true
+
+  useEffect(() => {
+    if (user || isLoading || isDemo || loginStatus !== 'pending' || wasLoggedIn.current) return
+    if (getUrlParam('test')) return
+    const tryLogin = () => {
+      if (!window.google?.accounts?.oauth2) { setTimeout(tryLogin, 200); return }
+      sessionStorage.setItem(LOGIN_REDIRECT_FLAG, '1')
+      login()
+    }
+    tryLogin()
+  }, [user, isLoading, isDemo, loginStatus, login])
 
   // Auth test page — accessible at ?test=auth
   if (getUrlParam('test') === 'auth') return <AuthTest />
@@ -160,7 +184,16 @@ function AppContent() {
 
   if (isDemo) return <DemoApp />
 
-  if (!user) return <LoginScreen />
+  if (!user) {
+    if (loginStatus === 'pending' && !wasLoggedIn.current) {
+      return (
+        <div className="min-h-screen bg-[#1a1a2e] flex items-center justify-center">
+          <div className="text-gray-400">Loading...</div>
+        </div>
+      )
+    }
+    return <LoginScreen />
+  }
 
   if (importSheetId) {
     return (

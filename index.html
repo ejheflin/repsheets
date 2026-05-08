@@ -12,7 +12,7 @@
       location.replace('/app.html');
     }
     const _lp = new URLSearchParams(location.search);
-    if (_lp.has('join') || _lp.has('import') || _lp.has('test')) {
+    if (_lp.has('join') || _lp.has('import') || _lp.has('test') || _lp.has('code')) {
       location.replace('/app.html' + location.search);
     }
   </script>
