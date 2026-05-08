@@ -18,7 +18,7 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   const handleGhostToggle = useGhostToggle()
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-[#1a1a2e] border-t border-[#2a2a4a]">
+    <nav className="fixed bottom-0 left-0 right-0 z-10 bg-[#1a1a2e] border-t border-[#2a2a4a]">
       <div className="flex justify-around py-2 pb-5 max-w-lg mx-auto">
         {tabs.map(({ id, label, Icon }) => (
           <button
