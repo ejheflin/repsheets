@@ -8,6 +8,7 @@
   <meta name="theme-color" content="#1a1a2e" />
   <title>repsheets</title>
   <script>
+    history.scrollRestoration = 'manual';
     if (localStorage.getItem('repsheets_user')) {
       location.replace('/app.html');
     }
@@ -356,7 +357,6 @@ import { ScrollTrigger }   from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
-history.scrollRestoration = 'manual';
 window.scrollTo(0, 0);
 
 let stableH = window.innerHeight;
