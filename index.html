@@ -139,7 +139,7 @@
       max-width: 320px; pointer-events: none; z-index: 5;
     }
     #cp-1 { top: 8%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 48px); max-width: 600px; }
-    #cp-2 { bottom: 10%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 48px); max-width: 600px; }
+    #cp-2 { bottom: 7%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 48px); max-width: 600px; }
     #cp-4 { bottom: 8%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 48px); max-width: 600px; }
     #cp-3 { bottom: 10%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 48px); max-width: 600px; }
     #cp-1 .feat-list, #cp-2 .feat-list, #cp-3 .feat-list, #cp-4 .feat-list { color: #ffffff; font-weight: 700; }
@@ -149,7 +149,7 @@
     /* Desktop */
     @media (min-width: 768px) {
       #cp-1 { top: 8%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 96px); max-width: 700px; }
-      #cp-2 { bottom: 8%; left: 50%; top: auto; right: auto; transform: translateX(-50%); text-align: left; width: calc(100vw - 96px); max-width: 700px; }
+      #cp-2 { bottom: 5%; left: 50%; top: auto; right: auto; transform: translateX(-50%); text-align: left; width: calc(100vw - 96px); max-width: 700px; }
       #cp-3 { bottom: 8%; left: 50%; top: auto; right: auto; transform: translateX(-50%); text-align: left; width: calc(100vw - 96px); max-width: 700px; }
       #cp-4 { top: auto; bottom: 8%; left: 50%; transform: translateX(-50%); text-align: left; width: calc(100vw - 96px); max-width: 700px; }
     }
@@ -592,7 +592,7 @@ function initScrollAnimation() {
   tl
     .to('#cp-1',        { opacity: 0, duration: 0.2 }, 0.5)
     .to(phone.rotation, { x: 0, y: -0.30, z: 0,          duration: 0.7, ease: 'power1.inOut' }, 0.5)
-    .to(phone.position, { x: vpW * 0.18, y: 0,           duration: 0.7, ease: 'power1.inOut' }, 0.5)
+    .to(phone.position, { x: vpW * 0.18, y: vpH * 0.10,  duration: 0.7, ease: 'power1.inOut' }, 0.5)
     .to('#cp-2',        { opacity: 1, duration: 0.2 }, 1.0)
 
     .to('#cp-2',        { opacity: 0, duration: 0.2 }, 1.7)
