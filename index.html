@@ -602,10 +602,10 @@ function initScrollAnimation() {
 
     .to('#cp-3',        { opacity: 0, duration: 0.2 }, 2.9)
     .to(phone.rotation, { x: 0.55, y: 0, z: 0,            duration: 0.7, ease: 'power1.inOut' }, 2.9)
-    .to(phone.position, { x: 0,    y: 0,                  duration: 0.7, ease: 'power1.inOut' }, 2.9)
+    .to(phone.position, { x: 0,    y: vpH * 0.10,         duration: 0.7, ease: 'power1.inOut' }, 2.9)
     .to('#cp-4',        { opacity: 1, duration: 0.2 }, 3.4)
-    .to(phone.position, { y: vpH * 1.0, duration: 0.8, ease: 'power1.inOut' }, 3.7)
-    .to('#cp-4',        { y: '-120vh',  duration: 0.8, ease: 'power1.inOut' }, 3.7);
+    .to(phone.position, { y: vpH * 1.0, duration: 0.4, ease: 'power1.inOut' }, 3.7)
+    .to('#cp-4',        { y: '-120vh',  duration: 0.4, ease: 'power1.inOut' }, 3.7);
 }
 
 // ─── RENDER LOOP ─────────────────────────────────────────────────────────────
