@@ -156,7 +156,7 @@ export function ExerciseRow({
   // Plate calculator: next unchecked set, or last set once all are done
   const plateSet = exercise.sets.find((s) => !s.completed) ?? exercise.sets[exercise.sets.length - 1]
   const nextPlateWeight = plateSet
-    ? (plateSet.pct != null ? (targetWeight(plateSet.pct, oneRepMax) ?? plateSet.value) : plateSet.value)
+    ? (plateSet.value ?? (plateSet.pct != null ? targetWeight(plateSet.pct, oneRepMax) : null))
     : null
 
   const notesInput = showNotes ? (
