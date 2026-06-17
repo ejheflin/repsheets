@@ -32,4 +32,16 @@ describe('toEditable / toRows', () => {
     expect(ed.exercises[1].supersetGroup).toBe('a')
     expect(toRows(ed)).toEqual(rows)
   })
+  it('multi-row fill-up exercise round-trips', () => {
+    const rows = [
+      base({ exercise: 'Squat', sets: '5',  reps: 5, value: 225 }),
+      base({ exercise: 'Squat', sets: '10', reps: 5, value: 185 }),
+    ]
+    const ed = toEditable(rows)
+    expect(ed.exercises).toHaveLength(1)
+    expect(ed.exercises[0].sets).toHaveLength(10)
+    expect(ed.exercises[0].sets[0].value).toBe(225)
+    expect(ed.exercises[0].sets[5].value).toBe(185)
+    expect(toRows(ed)).toEqual(rows)
+  })
 })
