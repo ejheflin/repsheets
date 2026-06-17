@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { parseRoutineValue, serializeRoutineValue } from '../routineSerialization'
+import { parseSets, serializeSets } from '../routineSerialization'
 
 describe('parseRoutineValue', () => {
   it('absolute weight', () => {
@@ -53,4 +54,24 @@ describe('serializeRoutineValue', () => {
   it('pct without basis defaults to 1RM (bare %)', () => {
     expect(serializeRoutineValue({ value: null, pct: 80 })).toBe('80%')
   })
+})
+
+describe('parseSets', () => {
+  it('plain count', () => expect(parseSets('10')).toEqual({ count: 10, group: null }))
+  it('superset letter', () => {
+    expect(parseSets('3a')).toEqual({ count: 3, group: 'a' })
+    expect(parseSets('3A')).toEqual({ count: 3, group: 'a' })
+  })
+  it('blank/garbage defaults to 1 set, no group', () => {
+    expect(parseSets('')).toEqual({ count: 1, group: null })
+    expect(parseSets('xx')).toEqual({ count: 1, group: null })
+  })
+})
+
+describe('serializeSets', () => {
+  it('with and without group', () => {
+    expect(serializeSets(3, 'a')).toBe('3a')
+    expect(serializeSets(10, null)).toBe('10')
+  })
+  it('clamps to >= 1', () => expect(serializeSets(0, null)).toBe('1'))
 })

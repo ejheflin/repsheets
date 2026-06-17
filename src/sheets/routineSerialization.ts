@@ -40,3 +40,21 @@ export function serializeRoutineValue(v: {
   if (v.value != null) return String(v.value)
   return ''
 }
+
+export interface ParsedSets {
+  count: number
+  group: string | null
+}
+
+export function parseSets(raw: string | number | null | undefined): ParsedSets {
+  const s = String(raw ?? '').trim()
+  const m = s.match(/^(\d+)\s*([a-zA-Z])?$/)
+  if (!m) return { count: 1, group: null }
+  const count = parseInt(m[1], 10)
+  return { count: count > 0 ? count : 1, group: m[2] ? m[2].toLowerCase() : null }
+}
+
+export function serializeSets(count: number, group: string | null): string {
+  const c = Math.max(1, Math.floor(count || 1))
+  return group ? `${c}${group}` : String(c)
+}
