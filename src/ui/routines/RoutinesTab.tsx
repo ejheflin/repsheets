@@ -158,35 +158,29 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
           <ShareIcon />
         </button>
       </div>
-      <div className="flex items-center justify-between mb-3">
-        <h1 className="text-[20px] font-bold">Routines</h1>
-        <button
-          onClick={() => setEditTarget({ program: selectedProgram || programs[0] || '', routine: 'New Routine', exercises: [] })}
-          className="flex items-center gap-1.5 bg-[#2a2a4a] border border-[#3a3a5a] rounded-[10px] px-3 py-1.5 text-[13px] text-[#6c63ff] font-semibold active:opacity-80"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          New routine
-        </button>
-      </div>
-      {routineList.length === 0 ? (
-        <p className="text-gray-500 text-sm">No routines found for this program.</p>
-      ) : (
-        routineList.map((r, i) => (
-          <div key={r.name} className="relative">
-            <RoutineCard name={r.name} exercises={r.exercises}
-              onTap={() => handleRoutineTap(r)} tourId={i === 0 ? 'routine-card' : undefined} />
-            <button
-              onClick={(e) => { e.stopPropagation(); setEditTarget(toEditable(r.rows)) }}
-              className="absolute top-2.5 right-2.5 w-7 h-7 flex items-center justify-center rounded-[6px] bg-[#1a1a2e] active:opacity-80"
-              aria-label={`Edit ${r.name}`}
-            >
-              <PencilIcon />
-            </button>
-          </div>
-        ))
-      )}
+      <h1 className="text-[20px] font-bold mb-3">Routines</h1>
+      {routineList.map((r, i) => (
+        <div key={r.name} className="relative">
+          <RoutineCard name={r.name} exercises={r.exercises}
+            onTap={() => handleRoutineTap(r)} tourId={i === 0 ? 'routine-card' : undefined} />
+          <button
+            onClick={(e) => { e.stopPropagation(); setEditTarget(toEditable(r.rows)) }}
+            className="absolute top-2.5 right-2.5 w-7 h-7 flex items-center justify-center rounded-[6px] bg-[#1a1a2e] active:opacity-80"
+            aria-label={`Edit ${r.name}`}
+          >
+            <PencilIcon />
+          </button>
+        </div>
+      ))}
+      <button
+        onClick={() => setEditTarget({ program: selectedProgram || programs[0] || '', routine: 'New Routine', exercises: [] })}
+        className="w-full mt-2 rounded-[10px] border border-dashed border-[#3a3a5a] bg-transparent flex items-center justify-center gap-2 py-3 text-[#6c63ff] text-sm font-semibold active:opacity-80"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        New routine
+      </button>
       {spreadsheetId && (
         <a
           href={`https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`}
