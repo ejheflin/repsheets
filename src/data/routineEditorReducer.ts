@@ -1,6 +1,7 @@
 import type { EditableRoutine, EditableExercise } from '../types'
 
 export type Action =
+  | { type: 'setRoutine'; name: string }
   | { type: 'setSetCount'; ex: number; count: number }
   | { type: 'setUniformReps'; ex: number; reps: number | null }
   | { type: 'setUniformLoad'; ex: number; value: number | null; pct: number | null }
@@ -26,6 +27,7 @@ export function reduce(state: EditableRoutine, a: Action): EditableRoutine {
   const exs = state.exercises.map((e) => ({ ...e, sets: e.sets.map((s) => ({ ...s })) }))
   const at = (i: number): EditableExercise => exs[i]
   switch (a.type) {
+    case 'setRoutine': return { ...state, routine: a.name }
     case 'setSetCount': {
       const e = at(a.ex)
       const last = e.sets[e.sets.length - 1] ?? { reps: null, value: null, pct: null }
