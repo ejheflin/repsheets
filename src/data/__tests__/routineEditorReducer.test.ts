@@ -44,4 +44,11 @@ describe('reduce', () => {
     const s = reduce(grouped, { type: 'ungroup', ex: 0 })
     expect(s.exercises[0].supersetGroup).toBeNull()
   })
+  it('setRoutine updates routine name without mutating input', () => {
+    const input = seed()
+    const s = reduce(input, { type: 'setRoutine', name: 'New Name' })
+    expect(s.routine).toBe('New Name')
+    expect(input.routine).toBe('A')
+    expect(s.program).toBe(input.program)
+  })
 })

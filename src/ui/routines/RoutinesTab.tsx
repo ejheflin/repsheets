@@ -164,7 +164,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
           onClick={() => setEditTarget({ program: selectedProgram || programs[0] || '', routine: 'New Routine', exercises: [] })}
           className="flex items-center gap-1.5 bg-[#2a2a4a] border border-[#3a3a5a] rounded-[10px] px-3 py-1.5 text-[13px] text-[#6c63ff] font-semibold active:opacity-80"
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           New routine
@@ -174,7 +174,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
         <p className="text-gray-500 text-sm">No routines found for this program.</p>
       ) : (
         routineList.map((r, i) => (
-          <div key={r.name} className="relative mb-2">
+          <div key={r.name} className="relative">
             <RoutineCard name={r.name} exercises={r.exercises}
               onTap={() => handleRoutineTap(r)} tourId={i === 0 ? 'routine-card' : undefined} />
             <button
