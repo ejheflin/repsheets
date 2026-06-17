@@ -2,6 +2,7 @@ import type { RoutineRow, RepSheet, ExerciseSettings } from '../types'
 import { authFetch } from '../auth/authFetch'
 import { getStoredUser } from '../auth/googleAuth'
 import { serializeRoutineValue } from './routineSerialization'
+import { fetchRoutineRows } from './sheetsApi'
 
 const DRIVE_BASE = 'https://www.googleapis.com/drive/v3'
 const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets'
@@ -594,4 +595,71 @@ export async function appendRoutineRows(spreadsheetId: string, rows: RoutineRow[
     body: JSON.stringify({ values }),
   })
   if (!res.ok) throw new Error('Failed to append routines')
+}
+
+// ─── Routine persistence (whole-tab read-modify-write) ─────────────────────
+
+export function replaceRoutineInRows(
+  all: RoutineRow[], program: string, routine: string, newRows: RoutineRow[],
+): RoutineRow[] {
+  const out: RoutineRow[] = []
+  let inserted = false
+  for (const row of all) {
+    const isTarget = row.program === program && row.routine === routine
+    if (isTarget) {
+      if (!inserted) { out.push(...newRows); inserted = true }
+      continue
+    }
+    out.push(row)
+  }
+  if (!inserted) out.push(...newRows)
+  return out
+}
+
+export function deleteRoutineInRows(all: RoutineRow[], program: string, routine: string): RoutineRow[] {
+  return all.filter((row) => !(row.program === program && row.routine === routine))
+}
+
+export function renameProgramInRows(all: RoutineRow[], from: string, to: string): RoutineRow[] {
+  return all.map((row) => (row.program === from ? { ...row, program: to } : row))
+}
+
+function rowsToValues(rows: RoutineRow[]): (string | number)[][] {
+  return rows.map((r) => [
+    r.program, r.routine, r.exercise, r.sets, r.reps ?? '',
+    serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis }),
+    r.unit, r.notes,
+  ])
+}
+
+async function rewriteRoutinesTab(spreadsheetId: string, rows: RoutineRow[]): Promise<void> {
+  await authFetch(`${SHEETS_BASE}/${spreadsheetId}/values/Routines!A2:H:clear`, { method: 'POST' })
+  await writeRange(spreadsheetId, 'Routines!A1', [ROUTINE_HEADERS, ...rowsToValues(rows)])
+}
+
+export async function saveRoutineRows(
+  spreadsheetId: string, program: string, routine: string, newRows: RoutineRow[],
+): Promise<RoutineRow[]> {
+  const all = await fetchRoutineRows(spreadsheetId)
+  const next = replaceRoutineInRows(all, program, routine, newRows)
+  await rewriteRoutinesTab(spreadsheetId, next)
+  return next
+}
+
+export async function deleteRoutineRows(
+  spreadsheetId: string, program: string, routine: string,
+): Promise<RoutineRow[]> {
+  const all = await fetchRoutineRows(spreadsheetId)
+  const next = deleteRoutineInRows(all, program, routine)
+  await rewriteRoutinesTab(spreadsheetId, next)
+  return next
+}
+
+export async function renameProgram(
+  spreadsheetId: string, from: string, to: string,
+): Promise<RoutineRow[]> {
+  const all = await fetchRoutineRows(spreadsheetId)
+  const next = renameProgramInRows(all, from, to)
+  await rewriteRoutinesTab(spreadsheetId, next)
+  return next
 }
