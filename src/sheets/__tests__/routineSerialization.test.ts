@@ -75,3 +75,11 @@ describe('serializeSets', () => {
   })
   it('clamps to >= 1', () => expect(serializeSets(0, null)).toBe('1'))
 })
+
+describe('round-trip', () => {
+  it('80% TM survives read->write', () => {
+    const parsed = parseRoutineValue('80% TM')
+    expect(serializeRoutineValue(parsed)).toBe('80% TM')
+  })
+  it('225 survives', () => expect(serializeRoutineValue(parseRoutineValue('225'))).toBe('225'))
+})

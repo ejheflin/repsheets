@@ -1,6 +1,7 @@
 import type { RoutineRow, RepSheet, ExerciseSettings } from '../types'
 import { authFetch } from '../auth/authFetch'
 import { getStoredUser } from '../auth/googleAuth'
+import { serializeRoutineValue } from './routineSerialization'
 
 const DRIVE_BASE = 'https://www.googleapis.com/drive/v3'
 const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets'
@@ -407,7 +408,7 @@ export async function createExampleSheet(programRows: RoutineRow[]): Promise<str
     ROUTINE_HEADERS,
     ...programRows.map((r) => [
       r.program, r.routine, r.exercise, r.sets,
-      r.reps ?? '', r.pct != null ? `${r.pct}%` : (r.value ?? ''), r.unit, r.notes,
+      r.reps ?? '', serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis }), r.unit, r.notes,
     ]),
   ]
   await writeRange(spreadsheetId, 'Routines!A1', routineValues)
@@ -446,7 +447,7 @@ export async function createSharedTemplate(
     ROUTINE_HEADERS,
     ...programRows.map((r) => [
       r.program, r.routine, r.exercise, r.sets,
-      r.reps ?? '', r.pct != null ? `${r.pct}%` : (r.value ?? ''), r.unit, r.notes,
+      r.reps ?? '', serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis }), r.unit, r.notes,
     ]),
   ]
   await writeRange(spreadsheetId, 'Routines!A1', routineValues)
@@ -492,7 +493,7 @@ export async function createCompeteSheet(
     ROUTINE_HEADERS,
     ...programRows.map((r) => [
       r.program, r.routine, r.exercise, r.sets,
-      r.reps ?? '', r.pct != null ? `${r.pct}%` : (r.value ?? ''), r.unit, r.notes,
+      r.reps ?? '', serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis }), r.unit, r.notes,
     ]),
   ]
   await writeRange(spreadsheetId, 'Routines!A1', routineValues)
@@ -584,7 +585,7 @@ async function checkMetaType(spreadsheetId: string): Promise<string | null> {
 export async function appendRoutineRows(spreadsheetId: string, rows: RoutineRow[]): Promise<void> {
   const values = rows.map((r) => [
     r.program, r.routine, r.exercise, r.sets,
-    r.reps ?? '', r.pct != null ? `${r.pct}%` : (r.value ?? ''), r.unit, r.notes,
+    r.reps ?? '', serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis }), r.unit, r.notes,
   ])
   const url = `${SHEETS_BASE}/${spreadsheetId}/values/Routines!A:H:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`
   const res = await authFetch(url, {

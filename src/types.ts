@@ -7,6 +7,7 @@ export interface RoutineRow {
   reps: number | null
   value: number | null
   pct?: number | null  // e.g. 80 when cell contains "80%", null otherwise
+  basis?: '1rm' | 'tm'   // present only when pct is a percentage; absent = 1rm
   unit: string
   notes: string
 }
