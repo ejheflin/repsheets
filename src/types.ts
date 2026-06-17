@@ -1,3 +1,23 @@
+export interface EditableSet {
+  reps: number | null
+  value: number | null   // absolute load
+  pct: number | null     // percentage
+}
+export interface EditableExercise {
+  exercise: string
+  unit: string
+  notes: string
+  basis: '1rm' | 'tm'
+  loadMode: 'lb' | 'pct'
+  supersetGroup: string | null
+  sets: EditableSet[]
+}
+export interface EditableRoutine {
+  program: string
+  routine: string
+  exercises: EditableExercise[]
+}
+
 /** A single row from the Routines tab in Google Sheets */
 export interface RoutineRow {
   program: string
