@@ -18,7 +18,9 @@ export function parseRoutineValue(raw: string | number | null | undefined): Pars
   const numMatch = s.match(/-?\d*\.?\d+/)
   const num = numMatch ? parseFloat(numMatch[0]) : NaN
   if (!Number.isFinite(num)) return { value: null, pct: null, basis: null }
+  if (num < 0) return { value: null, pct: null, basis: null }
 
+  // A bare value between 0 and 1 (e.g. 0.8) is read as a fraction of 1RM, matching how routines have historically encoded percentages.
   const decimalPct = num > 0 && num < 1 && !hasPercentSign
   const isPercent = hasPercentSign || hasTM || has1RM || decimalPct
 

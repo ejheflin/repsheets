@@ -28,6 +28,19 @@ describe('parseRoutineValue', () => {
     expect(parseRoutineValue('')).toEqual({ value: null, pct: null, basis: null })
     expect(parseRoutineValue('heavy')).toEqual({ value: null, pct: null, basis: null })
   })
+  it('null and undefined inputs → null', () => {
+    expect(parseRoutineValue(null)).toEqual({ value: null, pct: null, basis: null })
+    expect(parseRoutineValue(undefined)).toEqual({ value: null, pct: null, basis: null })
+  })
+  it('negative numbers → null', () => {
+    expect(parseRoutineValue('-100')).toEqual({ value: null, pct: null, basis: null })
+  })
+  it('bare percent sign → null', () => {
+    expect(parseRoutineValue('%')).toEqual({ value: null, pct: null, basis: null })
+  })
+  it('both 1RM and TM keywords present → TM wins', () => {
+    expect(parseRoutineValue('80% 1RM TM')).toEqual({ value: null, pct: 80, basis: 'tm' })
+  })
 })
 
 describe('serializeRoutineValue', () => {
