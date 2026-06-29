@@ -51,4 +51,10 @@ describe('reduce', () => {
     expect(input.routine).toBe('A')
     expect(s.program).toBe(input.program)
   })
+  it('renameExercise updates the name without mutating input', () => {
+    const input = seed()
+    const s = reduce(input, { type: 'renameExercise', ex: 0, name: 'Front Squat' })
+    expect(s.exercises[0].exercise).toBe('Front Squat')
+    expect(input.exercises[0].exercise).toBe('Squat') // input unchanged
+  })
 })

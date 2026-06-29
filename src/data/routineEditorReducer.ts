@@ -13,6 +13,7 @@ export type Action =
   | { type: 'setPerSet'; ex: number; set: number; reps?: number | null; value?: number | null; pct?: number | null }
   | { type: 'groupWithNext'; ex: number }
   | { type: 'ungroup'; ex: number }
+  | { type: 'renameExercise'; ex: number; name: string }
 
 function nextFreeLetter(exs: EditableExercise[]): string {
   const used = new Set(exs.map((e) => e.supersetGroup).filter(Boolean) as string[])
@@ -65,5 +66,6 @@ export function reduce(state: EditableRoutine, a: Action): EditableRoutine {
       return { ...state, exercises: exs }
     }
     case 'ungroup': { at(a.ex).supersetGroup = null; return { ...state, exercises: exs } }
+    case 'renameExercise': { at(a.ex).exercise = a.name; return { ...state, exercises: exs } }
   }
 }

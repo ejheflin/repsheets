@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRoutineEditor } from '../../data/useRoutineEditor'
 import { toEditable } from '../../data/routineModel'
 import { formatValue } from '../../data/measure'
@@ -55,6 +55,45 @@ function buildSummaryLine(exercises: EditableRoutine['exercises']): string {
   return acc
 }
 
+interface ExerciseRowProps {
+  ex: EditableRoutine['exercises'][number]
+  idx: number
+  focusIdx: number | null
+  onFocused: () => void
+  onRename: (name: string) => void
+}
+
+function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename }: ExerciseRowProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (focusIdx === idx && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+      onFocused()
+    }
+  }, [focusIdx, idx, onFocused])
+
+  return (
+    <div className="bg-[#1a1a2e] rounded-[10px] p-3 mb-2 flex items-center gap-3">
+      {/* TODO Task 8: rich measure-aware editable card */}
+      {/* TODO Task 8: swipe-to-delete via SwipeableRow */}
+      <div className="flex-1 min-w-0">
+        <input
+          ref={inputRef}
+          type="text"
+          value={ex.exercise}
+          onChange={(e) => onRename(e.target.value)}
+          onFocus={(e) => e.target.select()}
+          className="w-full bg-transparent font-semibold text-white outline-none border-b border-transparent focus:border-[#6c63ff] transition-colors truncate"
+          style={{ fontSize: 16 }}
+        />
+        <div className="text-[12px] text-gray-500 mt-0.5">{buildScheme(ex)}</div>
+      </div>
+    </div>
+  )
+}
+
 interface ExpandableRoutineCardProps {
   routine: { name: string; exercises: string[]; rows: RoutineRow[] }
   spreadsheetId: string
@@ -75,8 +114,7 @@ export function ExpandableRoutineCard({
   tourId,
 }: ExpandableRoutineCardProps) {
   const [expanded, setExpanded] = useState(initialExpanded)
-  const [addName, setAddName] = useState('')
-  const [showAddInput, setShowAddInput] = useState(false)
+  const [focusIdx, setFocusIdx] = useState<number | null>(null)
 
   // Keep onSaved stable — use a ref so allRows closure stays fresh without re-creating the callback
   const allRowsRef = useRef(allRows)
@@ -110,14 +148,6 @@ export function ExpandableRoutineCard({
     'text-[#6c63ff]'
 
   const defaultUnit = state.exercises.length > 0 ? state.exercises[0].unit : 'lbs'
-
-  const handleAdd = () => {
-    const name = addName.trim()
-    if (!name) return
-    act({ type: 'addExercise', name, unit: defaultUnit })
-    setAddName('')
-    setShowAddInput(false)
-  }
 
   const summaryLine = buildSummaryLine(state.exercises)
 
@@ -178,48 +208,26 @@ export function ExpandableRoutineCard({
         <div className="px-3.5 pb-3.5 border-t border-[#3a3a5a]">
           <div className="pt-3">
             {state.exercises.map((ex, i) => (
-              <div
-                key={`${ex.exercise}-${i}`}
-                className="bg-[#1a1a2e] rounded-[10px] p-3 mb-2 flex items-center gap-3"
-              >
-                {/* TODO Task 8: rich measure-aware editable card */}
-                {/* TODO Task 8: swipe-to-delete via SwipeableRow */}
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-[14px] truncate">{ex.exercise}</div>
-                  <div className="text-[12px] text-gray-500 mt-0.5">{buildScheme(ex)}</div>
-                </div>
-              </div>
+              <ExerciseRow
+                key={i}
+                ex={ex}
+                idx={i}
+                focusIdx={focusIdx}
+                onFocused={() => setFocusIdx(null)}
+                onRename={(name) => act({ type: 'renameExercise', ex: i, name })}
+              />
             ))}
 
             {/* TODO Task 10 — replace with AddExercisePicker */}
-            {showAddInput ? (
-              <div className="flex gap-2 mt-2">
-                <input
-                  type="text"
-                  value={addName}
-                  onChange={(e) => setAddName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
-                  className="flex-1 bg-[#1a1a2e] border border-[#3a3a5a] rounded-[10px] px-3 py-2.5 text-white outline-none focus:border-[#6c63ff] placeholder-gray-600"
-                  style={{ fontSize: 16 }}
-                  placeholder="Exercise name"
-                  autoFocus
-                />
-                <button
-                  onClick={handleAdd}
-                  disabled={!addName.trim()}
-                  className="bg-[#6c63ff] rounded-[10px] px-4 py-2.5 font-semibold text-sm active:opacity-80 disabled:opacity-40 flex-shrink-0"
-                >
-                  Add
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowAddInput(true)}
-                className="w-full mt-2 rounded-[10px] border border-dashed border-[#3a3a5a] bg-transparent flex items-center justify-center py-3 text-[#6c63ff] text-sm font-semibold active:opacity-80"
-              >
-                + Add exercise
-              </button>
-            )}
+            <button
+              onClick={() => {
+                act({ type: 'addExercise', name: 'New exercise', unit: defaultUnit })
+                setFocusIdx(state.exercises.length)
+              }}
+              className="w-full mt-2 rounded-[10px] border border-dashed border-[#3a3a5a] bg-transparent flex items-center justify-center py-3 text-[#6c63ff] text-sm font-semibold active:opacity-80"
+            >
+              + Add exercise
+            </button>
           </div>
         </div>
       )}
@@ -244,8 +252,7 @@ export function DraftRoutineCard({
   onSavedToList: _onSavedToList,
   onNameChange,
 }: DraftRoutineCardProps) {
-  const [addName, setAddName] = useState('')
-  const [showAddInput, setShowAddInput] = useState(false)
+  const [focusIdx, setFocusIdx] = useState<number | null>(null)
 
   const allRowsRef = useRef(allRows)
   allRowsRef.current = allRows
@@ -279,14 +286,6 @@ export function DraftRoutineCard({
 
   const defaultUnit = state.exercises.length > 0 ? state.exercises[0].unit : 'lbs'
 
-  const handleAdd = () => {
-    const name = addName.trim()
-    if (!name) return
-    act({ type: 'addExercise', name, unit: defaultUnit })
-    setAddName('')
-    setShowAddInput(false)
-  }
-
   return (
     <div className="bg-[#2a2a4a] rounded-[10px] mb-2 overflow-hidden border border-[#6c63ff]/40">
       <div className="flex items-center gap-2 p-3.5">
@@ -311,48 +310,26 @@ export function DraftRoutineCard({
       <div className="px-3.5 pb-3.5 border-t border-[#3a3a5a]">
         <div className="pt-3">
           {state.exercises.map((ex, i) => (
-            <div
-              key={`${ex.exercise}-${i}`}
-              className="bg-[#1a1a2e] rounded-[10px] p-3 mb-2 flex items-center gap-3"
-            >
-              {/* TODO Task 8: rich measure-aware editable card */}
-              {/* TODO Task 8: swipe-to-delete via SwipeableRow */}
-              <div className="flex-1 min-w-0">
-                <div className="font-semibold text-[14px] truncate">{ex.exercise}</div>
-                <div className="text-[12px] text-gray-500 mt-0.5">{buildScheme(ex)}</div>
-              </div>
-            </div>
+            <ExerciseRow
+              key={i}
+              ex={ex}
+              idx={i}
+              focusIdx={focusIdx}
+              onFocused={() => setFocusIdx(null)}
+              onRename={(name) => act({ type: 'renameExercise', ex: i, name })}
+            />
           ))}
 
           {/* TODO Task 10 — replace with AddExercisePicker */}
-          {showAddInput ? (
-            <div className="flex gap-2 mt-2">
-              <input
-                type="text"
-                value={addName}
-                onChange={(e) => setAddName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
-                className="flex-1 bg-[#1a1a2e] border border-[#3a3a5a] rounded-[10px] px-3 py-2.5 text-white outline-none focus:border-[#6c63ff] placeholder-gray-600"
-                style={{ fontSize: 16 }}
-                placeholder="Exercise name"
-                autoFocus
-              />
-              <button
-                onClick={handleAdd}
-                disabled={!addName.trim()}
-                className="bg-[#6c63ff] rounded-[10px] px-4 py-2.5 font-semibold text-sm active:opacity-80 disabled:opacity-40 flex-shrink-0"
-              >
-                Add
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowAddInput(true)}
-              className="w-full mt-2 rounded-[10px] border border-dashed border-[#3a3a5a] bg-transparent flex items-center justify-center py-3 text-[#6c63ff] text-sm font-semibold active:opacity-80"
-            >
-              + Add exercise
-            </button>
-          )}
+          <button
+            onClick={() => {
+              act({ type: 'addExercise', name: 'New exercise', unit: defaultUnit })
+              setFocusIdx(state.exercises.length)
+            }}
+            className="w-full mt-2 rounded-[10px] border border-dashed border-[#3a3a5a] bg-transparent flex items-center justify-center py-3 text-[#6c63ff] text-sm font-semibold active:opacity-80"
+          >
+            + Add exercise
+          </button>
         </div>
       </div>
     </div>
