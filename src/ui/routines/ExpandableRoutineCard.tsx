@@ -20,16 +20,6 @@ function ChevronDown() {
   )
 }
 
-function TrashIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-      <path d="M10 11v6M14 11v6" />
-      <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
-    </svg>
-  )
-}
 
 function buildScheme(ex: EditableRoutine['exercises'][number]): string {
   const setCount = ex.sets.length
@@ -86,6 +76,7 @@ export function ExpandableRoutineCard({
 }: ExpandableRoutineCardProps) {
   const [expanded, setExpanded] = useState(initialExpanded)
   const [addName, setAddName] = useState('')
+  const [showAddInput, setShowAddInput] = useState(false)
 
   // Keep onSaved stable — use a ref so allRows closure stays fresh without re-creating the callback
   const allRowsRef = useRef(allRows)
@@ -125,6 +116,7 @@ export function ExpandableRoutineCard({
     if (!name) return
     act({ type: 'addExercise', name, unit: defaultUnit })
     setAddName('')
+    setShowAddInput(false)
   }
 
   const summaryLine = buildSummaryLine(state.exercises)
@@ -195,39 +187,43 @@ export function ExpandableRoutineCard({
                 className="bg-[#1a1a2e] rounded-[10px] p-3 mb-2 flex items-center gap-3"
               >
                 {/* TODO Task 8: rich measure-aware editable card */}
+                {/* TODO Task 8: swipe-to-delete via SwipeableRow */}
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-[14px] truncate">{ex.exercise}</div>
                   <div className="text-[12px] text-gray-500 mt-0.5">{buildScheme(ex)}</div>
                 </div>
-                <button
-                  onClick={() => act({ type: 'removeExercise', ex: i })}
-                  className="w-8 h-8 flex items-center justify-center text-gray-500 active:opacity-80 flex-shrink-0"
-                  aria-label={`Remove ${ex.exercise}`}
-                >
-                  <TrashIcon />
-                </button>
               </div>
             ))}
 
             {/* TODO Task 10 — replace with AddExercisePicker */}
-            <div className="flex gap-2 mt-2">
-              <input
-                type="text"
-                value={addName}
-                onChange={(e) => setAddName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
-                className="flex-1 bg-[#1a1a2e] border border-[#3a3a5a] rounded-[10px] px-3 py-2.5 text-white outline-none focus:border-[#6c63ff] placeholder-gray-600"
-                style={{ fontSize: 16 }}
-                placeholder="Exercise name"
-              />
+            {showAddInput ? (
+              <div className="flex gap-2 mt-2">
+                <input
+                  type="text"
+                  value={addName}
+                  onChange={(e) => setAddName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
+                  className="flex-1 bg-[#1a1a2e] border border-[#3a3a5a] rounded-[10px] px-3 py-2.5 text-white outline-none focus:border-[#6c63ff] placeholder-gray-600"
+                  style={{ fontSize: 16 }}
+                  placeholder="Exercise name"
+                  autoFocus
+                />
+                <button
+                  onClick={handleAdd}
+                  disabled={!addName.trim()}
+                  className="bg-[#6c63ff] rounded-[10px] px-4 py-2.5 font-semibold text-sm active:opacity-80 disabled:opacity-40 flex-shrink-0"
+                >
+                  Add
+                </button>
+              </div>
+            ) : (
               <button
-                onClick={handleAdd}
-                disabled={!addName.trim()}
-                className="bg-[#6c63ff] rounded-[10px] px-4 py-2.5 font-semibold text-sm active:opacity-80 disabled:opacity-40 flex-shrink-0"
+                onClick={() => setShowAddInput(true)}
+                className="w-full mt-2 rounded-[10px] border border-dashed border-[#3a3a5a] bg-transparent flex items-center justify-center py-3 text-[#6c63ff] text-sm font-semibold active:opacity-80"
               >
-                Add
+                + Add exercise
               </button>
-            </div>
+            )}
           </div>
         </div>
       )}
@@ -251,6 +247,7 @@ export function DraftRoutineCard({
   onSavedToList,
 }: DraftRoutineCardProps) {
   const [addName, setAddName] = useState('')
+  const [showAddInput, setShowAddInput] = useState(false)
 
   const allRowsRef = useRef(allRows)
   allRowsRef.current = allRows
@@ -296,6 +293,7 @@ export function DraftRoutineCard({
     if (!name) return
     act({ type: 'addExercise', name, unit: defaultUnit })
     setAddName('')
+    setShowAddInput(false)
   }
 
   return (
@@ -331,39 +329,43 @@ export function DraftRoutineCard({
               className="bg-[#1a1a2e] rounded-[10px] p-3 mb-2 flex items-center gap-3"
             >
               {/* TODO Task 8: rich measure-aware editable card */}
+              {/* TODO Task 8: swipe-to-delete via SwipeableRow */}
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-[14px] truncate">{ex.exercise}</div>
                 <div className="text-[12px] text-gray-500 mt-0.5">{buildScheme(ex)}</div>
               </div>
-              <button
-                onClick={() => act({ type: 'removeExercise', ex: i })}
-                className="w-8 h-8 flex items-center justify-center text-gray-500 active:opacity-80 flex-shrink-0"
-                aria-label={`Remove ${ex.exercise}`}
-              >
-                <TrashIcon />
-              </button>
             </div>
           ))}
 
           {/* TODO Task 10 — replace with AddExercisePicker */}
-          <div className="flex gap-2 mt-2">
-            <input
-              type="text"
-              value={addName}
-              onChange={(e) => setAddName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
-              className="flex-1 bg-[#1a1a2e] border border-[#3a3a5a] rounded-[10px] px-3 py-2.5 text-white outline-none focus:border-[#6c63ff] placeholder-gray-600"
-              style={{ fontSize: 16 }}
-              placeholder="Exercise name"
-            />
+          {showAddInput ? (
+            <div className="flex gap-2 mt-2">
+              <input
+                type="text"
+                value={addName}
+                onChange={(e) => setAddName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
+                className="flex-1 bg-[#1a1a2e] border border-[#3a3a5a] rounded-[10px] px-3 py-2.5 text-white outline-none focus:border-[#6c63ff] placeholder-gray-600"
+                style={{ fontSize: 16 }}
+                placeholder="Exercise name"
+                autoFocus
+              />
+              <button
+                onClick={handleAdd}
+                disabled={!addName.trim()}
+                className="bg-[#6c63ff] rounded-[10px] px-4 py-2.5 font-semibold text-sm active:opacity-80 disabled:opacity-40 flex-shrink-0"
+              >
+                Add
+              </button>
+            </div>
+          ) : (
             <button
-              onClick={handleAdd}
-              disabled={!addName.trim()}
-              className="bg-[#6c63ff] rounded-[10px] px-4 py-2.5 font-semibold text-sm active:opacity-80 disabled:opacity-40 flex-shrink-0"
+              onClick={() => setShowAddInput(true)}
+              className="w-full mt-2 rounded-[10px] border border-dashed border-[#3a3a5a] bg-transparent flex items-center justify-center py-3 text-[#6c63ff] text-sm font-semibold active:opacity-80"
             >
-              Add
+              + Add exercise
             </button>
-          </div>
+          )}
         </div>
       </div>
     </div>
