@@ -42,6 +42,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
   const [savedProgram, setSavedProgram] = useState<string | null>(null)
   const [prefLoaded, setPrefLoaded] = useState(false)
   const [hasDraft, setHasDraft] = useState(false)
+  const [draftName, setDraftName] = useState('New Routine')
 
   const setSelectedProgram = useCallback((program: string) => {
     setSelectedProgramState(program)
@@ -107,9 +108,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     setIsRefreshing(false)
   }
 
-  // When the draft routine is saved and appears in routineList, clear the draft
   const handleDraftSaved = useCallback(() => {
-    setHasDraft(false)
     refresh().catch(() => {})
   }, [refresh])
 
@@ -139,17 +138,19 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
         </button>
       </div>
       <h1 className="text-[20px] font-bold mb-3">Routines</h1>
-      {routineList.map((r, i) => (
-        <ExpandableRoutineCard
-          key={r.name}
-          routine={r}
-          spreadsheetId={spreadsheetId ?? ''}
-          allRows={allRows}
-          mutateCache={mutateCache}
-          onStartWorkout={handleStartWorkout}
-          tourId={i === 0 ? 'routine-card' : undefined}
-        />
-      ))}
+      {routineList
+        .filter((r) => !hasDraft || r.name.trim().toLowerCase() !== draftName.trim().toLowerCase())
+        .map((r, i) => (
+          <ExpandableRoutineCard
+            key={r.name}
+            routine={r}
+            spreadsheetId={spreadsheetId ?? ''}
+            allRows={allRows}
+            mutateCache={mutateCache}
+            onStartWorkout={handleStartWorkout}
+            tourId={i === 0 ? 'routine-card' : undefined}
+          />
+        ))}
       {hasDraft && spreadsheetId && (
         <DraftRoutineCard
           program={selectedProgram || programs[0] || ''}
@@ -157,11 +158,12 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
           allRows={allRows}
           mutateCache={mutateCache}
           onSavedToList={handleDraftSaved}
+          onNameChange={setDraftName}
         />
       )}
       {!hasDraft && (
         <button
-          onClick={() => setHasDraft(true)}
+          onClick={() => { setDraftName('New Routine'); setHasDraft(true) }}
           className="w-full mt-2 rounded-[10px] border border-dashed border-[#3a3a5a] bg-transparent flex items-center justify-center py-3 text-[#6c63ff] text-sm font-semibold active:opacity-80"
         >
           + Add routine

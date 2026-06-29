@@ -237,6 +237,7 @@ interface DraftRoutineCardProps {
   allRows: RoutineRow[]
   mutateCache: (rows: RoutineRow[]) => void
   onSavedToList: () => void
+  onNameChange: (name: string) => void
 }
 
 export function DraftRoutineCard({
@@ -244,7 +245,8 @@ export function DraftRoutineCard({
   spreadsheetId,
   allRows,
   mutateCache,
-  onSavedToList,
+  onSavedToList: _onSavedToList,
+  onNameChange,
 }: DraftRoutineCardProps) {
   const [addName, setAddName] = useState('')
   const [showAddInput, setShowAddInput] = useState(false)
@@ -255,8 +257,6 @@ export function DraftRoutineCard({
   const mutateCacheRef = useRef(mutateCache)
   mutateCacheRef.current = mutateCache
 
-  const hasSavedRef = useRef(false)
-
   const stableOnSaved = useCallback((savedRows: RoutineRow[]) => {
     const updated = [
       ...allRowsRef.current.filter(
@@ -265,12 +265,7 @@ export function DraftRoutineCard({
       ...savedRows,
     ]
     mutateCacheRef.current(updated)
-    // Clear draft once the first save lands (routine is now in the list)
-    if (!hasSavedRef.current) {
-      hasSavedRef.current = true
-      onSavedToList()
-    }
-  }, [onSavedToList])
+  }, [])
 
   const initial: EditableRoutine = { program, routine: 'New Routine', exercises: [] }
   const { state, status, act } = useRoutineEditor(spreadsheetId, initial, stableOnSaved)
@@ -306,7 +301,7 @@ export function DraftRoutineCard({
           <input
             type="text"
             value={state.routine}
-            onChange={(e) => act({ type: 'setRoutine', name: e.target.value })}
+            onChange={(e) => { act({ type: 'setRoutine', name: e.target.value }); onNameChange(e.target.value) }}
             onFocus={(e) => e.target.select()}
             className="w-full bg-transparent font-semibold text-white outline-none border-b border-transparent focus:border-[#6c63ff] transition-colors"
             style={{ fontSize: 15 }}
