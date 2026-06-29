@@ -162,11 +162,8 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
       {!hasDraft && (
         <button
           onClick={() => setHasDraft(true)}
-          className="w-full mt-2 rounded-[10px] border border-dashed border-[#3a3a5a] bg-transparent flex items-center justify-center gap-2 py-3 text-[#6c63ff] text-sm font-semibold active:opacity-80"
+          className="w-full mt-2 rounded-[10px] border border-dashed border-[#3a3a5a] bg-transparent flex items-center justify-center py-3 text-[#6c63ff] text-sm font-semibold active:opacity-80"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
           + Add routine
         </button>
       )}
