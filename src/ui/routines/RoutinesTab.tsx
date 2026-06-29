@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { ProgramSelector } from './ProgramSelector'
-import { RoutineCard } from './RoutineCard'
-import { RoutineEditor } from './RoutineEditor'
+import { ExpandableRoutineCard, DraftRoutineCard } from './ExpandableRoutineCard'
 import { useRoutines } from '../../data/useRoutines'
 import { useWorkout } from '../../data/useWorkout'
 import { useAuth } from '../../auth/useAuth'
@@ -10,8 +9,7 @@ import { getPreference, setPreference } from '../../data/db'
 import { useSheetContext } from '../../data/useSheetContext'
 import { SheetSwitcherModal } from '../SheetSwitcherModal'
 import { ShareCopyModal } from '../sharing/ShareModal'
-import { toEditable } from '../../data/routineModel'
-import type { EditableRoutine, RoutineRow } from '../../types'
+import type { RoutineRow } from '../../types'
 
 function ShareIcon() {
   return (
@@ -35,15 +33,6 @@ function SheetIcon() {
   )
 }
 
-function PencilIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-    </svg>
-  )
-}
-
 interface RoutinesTabProps {
   onStartWorkout: () => void
 }
@@ -52,7 +41,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
   const [selectedProgram, setSelectedProgramState] = useState<string>('')
   const [savedProgram, setSavedProgram] = useState<string | null>(null)
   const [prefLoaded, setPrefLoaded] = useState(false)
-  const [editTarget, setEditTarget] = useState<EditableRoutine | null>(null)
+  const [hasDraft, setHasDraft] = useState(false)
 
   const setSelectedProgram = useCallback((program: string) => {
     setSelectedProgramState(program)
@@ -69,13 +58,6 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     program: string; routine: string; rows: RoutineRow[]
   } | null>(null)
 
-  const handleEditorSaved = useCallback((savedRows: RoutineRow[]) => {
-    const updated = [
-      ...allRows.filter((r) => !(r.program === savedRows[0]?.program && r.routine === savedRows[0]?.routine)),
-      ...savedRows,
-    ]
-    mutateCache(updated)
-  }, [allRows, mutateCache])
   // Load saved preference once on mount
   useEffect(() => {
     getPreference('activeProgram').then((saved) => {
@@ -96,12 +78,14 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     }
   }, [prefLoaded, programs, savedProgram, selectedProgram, setSelectedProgram])
 
-  const handleRoutineTap = (routine: { name: string; rows: RoutineRow[] }) => {
+  const handleStartWorkout = (rows: RoutineRow[]) => {
+    const program = rows[0]?.program ?? selectedProgram
+    const routineName = rows[0]?.routine ?? ''
     if (workout) {
-      setConfirmDiscard({ program: selectedProgram, routine: routine.name, rows: routine.rows })
+      setConfirmDiscard({ program, routine: routineName, rows })
       return
     }
-    startWorkout(selectedProgram, routine.name, routine.rows)
+    startWorkout(program, routineName, rows)
     onStartWorkout()
   }
 
@@ -123,18 +107,14 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     setIsRefreshing(false)
   }
 
+  // When the draft routine is saved and appears in routineList, clear the draft
+  const handleDraftSaved = useCallback(() => {
+    setHasDraft(false)
+    refresh().catch(() => {})
+  }, [refresh])
+
   if (isLoading) {
     return <div className="text-gray-400 text-center mt-10">Loading routines...</div>
-  }
-
-  if (editTarget) {
-    return (
-      <RoutineEditor
-        initial={editTarget}
-        onBack={() => setEditTarget(null)}
-        onSaved={handleEditorSaved}
-      />
-    )
   }
 
   return (
@@ -160,27 +140,36 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
       </div>
       <h1 className="text-[20px] font-bold mb-3">Routines</h1>
       {routineList.map((r, i) => (
-        <div key={r.name} className="relative">
-          <RoutineCard name={r.name} exercises={r.exercises}
-            onTap={() => handleRoutineTap(r)} tourId={i === 0 ? 'routine-card' : undefined} />
-          <button
-            onClick={(e) => { e.stopPropagation(); setEditTarget(toEditable(r.rows)) }}
-            className="absolute top-2.5 right-2.5 w-7 h-7 flex items-center justify-center rounded-[6px] bg-[#1a1a2e] active:opacity-80"
-            aria-label={`Edit ${r.name}`}
-          >
-            <PencilIcon />
-          </button>
-        </div>
+        <ExpandableRoutineCard
+          key={r.name}
+          routine={r}
+          spreadsheetId={spreadsheetId ?? ''}
+          allRows={allRows}
+          mutateCache={mutateCache}
+          onStartWorkout={handleStartWorkout}
+          tourId={i === 0 ? 'routine-card' : undefined}
+        />
       ))}
-      <button
-        onClick={() => setEditTarget({ program: selectedProgram || programs[0] || '', routine: 'New Routine', exercises: [] })}
-        className="w-full mt-2 rounded-[10px] border border-dashed border-[#3a3a5a] bg-transparent flex items-center justify-center gap-2 py-3 text-[#6c63ff] text-sm font-semibold active:opacity-80"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-        New routine
-      </button>
+      {hasDraft && spreadsheetId && (
+        <DraftRoutineCard
+          program={selectedProgram || programs[0] || ''}
+          spreadsheetId={spreadsheetId}
+          allRows={allRows}
+          mutateCache={mutateCache}
+          onSavedToList={handleDraftSaved}
+        />
+      )}
+      {!hasDraft && (
+        <button
+          onClick={() => setHasDraft(true)}
+          className="w-full mt-2 rounded-[10px] border border-dashed border-[#3a3a5a] bg-transparent flex items-center justify-center gap-2 py-3 text-[#6c63ff] text-sm font-semibold active:opacity-80"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          New routine
+        </button>
+      )}
       {spreadsheetId && (
         <a
           href={`https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`}
