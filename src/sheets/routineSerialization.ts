@@ -4,41 +4,80 @@ export interface ParsedValue {
   value: number | null
   pct: number | null
   basis: Basis | null
+  rpe?: number
+  rir?: number
 }
 
 export function parseRoutineValue(raw: string | number | null | undefined): ParsedValue {
-  const s = String(raw ?? '').trim()
+  let s = String(raw ?? '').trim()
   if (!s) return { value: null, pct: null, basis: null }
 
-  const lower = s.toLowerCase()
-  const hasTM = lower.includes('tm')
-  const has1RM = lower.includes('1rm')
-  const hasPercentSign = s.includes('%')
+  let rpe: number | undefined
+  let rir: number | undefined
 
-  const numMatch = s.match(/-?\d*\.?\d+/)
-  const num = numMatch ? parseFloat(numMatch[0]) : NaN
-  if (!Number.isFinite(num)) return { value: null, pct: null, basis: null }
-  if (num < 0) return { value: null, pct: null, basis: null }
-
-  // A bare value between 0 and 1 (e.g. 0.8) is read as a fraction of 1RM, matching how routines have historically encoded percentages.
-  const decimalPct = num > 0 && num < 1 && !hasPercentSign
-  const isPercent = hasPercentSign || hasTM || has1RM || decimalPct
-
-  if (isPercent) {
-    const pct = Math.round(decimalPct ? num * 100 : num)
-    return { value: null, pct, basis: hasTM ? 'tm' : '1rm' }
+  const rirMatch = s.match(/(-?\d+(?:\.\d+)?)\s*rir/i)
+  if (rirMatch) {
+    rir = parseFloat(rirMatch[1])
+    s = s.slice(0, rirMatch.index).trimEnd() + s.slice((rirMatch.index ?? 0) + rirMatch[0].length).trimStart()
+    s = s.trim()
   }
-  return { value: Math.round(num), pct: null, basis: null }
+
+  const rpeMatch = s.match(/@\s*(\d+(?:\.\d+)?)/)
+  if (rpeMatch) {
+    rpe = parseFloat(rpeMatch[1])
+    s = s.slice(0, rpeMatch.index).trimEnd() + s.slice((rpeMatch.index ?? 0) + rpeMatch[0].length).trimStart()
+    s = s.trim()
+  }
+
+  const base: ParsedValue = (() => {
+    if (!s) return { value: null, pct: null, basis: null }
+
+    const lower = s.toLowerCase()
+    const hasTM = lower.includes('tm')
+    const has1RM = lower.includes('1rm')
+    const hasPercentSign = s.includes('%')
+
+    const numMatch = s.match(/-?\d*\.?\d+/)
+    const num = numMatch ? parseFloat(numMatch[0]) : NaN
+    if (!Number.isFinite(num)) return { value: null, pct: null, basis: null }
+    if (num < 0) return { value: null, pct: null, basis: null }
+
+    // A bare value between 0 and 1 (e.g. 0.8) is read as a fraction of 1RM, matching how routines have historically encoded percentages.
+    const decimalPct = num > 0 && num < 1 && !hasPercentSign
+    const isPercent = hasPercentSign || hasTM || has1RM || decimalPct
+
+    if (isPercent) {
+      const pct = Math.round(decimalPct ? num * 100 : num)
+      return { value: null, pct, basis: hasTM ? 'tm' : '1rm' }
+    }
+    return { value: Math.round(num), pct: null, basis: null }
+  })()
+
+  return {
+    ...base,
+    ...(rpe !== undefined ? { rpe } : {}),
+    ...(rir !== undefined ? { rir } : {}),
+  }
 }
 
 export function serializeRoutineValue(v: {
   value: number | null
   pct: number | null
   basis?: Basis | null
+  rpe?: number
+  rir?: number
 }): string {
-  if (v.pct != null) return v.basis === 'tm' ? `${v.pct}% TM` : `${v.pct}%`
-  if (v.value != null) return String(v.value)
-  return ''
+  let load = ''
+  if (v.pct != null) load = v.basis === 'tm' ? `${v.pct}% TM` : `${v.pct}%`
+  else if (v.value != null) load = String(v.value)
+
+  let intensity = ''
+  if (v.rpe != null) intensity = `@${v.rpe}`
+  else if (v.rir != null) intensity = `${v.rir} RIR`
+
+  if (load && intensity) return `${load} ${intensity}`
+  if (intensity) return intensity
+  return load
 }
 
 export interface ParsedSets {

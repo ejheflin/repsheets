@@ -21,7 +21,13 @@ export function toEditable(rows: RoutineRow[]): EditableRoutine {
       // fill-up: count is the cumulative target set number; emit (count - cursor) sets
       const toEmit = count - cursor
       for (let i = 0; i < toEmit; i++) {
-        sets.push({ reps: r.reps, value: r.value, pct: r.pct ?? null })
+        sets.push({
+          reps: r.reps,
+          value: r.value,
+          pct: r.pct ?? null,
+          ...(r.rpe !== undefined ? { rpe: r.rpe } : {}),
+          ...(r.rir !== undefined ? { rir: r.rir } : {}),
+        })
       }
       cursor = count
     }
@@ -58,6 +64,8 @@ export function toRows(ed: EditableRoutine): RoutineRow[] {
         reps: s.reps,
         value: ex.loadMode === 'pct' ? null : s.value,
         pct: ex.loadMode === 'pct' ? s.pct : null,
+        ...(s.rpe !== undefined ? { rpe: s.rpe } : {}),
+        ...(s.rir !== undefined ? { rir: s.rir } : {}),
         unit: ex.unit,
         notes: ex.notes,
       }
@@ -72,5 +80,5 @@ export function toRows(ed: EditableRoutine): RoutineRow[] {
 }
 
 function sameSet(a: EditableSet, b: EditableSet): boolean {
-  return a.reps === b.reps && a.value === b.value && a.pct === b.pct
+  return a.reps === b.reps && a.value === b.value && a.pct === b.pct && a.rpe === b.rpe && a.rir === b.rir
 }

@@ -83,3 +83,24 @@ describe('round-trip', () => {
   })
   it('225 survives', () => expect(serializeRoutineValue(parseRoutineValue('225'))).toBe('225'))
 })
+
+describe('RPE/RIR token', () => {
+  it('parses pure RPE', () => expect(parseRoutineValue('@8')).toEqual({ value: null, pct: null, basis: null, rpe: 8 }))
+  it('parses half-point RPE', () => expect(parseRoutineValue('@8.5')).toEqual({ value: null, pct: null, basis: null, rpe: 8.5 }))
+  it('parses pct + RPE', () => expect(parseRoutineValue('75% @8')).toEqual({ value: null, pct: 75, basis: '1rm', rpe: 8 }))
+  it('parses TM + RPE', () => expect(parseRoutineValue('80% TM @8')).toEqual({ value: null, pct: 80, basis: 'tm', rpe: 8 }))
+  it('parses RIR variants, number belongs to RIR not load', () => {
+    expect(parseRoutineValue('2RIR')).toEqual({ value: null, pct: null, basis: null, rir: 2 })
+    expect(parseRoutineValue('2 rir')).toEqual({ value: null, pct: null, basis: null, rir: 2 })
+  })
+  it('parses load + RPE (log form)', () => expect(parseRoutineValue('185 @8')).toEqual({ value: 185, pct: null, basis: null, rpe: 8 }))
+  it('plain load has no rpe/rir', () => expect(parseRoutineValue('225')).toEqual({ value: 225, pct: null, basis: null }))
+})
+
+describe('serialize RPE/RIR', () => {
+  it('pct + rpe', () => expect(serializeRoutineValue({ value: null, pct: 75, basis: '1rm', rpe: 8 })).toBe('75% @8'))
+  it('pure rpe', () => expect(serializeRoutineValue({ value: null, pct: null, rpe: 8 })).toBe('@8'))
+  it('load + rpe', () => expect(serializeRoutineValue({ value: 185, pct: null, rpe: 8 })).toBe('185 @8'))
+  it('rir', () => expect(serializeRoutineValue({ value: null, pct: null, rir: 2 })).toBe('2 RIR'))
+  it('plain load unchanged', () => expect(serializeRoutineValue({ value: 225, pct: null })).toBe('225'))
+})

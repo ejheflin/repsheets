@@ -2,6 +2,8 @@ export interface EditableSet {
   reps: number | null
   value: number | null   // absolute load
   pct: number | null     // percentage
+  rpe?: number
+  rir?: number
 }
 export interface EditableExercise {
   exercise: string
@@ -28,6 +30,8 @@ export interface RoutineRow {
   value: number | null
   pct?: number | null  // e.g. 80 when cell contains "80%", null otherwise
   basis?: '1rm' | 'tm'   // present only when pct is a percentage; absent = 1rm
+  rpe?: number
+  rir?: number
   unit: string
   notes: string
 }

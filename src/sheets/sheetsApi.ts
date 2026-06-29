@@ -62,6 +62,8 @@ export async function fetchPublicRoutineRows(spreadsheetId: string): Promise<Rou
       value: parsed.value,
       pct: parsed.pct,
       basis: parsed.basis ?? undefined,
+      ...(parsed.rpe !== undefined ? { rpe: parsed.rpe } : {}),
+      ...(parsed.rir !== undefined ? { rir: parsed.rir } : {}),
       unit: row[6] ?? '',
       notes: row[7] ?? '',
     }
@@ -82,6 +84,8 @@ export async function fetchRoutineRows(spreadsheetId: string): Promise<RoutineRo
       value: parsed.value,
       pct: parsed.pct,
       basis: parsed.basis ?? undefined,
+      ...(parsed.rpe !== undefined ? { rpe: parsed.rpe } : {}),
+      ...(parsed.rir !== undefined ? { rir: parsed.rir } : {}),
       unit: row[6] ?? '',
       notes: row[7] ?? '',
     }

@@ -44,4 +44,10 @@ describe('toEditable / toRows', () => {
     expect(ed.exercises[0].sets[5].value).toBe(185)
     expect(toRows(ed)).toEqual(rows)
   })
+  it('rpe survives round-trip', () => {
+    const rows = [base({ exercise: 'Bench', sets: '3', reps: 5, value: null, pct: 75, basis: '1rm', rpe: 8 })]
+    const ed = toEditable(rows)
+    expect(ed.exercises[0].sets[0].rpe).toBe(8)
+    expect(toRows(ed)).toEqual(rows)
+  })
 })
