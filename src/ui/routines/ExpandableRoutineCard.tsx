@@ -177,10 +177,6 @@ export function ExpandableRoutineCard({
       {expanded && (
         <div className="px-3.5 pb-3.5 border-t border-[#3a3a5a]">
           <div className="pt-3">
-            {state.exercises.length === 0 && (
-              <p className="text-gray-500 text-sm text-center py-4">No exercises yet. Add one below.</p>
-            )}
-
             {state.exercises.map((ex, i) => (
               <div
                 key={`${ex.exercise}-${i}`}
@@ -314,10 +310,6 @@ export function DraftRoutineCard({
 
       <div className="px-3.5 pb-3.5 border-t border-[#3a3a5a]">
         <div className="pt-3">
-          {state.exercises.length === 0 && (
-            <p className="text-gray-500 text-sm text-center py-4">No exercises yet. Add one below.</p>
-          )}
-
           {state.exercises.map((ex, i) => (
             <div
               key={`${ex.exercise}-${i}`}
