@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import {
-  DndContext, PointerSensor, useSensor, useSensors, closestCenter,
+  DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter,
   type DragEndEvent,
 } from '@dnd-kit/core'
 import type { DraggableAttributes } from '@dnd-kit/core'
@@ -850,7 +850,8 @@ interface ExerciseListProps {
 function ExerciseList({ exercises, focusIdx, setFocusIdx, act, onDeleteExercise, chipSource, weightUnit }: ExerciseListProps) {
   const runs = groupRuns(exercises)
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { delay: 400, tolerance: 5 } })
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 400, tolerance: 5 } }),
   )
 
   const handleDragEnd = useCallback(({ active, over }: DragEndEvent) => {
