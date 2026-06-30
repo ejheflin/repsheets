@@ -1,4 +1,12 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import {
+  DndContext, PointerSensor, useSensor, useSensors, closestCenter,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import type { DraggableAttributes } from '@dnd-kit/core'
+import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities'
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useRoutineEditor } from '../../data/useRoutineEditor'
 import { toEditable } from '../../data/routineModel'
 import { formatValue, formatDuration, measureOf, MEASURES } from '../../data/measure'
@@ -667,9 +675,12 @@ interface ExerciseRowProps {
   weightUnit: string
   oneRepMax?: number | null
   hasNext: boolean
+  dragListeners?: SyntheticListenerMap
+  dragAttributes?: DraggableAttributes
+  isDragging?: boolean
 }
 
-function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, onDelete, act, knownExercises, weightUnit, oneRepMax, hasNext }: ExerciseRowProps) {
+function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, onDelete, act, knownExercises, weightUnit, oneRepMax, hasNext, dragListeners, dragAttributes, isDragging }: ExerciseRowProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [inputFocused, setInputFocused] = useState(false)
   const [expanded, setExpanded] = useState(false)
@@ -698,7 +709,12 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, onDelete, act, kn
       className="mb-2 rounded-[10px]"
       actions={[{ label: 'Delete', icon: <SetTrashIcon />, color: '#c0392b', onClick: onDelete }]}
     >
-    <div className="bg-[#2a2a4a] rounded-[10px] p-3 border border-[#3a3a5a]">
+    <div
+      className="bg-[#2a2a4a] rounded-[10px] p-3 border border-[#3a3a5a]"
+      style={isDragging ? { boxShadow: '0 8px 24px rgba(0,0,0,0.6)', border: '1.5px solid #6c63ff', transform: 'scale(1.03)' } : undefined}
+      {...(dragAttributes ?? {})}
+      {...(dragListeners ?? {})}
+    >
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           <button
@@ -778,6 +794,49 @@ function groupRuns(exercises: EditableExercise[]): number[][] {
   return runs
 }
 
+interface SortableExerciseRowProps {
+  ex: EditableExercise
+  idx: number
+  focusIdx: number | null
+  setFocusIdx: (i: number | null) => void
+  act: (a: Action) => void
+  onDeleteExercise: (index: number, exercise: EditableExercise) => void
+  chipSource: string[]
+  weightUnit: string
+  exerciseCount: number
+}
+
+function SortableExerciseRow({ ex, idx, focusIdx, setFocusIdx, act, onDeleteExercise, chipSource, weightUnit, exerciseCount }: SortableExerciseRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: String(idx) })
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition: isDragging ? 'none' : transition ?? undefined,
+        zIndex: isDragging ? 10 : undefined,
+        position: 'relative',
+      }}
+    >
+      <ExerciseRow
+        ex={ex}
+        idx={idx}
+        focusIdx={focusIdx}
+        onFocused={() => setFocusIdx(null)}
+        onRename={(name) => act({ type: 'renameExercise', ex: idx, name })}
+        onDelete={() => onDeleteExercise(idx, ex)}
+        act={act}
+        knownExercises={chipSource}
+        weightUnit={weightUnit}
+        hasNext={idx < exerciseCount - 1}
+        dragListeners={listeners}
+        dragAttributes={attributes}
+        isDragging={isDragging}
+      />
+    </div>
+  )
+}
+
 interface ExerciseListProps {
   exercises: EditableExercise[]
   focusIdx: number | null
@@ -790,34 +849,48 @@ interface ExerciseListProps {
 
 function ExerciseList({ exercises, focusIdx, setFocusIdx, act, onDeleteExercise, chipSource, weightUnit }: ExerciseListProps) {
   const runs = groupRuns(exercises)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { delay: 400, tolerance: 5 } })
+  )
+
+  const handleDragEnd = useCallback(({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return
+    const from = Number(active.id)
+    const to = Number(over.id)
+    if (Number.isInteger(from) && Number.isInteger(to) && from !== to) {
+      act({ type: 'reorder', from, to })
+    }
+  }, [act])
+
   return (
-    <>
-      {runs.map((run) => {
-        const isSuperset = run.length >= 2
-        const rows = run.map((i) => (
-          <ExerciseRow
-            key={i}
-            ex={exercises[i]}
-            idx={i}
-            focusIdx={focusIdx}
-            onFocused={() => setFocusIdx(null)}
-            onRename={(name) => act({ type: 'renameExercise', ex: i, name })}
-            onDelete={() => onDeleteExercise(i, exercises[i])}
-            act={act}
-            knownExercises={chipSource}
-            weightUnit={weightUnit}
-            hasNext={i < exercises.length - 1}
-          />
-        ))
-        if (!isSuperset) return rows
-        return (
-          <div key={`run-${run[0]}`} className="relative">
-            <SupersetBracket />
-            {rows}
-          </div>
-        )
-      })}
-    </>
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={exercises.map((_, i) => String(i))} strategy={verticalListSortingStrategy}>
+        {runs.map((run) => {
+          const isSuperset = run.length >= 2
+          const rows = run.map((i) => (
+            <SortableExerciseRow
+              key={i}
+              ex={exercises[i]}
+              idx={i}
+              focusIdx={focusIdx}
+              setFocusIdx={setFocusIdx}
+              act={act}
+              onDeleteExercise={onDeleteExercise}
+              chipSource={chipSource}
+              weightUnit={weightUnit}
+              exerciseCount={exercises.length}
+            />
+          ))
+          if (!isSuperset) return rows
+          return (
+            <div key={`run-${run[0]}`} className="relative">
+              <SupersetBracket />
+              {rows}
+            </div>
+          )
+        })}
+      </SortableContext>
+    </DndContext>
   )
 }
 
