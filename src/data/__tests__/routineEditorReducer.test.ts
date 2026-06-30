@@ -75,4 +75,63 @@ describe('reduce', () => {
     expect(s.exercises[0].unit).toBe('kg')
     expect(input.exercises[0].unit).toBe('lbs')
   })
+
+  it('setLoadType to rpe sets loadMode rpe, keeps weight unit, clears value/pct/rir', () => {
+    const grown = reduce(seed(), { type: 'setSetCount', ex: 0, count: 3 })
+    const withPct = reduce(grown, { type: 'setUniformLoad', ex: 0, value: 200, pct: 80 })
+    const s = reduce(withPct, { type: 'setLoadType', ex: 0, loadType: 'rpe' })
+    expect(s.exercises[0].loadMode).toBe('rpe')
+    expect(s.exercises[0].unit).toBe('lbs')
+    expect(s.exercises[0].sets.every((x) => x.value === null && x.pct === null && x.rir === undefined)).toBe(true)
+  })
+  it('setLoadType to bodyweight sets unit empty and clears all load fields', () => {
+    const s = reduce(seed(), { type: 'setLoadType', ex: 0, loadType: 'bodyweight' })
+    expect(s.exercises[0].unit).toBe('')
+    expect(s.exercises[0].loadMode).toBe('lb')
+    expect(s.exercises[0].sets.every((x) => x.value === null && x.pct === null && x.rpe === undefined && x.rir === undefined)).toBe(true)
+  })
+  it('setLoadType to time sets unit sec', () => {
+    const s = reduce(seed(), { type: 'setLoadType', ex: 0, loadType: 'time' })
+    expect(s.exercises[0].unit).toBe('sec')
+    expect(s.exercises[0].loadMode).toBe('lb')
+  })
+  it('setLoadType to pct sets loadMode pct and keeps a weight unit', () => {
+    const s = reduce(seed(), { type: 'setLoadType', ex: 0, loadType: 'pct' })
+    expect(s.exercises[0].loadMode).toBe('pct')
+    expect(s.exercises[0].unit).toBe('lbs')
+  })
+
+  it('setLoadValue with loadMode rpe sets rpe and nulls value/pct/rir', () => {
+    const grown = reduce(seed(), { type: 'setSetCount', ex: 0, count: 3 })
+    const rpeMode = reduce(grown, { type: 'setLoadType', ex: 0, loadType: 'rpe' })
+    const s = reduce(rpeMode, { type: 'setLoadValue', ex: 0, value: 8 })
+    expect(s.exercises[0].sets.every((x) => x.rpe === 8 && x.value === null && x.pct === null && x.rir === undefined)).toBe(true)
+  })
+  it('setLoadValue with loadMode lb sets value and nulls the rest', () => {
+    const grown = reduce(seed(), { type: 'setSetCount', ex: 0, count: 3 })
+    const s = reduce(grown, { type: 'setLoadValue', ex: 0, value: 185 })
+    expect(s.exercises[0].sets.every((x) => x.value === 185 && x.pct === null && x.rpe === undefined && x.rir === undefined)).toBe(true)
+  })
+
+  it('setReps single sets reps with no repsMax/repsOpen', () => {
+    const grown = reduce(seed(), { type: 'setSetCount', ex: 0, count: 3 })
+    const s = reduce(grown, { type: 'setReps', ex: 0, reps: 8 })
+    expect(s.exercises[0].sets.every((x) => x.reps === 8 && x.repsMax === undefined && x.repsOpen === undefined)).toBe(true)
+  })
+  it('setReps range sets repsMax', () => {
+    const grown = reduce(seed(), { type: 'setSetCount', ex: 0, count: 3 })
+    const s = reduce(grown, { type: 'setReps', ex: 0, reps: 8, repsMax: 12 })
+    expect(s.exercises[0].sets.every((x) => x.reps === 8 && x.repsMax === 12)).toBe(true)
+  })
+  it('setReps open sets repsOpen', () => {
+    const grown = reduce(seed(), { type: 'setSetCount', ex: 0, count: 3 })
+    const s = reduce(grown, { type: 'setReps', ex: 0, reps: 8, repsOpen: true })
+    expect(s.exercises[0].sets.every((x) => x.reps === 8 && x.repsOpen === true)).toBe(true)
+  })
+  it('setReps does not mutate input', () => {
+    const input = seed()
+    reduce(input, { type: 'setReps', ex: 0, reps: 99, repsMax: 100 })
+    expect(input.exercises[0].sets[0].reps).toBe(3)
+    expect(input.exercises[0].sets[0].repsMax).toBeUndefined()
+  })
 })

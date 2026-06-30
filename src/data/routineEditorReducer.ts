@@ -1,5 +1,5 @@
 import type { EditableRoutine, EditableExercise } from '../types'
-import { MEASURES, type Measure } from './measure'
+import { MEASURES, WEIGHT_UNITS, DISTANCE_UNITS, type Measure } from './measure'
 
 export type Action =
   | { type: 'setRoutine'; name: string }
@@ -17,6 +17,12 @@ export type Action =
   | { type: 'groupWithNext'; ex: number }
   | { type: 'ungroup'; ex: number }
   | { type: 'renameExercise'; ex: number; name: string }
+  | { type: 'setLoadType'; ex: number; loadType: 'weight' | 'pct' | 'rpe' | 'rir' | 'bodyweight' | 'time' | 'distance'; unit?: string }
+  | { type: 'setLoadValue'; ex: number; value: number | null }
+  | { type: 'setReps'; ex: number; reps: number | null; repsMax?: number | null; repsOpen?: boolean }
+
+const isWeightUnit = (u: string): boolean => (WEIGHT_UNITS as readonly string[]).includes(u)
+const isDistanceUnit = (u: string): boolean => (DISTANCE_UNITS as readonly string[]).includes(u)
 
 function nextFreeLetter(exs: EditableExercise[]): string {
   const used = new Set(exs.map((e) => e.supersetGroup).filter(Boolean) as string[])
@@ -77,5 +83,67 @@ export function reduce(state: EditableRoutine, a: Action): EditableRoutine {
     }
     case 'ungroup': { at(a.ex).supersetGroup = null; return { ...state, exercises: exs } }
     case 'renameExercise': { at(a.ex).exercise = a.name; return { ...state, exercises: exs } }
+    case 'setLoadType': {
+      const e = at(a.ex)
+      switch (a.loadType) {
+        case 'weight':
+          e.unit = a.unit ?? (isWeightUnit(e.unit) ? e.unit : 'lbs')
+          e.loadMode = 'lb'
+          e.sets.forEach((s) => { s.pct = null; s.rpe = undefined; s.rir = undefined })
+          break
+        case 'pct':
+          e.unit = a.unit ?? (isWeightUnit(e.unit) ? e.unit : 'lbs')
+          e.loadMode = 'pct'
+          e.sets.forEach((s) => { s.value = null; s.rpe = undefined; s.rir = undefined })
+          break
+        case 'rpe':
+          e.unit = a.unit ?? (isWeightUnit(e.unit) ? e.unit : 'lbs')
+          e.loadMode = 'rpe'
+          e.sets.forEach((s) => { s.value = null; s.pct = null; s.rir = undefined })
+          break
+        case 'rir':
+          e.unit = a.unit ?? (isWeightUnit(e.unit) ? e.unit : 'lbs')
+          e.loadMode = 'rir'
+          e.sets.forEach((s) => { s.value = null; s.pct = null; s.rpe = undefined })
+          break
+        case 'bodyweight':
+          e.unit = ''
+          e.loadMode = 'lb'
+          e.sets.forEach((s) => { s.value = null; s.pct = null; s.rpe = undefined; s.rir = undefined })
+          break
+        case 'time':
+          e.unit = a.unit ?? MEASURES.time.defaultUnit
+          e.loadMode = 'lb'
+          e.sets.forEach((s) => { s.pct = null; s.rpe = undefined; s.rir = undefined })
+          break
+        case 'distance':
+          e.unit = a.unit ?? (isDistanceUnit(e.unit) ? e.unit : MEASURES.distance.defaultUnit)
+          e.loadMode = 'lb'
+          e.sets.forEach((s) => { s.pct = null; s.rpe = undefined; s.rir = undefined })
+          break
+      }
+      return { ...state, exercises: exs }
+    }
+    case 'setLoadValue': {
+      const e = at(a.ex)
+      const v = a.value
+      e.sets.forEach((s) => {
+        switch (e.loadMode) {
+          case 'lb': s.value = v; s.pct = null; s.rpe = undefined; s.rir = undefined; break
+          case 'pct': s.pct = v; s.value = null; s.rpe = undefined; s.rir = undefined; break
+          case 'rpe': s.rpe = v ?? undefined; s.value = null; s.pct = null; s.rir = undefined; break
+          case 'rir': s.rir = v ?? undefined; s.value = null; s.pct = null; s.rpe = undefined; break
+        }
+      })
+      return { ...state, exercises: exs }
+    }
+    case 'setReps': {
+      at(a.ex).sets.forEach((s) => {
+        s.reps = a.reps
+        s.repsMax = a.repsMax ?? undefined
+        s.repsOpen = a.repsOpen ?? undefined
+      })
+      return { ...state, exercises: exs }
+    }
   }
 }

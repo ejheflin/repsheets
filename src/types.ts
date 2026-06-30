@@ -12,7 +12,7 @@ export interface EditableExercise {
   unit: string
   notes: string
   basis: '1rm' | 'tm'
-  loadMode: 'lb' | 'pct'
+  loadMode: 'lb' | 'pct' | 'rpe' | 'rir'
   supersetGroup: string | null
   sets: EditableSet[]
 }
