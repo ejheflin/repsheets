@@ -255,7 +255,7 @@ export function ExpandableRoutineCard({
                 onFocused={() => setFocusIdx(null)}
                 onRename={(name) => act({ type: 'renameExercise', ex: i, name })}
                 knownExercises={knownExercises}
-                routineExerciseNames={state.exercises.filter((_, j) => j !== i).map((e) => e.exercise)}
+                routineExerciseNames={state.exercises.map((e) => e.exercise)}
               />
             ))}
 
@@ -361,7 +361,7 @@ export function DraftRoutineCard({
               onFocused={() => setFocusIdx(null)}
               onRename={(name) => act({ type: 'renameExercise', ex: i, name })}
               knownExercises={knownExercises}
-              routineExerciseNames={state.exercises.filter((_, j) => j !== i).map((e) => e.exercise)}
+              routineExerciseNames={state.exercises.map((e) => e.exercise)}
             />
           ))}
 
