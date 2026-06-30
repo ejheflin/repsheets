@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import {
   DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter,
   type DragEndEvent,
@@ -203,7 +204,18 @@ function CaretDown() {
   )
 }
 
+// Map Tailwind width tokens to pixel widths so right-alignment math works in the
+// fixed-position portal (the portal escapes the card so % widths have no anchor).
+const DROPDOWN_WIDTHS: Record<string, number> = {
+  'w-20': 80,
+  'w-36': 144,
+  'w-40': 160,
+  'w-44': 176,
+}
+
 // Shared small anchored dropdown: tap trigger → menu, closes on select / outside-tap.
+// The menu renders in a portal at the document body with position:fixed so it
+// escapes the card's overflow-hidden / transform ancestors and is never clipped.
 function Dropdown<T extends string>({
   label,
   current,
@@ -218,16 +230,49 @@ function Dropdown<T extends string>({
   width?: string
 }) {
   const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuWidth = DROPDOWN_WIDTHS[width] ?? 176
+
+  const place = useCallback(() => {
+    const el = triggerRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const left = Math.max(8, rect.right - menuWidth)
+    setPos({ top: rect.bottom + 4, left })
+  }, [menuWidth])
+
+  const openMenu = () => { place(); setOpen(true) }
+
+  useEffect(() => {
+    if (!open) return
+    const close = () => setOpen(false)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [open])
+
   return (
-    <div className="relative">
-      <button type="button" onClick={() => setOpen((v) => !v)} className={triggerCls}>
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => (open ? setOpen(false) : openMenu())}
+        className={triggerCls}
+      >
         {label}
         <CaretDown />
       </button>
-      {open && (
+      {open && pos && createPortal(
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className={`absolute z-50 right-0 top-full mt-1 ${width} bg-[#1a1a2e] border border-[#3a3a5a] rounded-[10px] py-1 shadow-lg`}>
+          <div
+            className="fixed z-50 bg-[#1a1a2e] border border-[#3a3a5a] rounded-[10px] py-1 shadow-lg"
+            style={{ top: pos.top, left: pos.left, width: menuWidth }}
+          >
             {options.map((o) => (
               <button key={o.value} type="button" onClick={() => { onSelect(o.value); setOpen(false) }}
                 className={`w-full text-left px-3 py-1.5 active:bg-[#2a2a4a] ${current === o.value ? 'text-[#6c63ff]' : 'text-white'}`}>
@@ -236,9 +281,10 @@ function Dropdown<T extends string>({
               </button>
             ))}
           </div>
-        </>
+        </>,
+        document.body,
       )}
-    </div>
+    </>
   )
 }
 
