@@ -149,6 +149,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
             mutateCache={mutateCache}
             onStartWorkout={handleStartWorkout}
             tourId={i === 0 ? 'routine-card' : undefined}
+            knownExercises={[...new Set(allRows.map((row) => row.exercise))].filter(Boolean)}
           />
         ))}
       {hasDraft && spreadsheetId && (
@@ -159,6 +160,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
           mutateCache={mutateCache}
           onSavedToList={handleDraftSaved}
           onNameChange={setDraftName}
+          knownExercises={[...new Set(allRows.map((row) => row.exercise))].filter(Boolean)}
         />
       )}
       {!hasDraft && (

@@ -61,10 +61,13 @@ interface ExerciseRowProps {
   focusIdx: number | null
   onFocused: () => void
   onRename: (name: string) => void
+  knownExercises: string[]
+  routineExerciseNames: string[]
 }
 
-function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename }: ExerciseRowProps) {
+function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, knownExercises, routineExerciseNames }: ExerciseRowProps) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const [inputFocused, setInputFocused] = useState(false)
 
   useEffect(() => {
     if (focusIdx === idx && inputRef.current) {
@@ -73,6 +76,15 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename }: ExerciseRowProp
       onFocused()
     }
   }, [focusIdx, idx, onFocused])
+
+  const isDefault = ex.exercise === '' || ex.exercise === 'New exercise'
+  const lowerInput = ex.exercise.toLowerCase()
+
+  const chips = knownExercises.filter((name) => {
+    const lowerName = name.toLowerCase()
+    if (!isDefault && !lowerName.includes(lowerInput)) return false
+    return !routineExerciseNames.some((n) => n.toLowerCase() === lowerName)
+  })
 
   return (
     <div className="bg-[#1a1a2e] rounded-[10px] p-3 mb-2 flex items-center gap-3">
@@ -84,10 +96,33 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename }: ExerciseRowProp
           type="text"
           value={ex.exercise}
           onChange={(e) => onRename(e.target.value)}
-          onFocus={(e) => e.target.select()}
+          onFocus={(e) => { e.target.select(); setInputFocused(true) }}
+          onBlur={() => setInputFocused(false)}
           className="w-full bg-transparent font-semibold text-white outline-none border-b border-transparent focus:border-[#6c63ff] transition-colors truncate"
           style={{ fontSize: 16 }}
         />
+        {inputFocused && chips.length > 0 && (
+          <div
+            className="flex flex-wrap gap-2 mt-2"
+            style={{ maxHeight: 104, overflowY: 'auto' }}
+          >
+            {chips.map((name) => (
+              <button
+                key={name}
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  onRename(name)
+                  setInputFocused(false)
+                  inputRef.current?.blur()
+                }}
+                className="bg-[#3a3a5a] rounded-full px-3 py-1.5 text-sm text-white active:bg-[#6c63ff] active:opacity-80"
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="text-[12px] text-gray-500 mt-0.5">{buildScheme(ex)}</div>
       </div>
     </div>
@@ -102,6 +137,7 @@ interface ExpandableRoutineCardProps {
   onStartWorkout: (rows: RoutineRow[]) => void
   initialExpanded?: boolean
   tourId?: string
+  knownExercises: string[]
 }
 
 export function ExpandableRoutineCard({
@@ -112,6 +148,7 @@ export function ExpandableRoutineCard({
   onStartWorkout,
   initialExpanded = false,
   tourId,
+  knownExercises,
 }: ExpandableRoutineCardProps) {
   const [expanded, setExpanded] = useState(initialExpanded)
   const [focusIdx, setFocusIdx] = useState<number | null>(null)
@@ -215,6 +252,8 @@ export function ExpandableRoutineCard({
                 focusIdx={focusIdx}
                 onFocused={() => setFocusIdx(null)}
                 onRename={(name) => act({ type: 'renameExercise', ex: i, name })}
+                knownExercises={knownExercises}
+                routineExerciseNames={state.exercises.filter((_, j) => j !== i).map((e) => e.exercise)}
               />
             ))}
 
@@ -242,6 +281,7 @@ interface DraftRoutineCardProps {
   mutateCache: (rows: RoutineRow[]) => void
   onSavedToList: () => void
   onNameChange: (name: string) => void
+  knownExercises: string[]
 }
 
 export function DraftRoutineCard({
@@ -251,6 +291,7 @@ export function DraftRoutineCard({
   mutateCache,
   onSavedToList: _onSavedToList,
   onNameChange,
+  knownExercises,
 }: DraftRoutineCardProps) {
   const [focusIdx, setFocusIdx] = useState<number | null>(null)
 
@@ -317,6 +358,8 @@ export function DraftRoutineCard({
               focusIdx={focusIdx}
               onFocused={() => setFocusIdx(null)}
               onRename={(name) => act({ type: 'renameExercise', ex: i, name })}
+              knownExercises={knownExercises}
+              routineExerciseNames={state.exercises.filter((_, j) => j !== i).map((e) => e.exercise)}
             />
           ))}
 
