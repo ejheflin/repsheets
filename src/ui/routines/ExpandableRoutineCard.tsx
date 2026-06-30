@@ -59,6 +59,35 @@ function ChevronDown() {
   )
 }
 
+function LinkIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 13a5 5 0 007.07 0l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 00-7.07 0l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+    </svg>
+  )
+}
+
+// Purple gutter bracket overlay spanning a contiguous superset run.
+function SupersetBracket() {
+  return (
+    <div
+      className="absolute pointer-events-none"
+      style={{ left: -7, top: 4, bottom: 12, width: 6, border: '1.5px solid #6c63ff', borderRight: 'none', borderRadius: '5px 0 0 5px' }}
+    >
+      <span
+        className="absolute"
+        style={{
+          left: -8, top: '50%', transform: 'translate(-50%, -50%) rotate(-90deg)', transformOrigin: 'center',
+          fontSize: 7, fontWeight: 800, letterSpacing: '.5px', color: '#6c63ff', whiteSpace: 'nowrap',
+        }}
+      >
+        SUPER
+      </span>
+    </div>
+  )
+}
+
 // Small caret used inside the per-exercise card header (mirrors workout ExerciseRow).
 function RowChevronRight() {
   return (
@@ -552,8 +581,8 @@ function PerSetValueBox({ ex, idx, setIdx, type, act, weightUnit, oneRepMax, mis
   )
 }
 
-function PerSetEditor({ ex, idx, act, weightUnit, oneRepMax }: {
-  ex: EditableExercise; idx: number; act: (a: Action) => void; weightUnit: string; oneRepMax?: number | null
+function PerSetEditor({ ex, idx, act, weightUnit, oneRepMax, hasNext }: {
+  ex: EditableExercise; idx: number; act: (a: Action) => void; weightUnit: string; oneRepMax?: number | null; hasNext: boolean
 }) {
   const type = loadTypeOf(ex)
   const hasValueCol = type !== 'bodyweight'
@@ -602,6 +631,25 @@ function PerSetEditor({ ex, idx, act, weightUnit, oneRepMax }: {
       >
         + Add set
       </button>
+      {ex.supersetGroup != null ? (
+        <button
+          type="button"
+          onClick={() => act({ type: 'ungroup', ex: idx })}
+          className="w-full mt-2 flex items-center justify-center gap-1.5 py-1.5 text-[#6c63ff] text-[12px] font-semibold active:opacity-80"
+        >
+          <LinkIcon />
+          Ungroup
+        </button>
+      ) : hasNext ? (
+        <button
+          type="button"
+          onClick={() => act({ type: 'groupWithNext', ex: idx })}
+          className="w-full mt-2 flex items-center justify-center gap-1.5 py-1.5 text-[#6c63ff] text-[12px] font-semibold active:opacity-80"
+        >
+          <LinkIcon />
+          Group with next as superset
+        </button>
+      ) : null}
     </div>
   )
 }
@@ -616,9 +664,10 @@ interface ExerciseRowProps {
   knownExercises: string[]
   weightUnit: string
   oneRepMax?: number | null
+  hasNext: boolean
 }
 
-function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, act, knownExercises, weightUnit, oneRepMax }: ExerciseRowProps) {
+function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, act, knownExercises, weightUnit, oneRepMax, hasNext }: ExerciseRowProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [inputFocused, setInputFocused] = useState(false)
   const [expanded, setExpanded] = useState(false)
@@ -690,11 +739,76 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, act, knownExercis
         <ExerciseEditControls ex={ex} idx={idx} act={act} weightUnit={weightUnit} oneRepMax={oneRepMax} />
         {expanded && (
           <div className="mt-3 pt-3 border-t border-[#3a3a5a]">
-            <PerSetEditor ex={ex} idx={idx} act={act} weightUnit={weightUnit} oneRepMax={oneRepMax} />
+            <PerSetEditor ex={ex} idx={idx} act={act} weightUnit={weightUnit} oneRepMax={oneRepMax} hasNext={hasNext} />
           </div>
         )}
       </div>
     </div>
+  )
+}
+
+// Group contiguous exercises that share the same non-null supersetGroup letter
+// into runs. Each run is [startIdx, ...indices]; runs of length ≥2 get a bracket.
+function groupRuns(exercises: EditableExercise[]): number[][] {
+  const runs: number[][] = []
+  let i = 0
+  while (i < exercises.length) {
+    const g = exercises[i].supersetGroup
+    if (g == null) {
+      runs.push([i])
+      i++
+      continue
+    }
+    const run = [i]
+    let j = i + 1
+    while (j < exercises.length && exercises[j].supersetGroup === g) {
+      run.push(j)
+      j++
+    }
+    runs.push(run)
+    i = j
+  }
+  return runs
+}
+
+interface ExerciseListProps {
+  exercises: EditableExercise[]
+  focusIdx: number | null
+  setFocusIdx: (i: number | null) => void
+  act: (a: Action) => void
+  chipSource: string[]
+  weightUnit: string
+}
+
+function ExerciseList({ exercises, focusIdx, setFocusIdx, act, chipSource, weightUnit }: ExerciseListProps) {
+  const runs = groupRuns(exercises)
+  return (
+    <>
+      {runs.map((run) => {
+        const isSuperset = run.length >= 2
+        const rows = run.map((i) => (
+          <ExerciseRow
+            key={i}
+            ex={exercises[i]}
+            idx={i}
+            focusIdx={focusIdx}
+            onFocused={() => setFocusIdx(null)}
+            onRename={(name) => act({ type: 'renameExercise', ex: i, name })}
+            act={act}
+            knownExercises={chipSource}
+            weightUnit={weightUnit}
+            hasNext={i < exercises.length - 1}
+          />
+        ))
+        if (!isSuperset) return rows
+        return (
+          <div key={`run-${run[0]}`} className="relative">
+            <SupersetBracket />
+            {rows}
+          </div>
+        )
+      })}
+    </>
   )
 }
 
@@ -813,20 +927,15 @@ export function ExpandableRoutineCard({
 
       {expanded && (
         <div className="px-3.5 pb-3.5 border-t border-[#3a3a5a]">
-          <div className="pt-3">
-            {state.exercises.map((ex, i) => (
-              <ExerciseRow
-                key={i}
-                ex={ex}
-                idx={i}
-                focusIdx={focusIdx}
-                onFocused={() => setFocusIdx(null)}
-                onRename={(name) => act({ type: 'renameExercise', ex: i, name })}
-                act={act}
-                knownExercises={chipSource}
-                weightUnit={weightUnit}
-              />
-            ))}
+          <div className="pt-3 pl-2">
+            <ExerciseList
+              exercises={state.exercises}
+              focusIdx={focusIdx}
+              setFocusIdx={setFocusIdx}
+              act={act}
+              chipSource={chipSource}
+              weightUnit={weightUnit}
+            />
 
             {/* TODO Task 10 — replace with AddExercisePicker */}
             <button
@@ -927,20 +1036,15 @@ export function DraftRoutineCard({
       </div>
 
       <div className="px-3.5 pb-3.5 border-t border-[#3a3a5a]">
-        <div className="pt-3">
-          {state.exercises.map((ex, i) => (
-            <ExerciseRow
-              key={i}
-              ex={ex}
-              idx={i}
-              focusIdx={focusIdx}
-              onFocused={() => setFocusIdx(null)}
-              onRename={(name) => act({ type: 'renameExercise', ex: i, name })}
-              act={act}
-              knownExercises={chipSource}
-              weightUnit={weightUnit}
-            />
-          ))}
+        <div className="pt-3 pl-2">
+          <ExerciseList
+            exercises={state.exercises}
+            focusIdx={focusIdx}
+            setFocusIdx={setFocusIdx}
+            act={act}
+            chipSource={chipSource}
+            weightUnit={weightUnit}
+          />
 
           {/* TODO Task 10 — replace with AddExercisePicker */}
           <button
