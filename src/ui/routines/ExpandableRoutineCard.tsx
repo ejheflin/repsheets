@@ -711,7 +711,7 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, onDelete, act, kn
     >
     <div
       className="bg-[#2a2a4a] rounded-[10px] p-3 border border-[#3a3a5a]"
-      style={isDragging ? { boxShadow: '0 8px 24px rgba(0,0,0,0.6)', border: '1.5px solid #6c63ff', transform: 'scale(1.03)' } : undefined}
+      style={isDragging ? { boxShadow: '0 8px 24px rgba(0,0,0,0.6)', border: '1.5px solid #6c63ff', transform: 'scale(1.03)', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' } : { WebkitTouchCallout: 'none' }}
       {...(dragAttributes ?? {})}
       {...(dragListeners ?? {})}
     >
@@ -853,6 +853,11 @@ function ExerciseList({ exercises, focusIdx, setFocusIdx, act, onDeleteExercise,
     useSensor(PointerSensor, { activationConstraint: { delay: 400, tolerance: 5 } })
   )
 
+  const handleDragStart = useCallback(() => {
+    ;(document.activeElement as HTMLElement | null)?.blur()
+    window.getSelection?.()?.removeAllRanges()
+  }, [])
+
   const handleDragEnd = useCallback(({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return
     const from = exercises.findIndex((e) => e.id === active.id)
@@ -863,7 +868,7 @@ function ExerciseList({ exercises, focusIdx, setFocusIdx, act, onDeleteExercise,
   }, [act, exercises])
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <SortableContext items={exercises.map((e) => e.id)} strategy={verticalListSortingStrategy}>
         {runs.map((run) => {
           const isSuperset = run.length >= 2
