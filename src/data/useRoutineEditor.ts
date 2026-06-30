@@ -23,21 +23,33 @@ export function useRoutineEditor(
   const onSavedRef = useRef(onSaved)
   onSavedRef.current = onSaved
 
+  const saveNow = useCallback(async () => {
+    const s = stateRef.current
+    setStatus('saving')
+    try {
+      const saved = await saveRoutineRows(spreadsheetId, s.program, s.routine, toRows(s))
+      dirty.current = false
+      onSavedRef.current(saved)
+      setStatus('saved')
+    } catch (err) {
+      setStatus('error')
+      throw err
+    }
+  }, [spreadsheetId])
+
   const runSave = useCallback((delay: number) => {
     setStatus('saving')
     clearTimeout(timer.current)
-    timer.current = setTimeout(async () => {
-      const s = stateRef.current
-      try {
-        const saved = await saveRoutineRows(spreadsheetId, s.program, s.routine, toRows(s))
-        dirty.current = false
-        onSavedRef.current(saved)
-        setStatus('saved')
-      } catch {
-        setStatus('error')
-      }
-    }, delay)
-  }, [spreadsheetId])
+    timer.current = setTimeout(() => { saveNow().catch(() => {}) }, delay)
+  }, [saveNow])
+
+  // Flush any pending change immediately and resolve once persisted. Used before
+  // starting a workout so a just-added exercise can't be lost to a debounced save.
+  const flush = useCallback(async () => {
+    clearTimeout(timer.current)
+    if (!dirty.current) return
+    await saveNow()
+  }, [saveNow])
 
   // State changed: mark dirty. Defer the save while the user is editing within the
   // card (focus would be stolen by the resulting re-render / draft graduation).
@@ -62,5 +74,5 @@ export function useRoutineEditor(
   }, [editing, runSave])
 
   const act = useCallback((a: Action) => dispatch(a), [])
-  return { state, status, act }
+  return { state, status, act, flush }
 }

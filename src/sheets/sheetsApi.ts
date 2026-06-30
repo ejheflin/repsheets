@@ -2,6 +2,7 @@ import type { RoutineRow, LogEntry } from '../types'
 import { authFetch } from '../auth/authFetch'
 import { GOOGLE_API_KEY } from '../config'
 import { parseRoutineValue, parseReps } from './routineSerialization'
+import { parseAchieved } from '../workout/achievedRpe'
 
 /**
  * Converts a Google Sheets serial date number to YYYY-MM-DD.
@@ -109,6 +110,7 @@ export interface IndexedLogEntry extends LogEntry {
 }
 
 function parseLogRow(row: string[]): LogEntry {
+  const { notes, rpe, rir } = parseAchieved(row[9] ?? '')
   return {
     date: normalizeDate(row[0] ?? ''),
     athlete: row[1] ?? '',
@@ -119,8 +121,10 @@ function parseLogRow(row: string[]): LogEntry {
     reps: row[6] ? Number(row[6]) : 0,
     value: row[7] ? Number(row[7]) : null,
     unit: row[8] ?? '',
-    notes: row[9] ?? '',
+    notes,
     pct: row[10] ? Number(row[10]) : null,
+    achievedRpe: rpe,
+    achievedRir: rir,
   }
 }
 

@@ -479,7 +479,7 @@ interface SortableExerciseRowProps {
   onToggleExpand: () => void
   onToggleExercise: () => void
   onToggleSet: (setIdx: number) => void
-  onUpdateSet: (setIdx: number, field: 'reps' | 'value', val: number | null) => void
+  onUpdateSet: (setIdx: number, field: 'reps' | 'value' | 'achievedRpe' | 'achievedRir', val: number | null) => void
   onUpdateAllSets: (field: 'reps' | 'value', val: number | null) => void
   onUpdateNotes: (notes: string) => void
   onAddSet: () => void

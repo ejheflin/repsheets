@@ -10,6 +10,11 @@ interface SetRowProps {
   pct?: number | null
   rpe?: number | null
   rir?: number | null
+  achievedRpe?: number | null
+  achievedRir?: number | null
+  gridCols?: string
+  showTargetColumn?: boolean
+  showAchievedColumn?: boolean
   oneRepMax?: number | null
   rawOneRepMax?: number | null
   repsFlag?: boolean
@@ -17,15 +22,25 @@ interface SetRowProps {
   onToggle: () => void
   onRepsChange: (val: number | null) => void
   onValueChange: (val: number | null) => void
+  onAchievedRpeChange?: (val: number | null) => void
+  onAchievedRirChange?: (val: number | null) => void
   onTargetClick?: () => void
 }
 
 export function SetRow({
   setNumber, reps, value, unit: _unit, completed,
-  pct, rpe, rir, oneRepMax, rawOneRepMax,
+  pct, rpe, rir, achievedRpe, achievedRir, gridCols, showTargetColumn, showAchievedColumn, oneRepMax, rawOneRepMax,
   repsFlag, valueFlag,
-  onToggle, onRepsChange, onValueChange, onTargetClick,
+  onToggle, onRepsChange, onValueChange, onAchievedRpeChange, onAchievedRirChange, onTargetClick,
 }: SetRowProps) {
+  // Achieved-RPE capture appears only for RPE/RIR-prescribed sets (or past sets that
+  // logged one). The box defaults to the prescription; the athlete nudges it to what
+  // they actually hit. Plain weight/% sets never show it (Layer 1 — no clutter).
+  const rpeMode = rpe != null || achievedRpe != null
+  const rirMode = !rpeMode && (rir != null || achievedRir != null)
+  const showAchieved = rpeMode || rirMode
+  const achievedValue = rpeMode ? (achievedRpe ?? rpe) : (achievedRir ?? rir)
+  const prescribed = rpeMode ? rpe : rir
   const showPctLabel = pct != null
   const targetWeight = showPctLabel && oneRepMax != null
     ? Math.round(pct * oneRepMax / 100 / 5) * 5
@@ -64,37 +79,53 @@ export function SetRow({
   }, [value])
 
   return (
-    <div className="flex items-center py-1.5 bg-[#2a2a4a]">
-      <div className="w-7 text-xs text-gray-500">{setNumber}</div>
-      <div className="flex-1 flex items-center justify-center gap-1">
+    <div className="grid items-center py-1.5 bg-[#2a2a4a]" style={{ gridTemplateColumns: gridCols }}>
+      <div className="text-xs text-gray-500 text-center">{setNumber}</div>
+      <div className="flex items-center justify-center gap-1 min-w-0">
         <button
           onClick={() => onRepsChange(Math.max(0, (reps ?? 0) - 1))}
-          className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#2a2a4a]"
+          className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center flex-shrink-0 active:bg-[#2a2a4a]"
         >−</button>
         <input type="text" inputMode="numeric" value={reps ?? ''}
           onChange={(e) => onRepsChange(e.target.value ? Number(e.target.value) : null)}
           onFocus={(e) => e.target.select()}
-          className={`w-12 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${repsFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
+          className={`w-full min-w-0 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${repsFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
           placeholder="—" />
         <button
           onClick={() => onRepsChange((reps ?? 0) + 1)}
-          className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#2a2a4a]"
+          className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center flex-shrink-0 active:bg-[#2a2a4a]"
         >+</button>
       </div>
-      {pctLabel != null && (
+      {showTargetColumn && (
         <button onClick={onTargetClick}
-          className="w-16 text-right pr-1 text-[11px] text-gray-500 leading-tight flex-shrink-0 active:opacity-80">
+          className="text-right pr-1 text-[11px] text-gray-500 leading-tight active:opacity-80 truncate">
           {pctLabel}
         </button>
       )}
-      <div className="flex-1 text-center">
+      <div className="px-1 min-w-0">
         <input ref={valueRef} type="text" inputMode="decimal" value={value != null ? Math.round(value) : ''}
           onChange={(e) => { userEditing.current = true; onValueChange(e.target.value ? Number(e.target.value) : null) }}
           onFocus={(e) => { userEditing.current = false; e.target.select() }}
-          className={`w-16 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
+          className={`w-full min-w-0 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
           placeholder="—" />
       </div>
-      <div className="w-7 text-center">
+      {showAchievedColumn && (
+        <div className="px-0.5 min-w-0">
+          {showAchieved && (
+            <input type="text" inputMode="decimal"
+              value={achievedValue != null ? achievedValue : ''}
+              placeholder={prescribed != null ? String(prescribed) : ''}
+              onChange={(e) => {
+                const v = e.target.value ? Number(e.target.value) : null
+                if (rpeMode) onAchievedRpeChange?.(v)
+                else onAchievedRirChange?.(v)
+              }}
+              onFocus={(e) => e.target.select()}
+              className="w-full min-w-0 bg-[#1a1a2e] rounded text-center text-sm font-semibold py-1 outline-none [appearance:textfield] focus:ring-1 focus:ring-[#6c63ff]" />
+          )}
+        </div>
+      )}
+      <div className="flex justify-center">
         <button onClick={onToggle}>
           {completed ? (
             <div className="w-[18px] h-[18px] bg-[#6c63ff] rounded inline-flex items-center justify-center text-[10px]">✓</div>

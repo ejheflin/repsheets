@@ -69,7 +69,7 @@ interface ExerciseRowProps {
   onToggleExpand: () => void
   onToggleExercise: () => void
   onToggleSet: (setIdx: number) => void
-  onUpdateSet: (setIdx: number, field: 'reps' | 'value', val: number | null) => void
+  onUpdateSet: (setIdx: number, field: 'reps' | 'value' | 'achievedRpe' | 'achievedRir', val: number | null) => void
   onUpdateAllSets: (field: 'reps' | 'value', val: number | null) => void
   onUpdateNotes: (notes: string) => void
   onAddSet?: () => void
@@ -197,6 +197,27 @@ export function ExerciseRow({
 
   const showSlashedTargets = showPctSlashedTargets || showRpeRirSlashedTargets
   const showTargetColumn = hasAnyPct || hasAnyRpeRir
+
+  // Achieved-RPE capture column — present when any set is RPE/RIR-prescribed or (in
+  // edit mode) carries a logged achieved value. Header label tracks the mode.
+  const showAchievedColumn = exercise.sets.some(
+    (s) => s.rpe != null || s.rir != null || s.achievedRpe != null || s.achievedRir != null
+  )
+  const achievedIsRir =
+    !exercise.sets.some((s) => s.rpe != null || s.achievedRpe != null) &&
+    exercise.sets.some((s) => s.rir != null || s.achievedRir != null)
+  const achievedLabel = achievedIsRir ? 'RIR' : 'RPE'
+
+  // One grid template shared by the header and every set row, so columns line up
+  // exactly regardless of which optional columns (Target / RPE) are present.
+  const gridCols = [
+    '1.75rem',                          // Set
+    'minmax(5rem,1.25fr)',              // Reps (wider — the +/− buttons eat into it)
+    showTargetColumn ? '4rem' : null,   // Target
+    'minmax(min-content,1fr)',          // Value
+    showAchievedColumn ? '3rem' : null, // RPE / RIR
+    '1.75rem',                          // ✓
+  ].filter(Boolean).join(' ')
 
   // Plate calculator: next unchecked set, or last set once all are done
   const plateSet = exercise.sets.find((s) => !s.completed) ?? exercise.sets[exercise.sets.length - 1]
@@ -432,17 +453,21 @@ export function ExerciseRow({
         <div className="text-[10px] text-[#6c63ff] mb-2 ml-5">▸ {exercise.notes}</div>
       )}
       <div className="ml-5">
-        <div className="flex pb-1 text-[10px] text-gray-600 uppercase tracking-wider">
-          <div className="w-7">Set</div>
-          <div className="flex-1 text-center">Reps</div>
+        <div className="grid items-center pb-1 text-[10px] text-gray-600 uppercase tracking-wider"
+          style={{ gridTemplateColumns: gridCols }}>
+          <div className="text-center">Set</div>
+          <div className="text-center">Reps</div>
           {showTargetColumn && (
             <button onClick={() => setShowMaxSettings(true)}
-              className="w-16 text-right pr-1 active:opacity-80">
+              className="text-right pr-1 active:opacity-80">
               Target
             </button>
           )}
-          <div className="flex-1 text-center">{unit || 'Value'}</div>
-          <div className="w-7" />
+          <div className="text-center">{unit || 'Value'}</div>
+          {showAchievedColumn && (
+            <div className="text-center">{achievedLabel}</div>
+          )}
+          <div />
         </div>
         {exercise.sets.map((set, setIdx) => {
           const isDeleting = deletingSetIdx === setIdx
@@ -471,6 +496,11 @@ export function ExerciseRow({
                   pct={set.pct}
                   rpe={set.rpe}
                   rir={set.rir}
+                  achievedRpe={set.achievedRpe}
+                  achievedRir={set.achievedRir}
+                  gridCols={gridCols}
+                  showTargetColumn={showTargetColumn}
+                  showAchievedColumn={showAchievedColumn}
                   oneRepMax={oneRepMax}
                   rawOneRepMax={rawOneRepMax}
                   repsFlag={set.reps !== summaryReps}
@@ -478,6 +508,8 @@ export function ExerciseRow({
                   onToggle={() => onToggleSet(setIdx)}
                   onRepsChange={(v) => onUpdateSet(setIdx, 'reps', v)}
                   onValueChange={(v) => onUpdateSet(setIdx, 'value', v)}
+                  onAchievedRpeChange={(v) => onUpdateSet(setIdx, 'achievedRpe', v)}
+                  onAchievedRirChange={(v) => onUpdateSet(setIdx, 'achievedRir', v)}
                   onTargetClick={(set.pct != null || set.rpe != null || set.rir != null) ? () => setShowMaxSettings(true) : undefined} />
               </SwipeableRow>
             </div>

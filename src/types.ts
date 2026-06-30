@@ -54,6 +54,8 @@ export interface LogEntry {
   unit: string
   notes: string
   pct?: number | null // programmed % of 1RM (col K), null for absolute-weight sets
+  achievedRpe?: number | null // performed RPE, parsed from a notes-cell token (@8)
+  achievedRir?: number | null // performed RIR, parsed from a notes-cell token (2RIR)
 }
 
 /** A set expanded from RoutineRow by the set inference engine */
@@ -88,6 +90,8 @@ export interface WorkoutSet {
   pct?: number | null   // target percentage of 1RM, null if absolute weight
   rpe?: number | null   // target RPE, resolves to a weight via raw e1rm
   rir?: number | null   // target RIR, resolves to a weight via raw e1rm
+  achievedRpe?: number | null  // RPE actually performed; defaults to prescribed when untouched
+  achievedRir?: number | null  // RIR actually performed; defaults to prescribed when untouched
   unit: string
   completed: boolean
   isAdded: boolean      // true if user added this set (not in routine config)

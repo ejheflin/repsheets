@@ -83,12 +83,20 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
   const { spreadsheetId } = useSheetContext()
   const { settings: exerciseSettings } = useExerciseSettings(spreadsheetId)
 
+  const maxCache = useMemo(
+    () => new Map<string, { e1rm: number | null; tm: number | null }>(),
+    [exerciseSettings, myLogs, athleteName],
+  )
   const getMax = useCallback((name: string): { e1rm: number | null; tm: number | null } => {
+    const cached = maxCache.get(name)
+    if (cached) return cached
     const exSettings = exerciseSettings[name]
     const e1rm = exSettings?.oneRepMax ?? estimateOneRepMax(myLogs, name, athleteName ?? '', new Map())
     const tm = exSettings?.tm ?? null
-    return { e1rm, tm }
-  }, [exerciseSettings, myLogs, athleteName])
+    const result = { e1rm, tm }
+    maxCache.set(name, result)
+    return result
+  }, [maxCache, exerciseSettings, myLogs, athleteName])
   const { login } = useAuth()
   const [showSheetSwitcher, setShowSheetSwitcher] = useState(false)
   const [showShare, setShowShare] = useState(false)

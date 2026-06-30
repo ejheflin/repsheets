@@ -9,7 +9,7 @@ import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useRoutineEditor } from '../../data/useRoutineEditor'
-import { toEditable } from '../../data/routineModel'
+import { toEditable, toRows } from '../../data/routineModel'
 import { formatValue, formatDuration, measureOf, MEASURES } from '../../data/measure'
 import { rpeToPct, rirToPct } from '../../workout/rpe'
 import { SwipeableRow } from '../shared/SwipeableRow'
@@ -1062,7 +1062,13 @@ export function ExpandableRoutineCard({
   }, [])
 
   const initial = toEditable(routine.rows)
-  const { state, status, act } = useRoutineEditor(spreadsheetId, initial, stableOnSaved, editing)
+  const { state, status, act, flush } = useRoutineEditor(spreadsheetId, initial, stableOnSaved, editing)
+
+  const handleStart = useCallback(async () => {
+    const rows = toRows(state)
+    try { await flush() } catch { /* offline — start from in-memory state anyway */ }
+    onStartWorkout(rows)
+  }, [state, flush, onStartWorkout])
 
   const handleDeleteExercise = useCallback((index: number, exercise: EditableExercise) => {
     act({ type: 'removeExercise', ex: index })
@@ -1132,7 +1138,7 @@ export function ExpandableRoutineCard({
         </button>
 
         <button
-          onClick={(e) => { e.stopPropagation(); onStartWorkout(routine.rows) }}
+          onClick={(e) => { e.stopPropagation(); handleStart() }}
           className="flex-shrink-0 bg-[#6c63ff] rounded-full px-3 py-1 text-[12px] font-semibold active:opacity-80"
         >
           Start

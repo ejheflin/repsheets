@@ -8,7 +8,19 @@ import { fetchRoutineRows, fetchLogEntries, appendLogEntries, updateLogRows, typ
 import { localDateString } from '../utils'
 import { saveWorkout, getWorkout, clearWorkout, saveLogs, getLogs, getRoutines, queueLogEntries, saveRoutines } from './db'
 import { checkPendingSync } from './syncEngine'
-import type { RoutineRow, WorkoutState, WorkoutExercise, LogEntry, EditModeState } from '../types'
+import { serializeAchieved } from '../workout/achievedRpe'
+import type { RoutineRow, WorkoutState, WorkoutExercise, WorkoutSet, LogEntry, EditModeState } from '../types'
+
+/** Resolve the achieved RPE/RIR to log for a set, defaulting to the prescription. */
+function loggedAchieved(set: WorkoutSet): { rpe: number | null; rir: number | null } {
+  if (set.rpe != null || set.achievedRpe != null) {
+    return { rpe: set.achievedRpe ?? set.rpe ?? null, rir: null }
+  }
+  if (set.rir != null || set.achievedRir != null) {
+    return { rpe: null, rir: set.achievedRir ?? set.rir ?? null }
+  }
+  return { rpe: null, rir: null }
+}
 
 function formatAthleteName(name: string): string {
   const parts = name.trim().split(/\s+/)
@@ -28,7 +40,7 @@ interface WorkoutContextValue {
   saveEditedWorkout: () => Promise<void>
   toggleSet: (exerciseIdx: number, setIdx: number) => void
   toggleExercise: (exerciseIdx: number) => void
-  updateSet: (exerciseIdx: number, setIdx: number, field: 'reps' | 'value', val: number | null) => void
+  updateSet: (exerciseIdx: number, setIdx: number, field: 'reps' | 'value' | 'achievedRpe' | 'achievedRir', val: number | null) => void
   updateAllSets: (exerciseIdx: number, field: 'reps' | 'value', val: number | null) => void
   updateNotes: (exerciseIdx: number, notes: string) => void
   toggleExpanded: (exerciseIdx: number) => void
@@ -276,7 +288,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   const updateSet = useCallback((
     exerciseIdx: number,
     setIdx: number,
-    field: 'reps' | 'value',
+    field: 'reps' | 'value' | 'achievedRpe' | 'achievedRir',
     val: number | null
   ) => {
     setWorkout((prev) => {
@@ -410,6 +422,8 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
           reps: e.reps,
           value: e.value,
           pct: e.pct ?? null,
+          achievedRpe: e.achievedRpe ?? null,
+          achievedRir: e.achievedRir ?? null,
           unit: e.unit,
           completed: true,
           isAdded: false,
@@ -438,6 +452,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     for (const ex of workout.exercises) {
       for (const set of ex.sets) {
         if (set.rowIndex == null) continue
+        const achieved = loggedAchieved(set)
         updates.push({
           rowIndex: set.rowIndex,
           entry: {
@@ -450,7 +465,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
             reps: set.reps ?? 0,
             value: set.value,
             unit: set.unit,
-            notes: ex.userNotes,
+            notes: serializeAchieved(ex.userNotes, achieved.rpe, achieved.rir),
             pct: set.pct ?? null,
           },
         })
@@ -471,6 +486,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     for (const ex of workout.exercises) {
       for (const set of ex.sets) {
         if (logOnlyCompleted && !set.completed) continue
+        const achieved = loggedAchieved(set)
         entries.push({
           date: today,
           athlete: alias ?? formatAthleteName(user.name),
@@ -481,7 +497,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
           reps: set.reps ?? 0,
           value: set.value,
           unit: set.unit,
-          notes: ex.userNotes,
+          notes: serializeAchieved(ex.userNotes, achieved.rpe, achieved.rir),
           pct: set.pct ?? null,
         })
       }
