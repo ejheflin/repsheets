@@ -173,7 +173,7 @@ function Dropdown<T extends string>({
   )
 }
 
-function Stepper({ value, min = 0, onChange, width = 'w-10' }: { value: number; min?: number; onChange: (v: number) => void; width?: string }) {
+function Stepper({ value, min = 0, onChange, width = 'w-10', mismatch = false }: { value: number; min?: number; onChange: (v: number) => void; width?: string; mismatch?: boolean }) {
   return (
     <div className="flex items-center justify-center gap-1">
       <button type="button" onClick={() => onChange(Math.max(min, value - 1))} className={stepBtn}>−</button>
@@ -183,7 +183,7 @@ function Stepper({ value, min = 0, onChange, width = 'w-10' }: { value: number; 
         value={value}
         onChange={(e) => onChange(e.target.value ? Math.max(min, Number(e.target.value)) : min)}
         onFocus={(e) => e.target.select()}
-        className={`${width} ${boxBase}`}
+        className={`${width} ${boxBase}${mismatch ? ` ${mismatchRing}` : ''}`}
         style={{ fontSize: 16 }}
       />
       <button type="button" onClick={() => onChange(value + 1)} className={stepBtn}>+</button>
@@ -213,7 +213,7 @@ function repsModeOf(s: EditableExercise['sets'][number] | undefined): RepsMode {
 }
 
 // ─── REPS column ────────────────────────────────────────────────────────────
-function RepsControl({ ex, idx, act }: { ex: EditableExercise; idx: number; act: (a: Action) => void }) {
+function RepsControl({ ex, idx, act, mismatch = false }: { ex: EditableExercise; idx: number; act: (a: Action) => void; mismatch?: boolean }) {
   const s0 = ex.sets[0]
   const mode = repsModeOf(s0)
   const reps = s0?.reps ?? null
@@ -247,7 +247,7 @@ function RepsControl({ ex, idx, act }: { ex: EditableExercise; idx: number; act:
 
   let control: React.ReactNode
   if (mode === 'single') {
-    control = <Stepper value={reps ?? 0} min={0} onChange={(v) => act({ type: 'setReps', ex: idx, reps: v })} />
+    control = <Stepper value={reps ?? 0} min={0} mismatch={mismatch} onChange={(v) => act({ type: 'setReps', ex: idx, reps: v })} />
   } else if (mode === 'range') {
     control = (
       <input
@@ -256,7 +256,7 @@ function RepsControl({ ex, idx, act }: { ex: EditableExercise; idx: number; act:
         value={rangeText}
         onChange={(e) => { setRangeText(e.target.value); commitRange(e.target.value) }}
         onFocus={(e) => e.target.select()}
-        className={`w-[72px] ${boxBase}`}
+        className={`w-[72px] ${boxBase}${mismatch ? ` ${mismatchRing}` : ''}`}
         style={{ fontSize: 16 }}
         placeholder="8 – 12"
       />
@@ -272,7 +272,7 @@ function RepsControl({ ex, idx, act }: { ex: EditableExercise; idx: number; act:
           act({ type: 'setReps', ex: idx, reps: n ? Number(n[0]) : null, repsOpen: true })
         }}
         onFocus={(e) => e.target.select()}
-        className={`w-[72px] ${boxBase}`}
+        className={`w-[72px] ${boxBase}${mismatch ? ` ${mismatchRing}` : ''}`}
         style={{ fontSize: 16 }}
         placeholder="AMRAP"
       />
@@ -321,6 +321,28 @@ function loadTypeOf(ex: EditableExercise): LoadType {
   return 'weight'
 }
 
+type LoadField = 'value' | 'pct' | 'rpe' | 'rir'
+
+function loadFieldOf(type: LoadType): LoadField {
+  if (type === 'pct') return 'pct'
+  if (type === 'rpe') return 'rpe'
+  if (type === 'rir') return 'rir'
+  return 'value'
+}
+
+function repsMismatchOf(ex: EditableExercise): boolean {
+  const s0 = ex.sets[0]?.reps ?? null
+  return ex.sets.some((s) => (s.reps ?? null) !== s0)
+}
+
+function loadMismatchOf(ex: EditableExercise): boolean {
+  const field = loadFieldOf(loadTypeOf(ex))
+  const s0 = ex.sets[0]?.[field] ?? null
+  return ex.sets.some((s) => (s[field] ?? null) !== s0)
+}
+
+const mismatchRing = 'ring-1 ring-red-500'
+
 function loadHeaderLabel(ex: EditableExercise, weightUnit: string): string {
   const t = loadTypeOf(ex)
   switch (t) {
@@ -334,7 +356,7 @@ function loadHeaderLabel(ex: EditableExercise, weightUnit: string): string {
   }
 }
 
-function LoadControl({ ex, idx, act, weightUnit, oneRepMax }: { ex: EditableExercise; idx: number; act: (a: Action) => void; weightUnit: string; oneRepMax?: number | null }) {
+function LoadControl({ ex, idx, act, weightUnit, oneRepMax, mismatch = false }: { ex: EditableExercise; idx: number; act: (a: Action) => void; weightUnit: string; oneRepMax?: number | null; mismatch?: boolean }) {
   const type = loadTypeOf(ex)
   const s0 = ex.sets[0]
   const value = s0?.value ?? null
@@ -359,6 +381,8 @@ function LoadControl({ ex, idx, act, weightUnit, oneRepMax }: { ex: EditableExer
     else if (type === 'rir' && rir != null) hint = `≈ ${Math.round(rirToPct(reps, rir) * oneRepMax / 5) * 5} ${ex.unit || weightUnit}`
   }
 
+  const ring = mismatch ? ` ${mismatchRing}` : ''
+
   let valueBox: React.ReactNode
   if (type === 'bodyweight') {
     valueBox = <span className="text-base text-gray-500">—</span>
@@ -366,25 +390,25 @@ function LoadControl({ ex, idx, act, weightUnit, oneRepMax }: { ex: EditableExer
     valueBox = (
       <input type="text" inputMode="decimal" value={value != null ? Math.round(value) : ''}
         onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: e.target.value ? Number(e.target.value) : null })}
-        onFocus={(e) => e.target.select()} className={`w-14 ${boxBase}`} style={{ fontSize: 16 }} placeholder="—" />
+        onFocus={(e) => e.target.select()} className={`w-14 ${boxBase}${ring}`} style={{ fontSize: 16 }} placeholder="—" />
     )
   } else if (type === 'pct') {
     valueBox = (
       <input type="text" inputMode="numeric" value={pct ?? ''}
         onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: e.target.value ? Number(e.target.value) : null })}
-        onFocus={(e) => e.target.select()} className={`w-12 ${boxBase}`} style={{ fontSize: 16 }} placeholder="%" />
+        onFocus={(e) => e.target.select()} className={`w-12 ${boxBase}${ring}`} style={{ fontSize: 16 }} placeholder="%" />
     )
   } else if (type === 'rpe') {
     valueBox = (
       <input type="text" inputMode="decimal" value={rpe ?? ''}
         onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: e.target.value ? Number(e.target.value) : null })}
-        onFocus={(e) => e.target.select()} className={`w-12 ${boxBase}`} style={{ fontSize: 16 }} placeholder="—" />
+        onFocus={(e) => e.target.select()} className={`w-12 ${boxBase}${ring}`} style={{ fontSize: 16 }} placeholder="—" />
     )
   } else if (type === 'rir') {
     valueBox = (
       <input type="text" inputMode="numeric" value={rir ?? ''}
         onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: e.target.value ? Number(e.target.value) : null })}
-        onFocus={(e) => e.target.select()} className={`w-12 ${boxBase}`} style={{ fontSize: 16 }} placeholder="—" />
+        onFocus={(e) => e.target.select()} className={`w-12 ${boxBase}${ring}`} style={{ fontSize: 16 }} placeholder="—" />
     )
   } else if (type === 'time') {
     valueBox = (
@@ -392,7 +416,7 @@ function LoadControl({ ex, idx, act, weightUnit, oneRepMax }: { ex: EditableExer
         onChange={(e) => setDurText(e.target.value)}
         onFocus={(e) => e.target.select()}
         onBlur={() => act({ type: 'setLoadValue', ex: idx, value: parseDuration(durText) })}
-        className={`w-16 ${boxBase}`} style={{ fontSize: 16 }} placeholder="m:ss" />
+        className={`w-16 ${boxBase}${ring}`} style={{ fontSize: 16 }} placeholder="m:ss" />
     )
   } else {
     // distance
@@ -400,7 +424,7 @@ function LoadControl({ ex, idx, act, weightUnit, oneRepMax }: { ex: EditableExer
       <div className="flex items-center gap-1">
         <input type="text" inputMode="decimal" value={value != null ? value : ''}
           onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: e.target.value ? Number(e.target.value) : null })}
-          onFocus={(e) => e.target.select()} className={`w-12 ${boxBase}`} style={{ fontSize: 16 }} placeholder="—" />
+          onFocus={(e) => e.target.select()} className={`w-12 ${boxBase}${ring}`} style={{ fontSize: 16 }} placeholder="—" />
         <Dropdown<string>
           label={ex.unit || MEASURES.distance.units[0]}
           current={ex.unit || MEASURES.distance.units[0]}
@@ -437,14 +461,16 @@ interface EditControlsProps {
 }
 
 function ExerciseEditControls({ ex, idx, act, weightUnit, oneRepMax }: EditControlsProps) {
+  const repsMismatch = repsMismatchOf(ex)
+  const loadMismatch = loadMismatchOf(ex)
   return (
     <div className="mt-2 grid grid-cols-3 gap-2 items-start">
       <div>
         <div className={headerCls}>Sets</div>
         <Stepper value={ex.sets.length} min={1} onChange={(v) => act({ type: 'setSetCount', ex: idx, count: v })} />
       </div>
-      <RepsControl ex={ex} idx={idx} act={act} />
-      <LoadControl ex={ex} idx={idx} act={act} weightUnit={weightUnit} oneRepMax={oneRepMax} />
+      <RepsControl ex={ex} idx={idx} act={act} mismatch={repsMismatch} />
+      <LoadControl ex={ex} idx={idx} act={act} weightUnit={weightUnit} oneRepMax={oneRepMax} mismatch={loadMismatch} />
     </div>
   )
 }
@@ -452,9 +478,9 @@ function ExerciseEditControls({ ex, idx, act, weightUnit, oneRepMax }: EditContr
 // ─── Per-set editor (expanded) ───────────────────────────────────────────────
 const setBox = 'bg-[#1a1a2e] rounded text-center font-semibold py-1 outline-none [appearance:textfield] focus:ring-1 focus:ring-[#6c63ff]'
 
-function PerSetValueBox({ ex, idx, setIdx, type, act, weightUnit, oneRepMax }: {
+function PerSetValueBox({ ex, idx, setIdx, type, act, weightUnit, oneRepMax, mismatch = false }: {
   ex: EditableExercise; idx: number; setIdx: number; type: LoadType
-  act: (a: Action) => void; weightUnit: string; oneRepMax?: number | null
+  act: (a: Action) => void; weightUnit: string; oneRepMax?: number | null; mismatch?: boolean
 }) {
   const s = ex.sets[setIdx]
   const value = s?.value ?? null
@@ -473,30 +499,32 @@ function PerSetValueBox({ ex, idx, setIdx, type, act, weightUnit, oneRepMax }: {
     else if (type === 'rir' && rir != null) hint = `≈ ${Math.round(rirToPct(reps, rir) * oneRepMax / 5) * 5}`
   }
 
+  const ring = mismatch ? ` ${mismatchRing}` : ''
+
   let box: React.ReactNode
   if (type === 'weight') {
     box = (
       <input type="text" inputMode="decimal" value={value != null ? Math.round(value) : ''}
         onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, value: e.target.value ? Number(e.target.value) : null })}
-        onFocus={(e) => e.target.select()} className={`w-16 ${setBox}`} style={{ fontSize: 16 }} placeholder="—" />
+        onFocus={(e) => e.target.select()} className={`w-16 ${setBox}${ring}`} style={{ fontSize: 16 }} placeholder="—" />
     )
   } else if (type === 'pct') {
     box = (
       <input type="text" inputMode="numeric" value={pct ?? ''}
         onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, pct: e.target.value ? Number(e.target.value) : null })}
-        onFocus={(e) => e.target.select()} className={`w-14 ${setBox}`} style={{ fontSize: 16 }} placeholder="%" />
+        onFocus={(e) => e.target.select()} className={`w-14 ${setBox}${ring}`} style={{ fontSize: 16 }} placeholder="%" />
     )
   } else if (type === 'rpe') {
     box = (
       <input type="text" inputMode="decimal" value={rpe ?? ''}
         onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, rpe: e.target.value ? Number(e.target.value) : null })}
-        onFocus={(e) => e.target.select()} className={`w-14 ${setBox}`} style={{ fontSize: 16 }} placeholder="—" />
+        onFocus={(e) => e.target.select()} className={`w-14 ${setBox}${ring}`} style={{ fontSize: 16 }} placeholder="—" />
     )
   } else if (type === 'rir') {
     box = (
       <input type="text" inputMode="numeric" value={rir ?? ''}
         onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, rir: e.target.value ? Number(e.target.value) : null })}
-        onFocus={(e) => e.target.select()} className={`w-14 ${setBox}`} style={{ fontSize: 16 }} placeholder="—" />
+        onFocus={(e) => e.target.select()} className={`w-14 ${setBox}${ring}`} style={{ fontSize: 16 }} placeholder="—" />
     )
   } else if (type === 'time') {
     box = (
@@ -504,14 +532,14 @@ function PerSetValueBox({ ex, idx, setIdx, type, act, weightUnit, oneRepMax }: {
         onChange={(e) => setDurText(e.target.value)}
         onFocus={(e) => e.target.select()}
         onBlur={() => act({ type: 'setPerSet', ex: idx, set: setIdx, value: parseDuration(durText) })}
-        className={`w-16 ${setBox}`} style={{ fontSize: 16 }} placeholder="m:ss" />
+        className={`w-16 ${setBox}${ring}`} style={{ fontSize: 16 }} placeholder="m:ss" />
     )
   } else {
     // distance
     box = (
       <input type="text" inputMode="decimal" value={value != null ? value : ''}
         onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, value: e.target.value ? Number(e.target.value) : null })}
-        onFocus={(e) => e.target.select()} className={`w-16 ${setBox}`} style={{ fontSize: 16 }} placeholder="—" />
+        onFocus={(e) => e.target.select()} className={`w-16 ${setBox}${ring}`} style={{ fontSize: 16 }} placeholder="—" />
     )
   }
 
@@ -530,6 +558,9 @@ function PerSetEditor({ ex, idx, act, weightUnit, oneRepMax }: {
   const type = loadTypeOf(ex)
   const hasValueCol = type !== 'bodyweight'
   const valueLabel = loadHeaderLabel(ex, weightUnit)
+  const loadField = loadFieldOf(type)
+  const summaryReps = ex.sets[0]?.reps ?? null
+  const summaryLoad = ex.sets[0]?.[loadField] ?? null
 
   return (
     <div>
@@ -539,7 +570,10 @@ function PerSetEditor({ ex, idx, act, weightUnit, oneRepMax }: {
         {hasValueCol && <div className="flex-1 text-center">{valueLabel}</div>}
         <div className="w-5" />
       </div>
-      {ex.sets.map((s, setIdx) => (
+      {ex.sets.map((s, setIdx) => {
+        const repsFlag = (s.reps ?? null) !== summaryReps
+        const loadFlag = (s[loadField] ?? null) !== summaryLoad
+        return (
         <SwipeableRow
           key={setIdx}
           actions={[{ label: 'Delete', icon: <SetTrashIcon />, color: '#c0392b', onClick: () => act({ type: 'removeSet', ex: idx, set: setIdx }) }]}
@@ -549,17 +583,18 @@ function PerSetEditor({ ex, idx, act, weightUnit, oneRepMax }: {
             <div className="flex-1 flex items-center justify-center">
               <input type="text" inputMode="numeric" value={s.reps ?? ''}
                 onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, reps: e.target.value ? Number(e.target.value) : null })}
-                onFocus={(e) => e.target.select()} className={`w-14 ${setBox}`} style={{ fontSize: 16 }} placeholder="—" />
+                onFocus={(e) => e.target.select()} className={`w-14 ${setBox}${repsFlag ? ` ${mismatchRing}` : ''}`} style={{ fontSize: 16 }} placeholder="—" />
             </div>
             {hasValueCol && (
               <div className="flex-1 flex items-center justify-center">
-                <PerSetValueBox ex={ex} idx={idx} setIdx={setIdx} type={type} act={act} weightUnit={weightUnit} oneRepMax={oneRepMax} />
+                <PerSetValueBox ex={ex} idx={idx} setIdx={setIdx} type={type} act={act} weightUnit={weightUnit} oneRepMax={oneRepMax} mismatch={loadFlag} />
               </div>
             )}
             <div className="w-5" />
           </div>
         </SwipeableRow>
-      ))}
+        )
+      })}
       <button
         type="button"
         onClick={() => act({ type: 'addSet', ex: idx })}
