@@ -6,7 +6,8 @@ import { PlateCalculator } from './PlateCalculator'
 import { ExerciseMaxSettings } from './ExerciseMaxSettings'
 import { SwipeableRow } from '../shared/SwipeableRow'
 import type { SwipeAction } from '../shared/SwipeableRow'
-import type { WorkoutExercise, ExerciseSettings } from '../../types'
+import { rpeToPct, rirToPct } from '../../workout/rpe'
+import type { WorkoutExercise, WorkoutSet, ExerciseSettings } from '../../types'
 
 function SwapIcon() {
   return (
@@ -61,6 +62,7 @@ function NotesIcon({ hasNotes }: { hasNotes: boolean }) {
 interface ExerciseRowProps {
   exercise: WorkoutExercise
   oneRepMax?: number | null
+  rawOneRepMax?: number | null
   calculatedE1RM?: number | null
   exerciseSettings?: ExerciseSettings
   onSaveSettings?: (s: ExerciseSettings) => void
@@ -89,12 +91,42 @@ function targetWeight(pct: number | null | undefined, orm: number | null | undef
   return Math.round(pct * orm / 100 / 5) * 5
 }
 
+/** Compute target weight from rpe/rir + raw (pre-TM) e1rm, rounded to nearest 5, or null. */
+function rpeRirTarget(set: WorkoutSet, rawOrm: number | null | undefined): number | null {
+  if (rawOrm == null) return null
+  const reps = set.reps ?? 1
+  if (set.rpe != null) return Math.round(rpeToPct(reps, set.rpe) * rawOrm / 5) * 5
+  if (set.rir != null) return Math.round(rirToPct(reps, set.rir) * rawOrm / 5) * 5
+  return null
+}
+
+/** Resolved per-set target: absolute value, else pct×orm, else rpe/rir×rawOrm. */
+function resolveSetTarget(
+  set: WorkoutSet,
+  orm: number | null | undefined,
+  rawOrm: number | null | undefined
+): number | null {
+  if (set.value != null) return set.value
+  if (set.pct != null) return targetWeight(set.pct, orm)
+  if (set.rpe != null || set.rir != null) return rpeRirTarget(set, rawOrm)
+  return null
+}
+
 /** Build slashed target string for collapsed view, truncated to maxLen chars. */
-function buildSlashedTargets(sets: WorkoutExercise['sets'], orm: number | null | undefined, maxLen = 18): string {
+function buildSlashedTargets(
+  sets: WorkoutExercise['sets'],
+  orm: number | null | undefined,
+  rawOrm: number | null | undefined,
+  maxLen = 18
+): string {
   const parts: string[] = []
   let result = ''
   for (const s of sets) {
-    const tw = s.pct != null ? targetWeight(s.pct, orm) : s.value
+    const tw = s.pct != null
+      ? targetWeight(s.pct, orm)
+      : (s.rpe != null || s.rir != null) && s.value == null
+        ? rpeRirTarget(s, rawOrm)
+        : s.value
     const part = tw != null ? String(Math.round(tw)) : '?'
     const next = parts.length === 0 ? part : `${result}/${part}`
     if (next.length > maxLen) {
@@ -110,6 +142,7 @@ function buildSlashedTargets(sets: WorkoutExercise['sets'], orm: number | null |
 export function ExerciseRow({
   exercise,
   oneRepMax,
+  rawOneRepMax,
   calculatedE1RM,
   exerciseSettings,
   onSaveSettings,
@@ -146,17 +179,29 @@ export function ExerciseRow({
   const userNotes = exercise.userNotes ?? ''
   const hasUserNotes = userNotes.length > 0
 
-  // Percentage set detection
+  // Percentage set detection (unchanged for pct routines)
   const firstPct = exercise.sets[0]?.pct ?? null
   const allSamePct = exercise.sets.every((s) => (s.pct ?? null) === firstPct)
   // Show slashed targets when pcts differ across sets (or mix of pct + absolute)
-  const showSlashedTargets = exercise.sets.some((s) => s.pct != null) && !allSamePct
+  const showPctSlashedTargets = exercise.sets.some((s) => s.pct != null) && !allSamePct
   const hasAnyPct = exercise.sets.some((s) => s.pct != null)
+
+  // RPE/RIR detection — additive, only when no pct is present on the exercise
+  const hasAnyRpeRir = !hasAnyPct && exercise.sets.some((s) => s.rpe != null || s.rir != null)
+  const firstRpe = exercise.sets[0]?.rpe ?? null
+  const firstRir = exercise.sets[0]?.rir ?? null
+  const allSameRpeRir = exercise.sets.every(
+    (s) => (s.rpe ?? null) === firstRpe && (s.rir ?? null) === firstRir
+  )
+  const showRpeRirSlashedTargets = hasAnyRpeRir && !allSameRpeRir
+
+  const showSlashedTargets = showPctSlashedTargets || showRpeRirSlashedTargets
+  const showTargetColumn = hasAnyPct || hasAnyRpeRir
 
   // Plate calculator: next unchecked set, or last set once all are done
   const plateSet = exercise.sets.find((s) => !s.completed) ?? exercise.sets[exercise.sets.length - 1]
   const nextPlateWeight = plateSet
-    ? (plateSet.value ?? (plateSet.pct != null ? targetWeight(plateSet.pct, oneRepMax) : null))
+    ? (plateSet.value ?? resolveSetTarget(plateSet, oneRepMax, rawOneRepMax))
     : null
 
   const notesInput = showNotes ? (
@@ -264,7 +309,7 @@ export function ExerciseRow({
                     onClick={() => setShowMaxSettings(true)}
                     className="text-sm font-semibold text-gray-300 px-1 active:opacity-80"
                   >
-                    {buildSlashedTargets(exercise.sets, oneRepMax)}
+                    {buildSlashedTargets(exercise.sets, oneRepMax, rawOneRepMax)}
                   </button>
                 ) : (
                   <input ref={summaryValueRef} type="text" inputMode="decimal" value={summaryValue != null ? Math.round(summaryValue) : ''}
@@ -390,7 +435,7 @@ export function ExerciseRow({
         <div className="flex pb-1 text-[10px] text-gray-600 uppercase tracking-wider">
           <div className="w-7">Set</div>
           <div className="flex-1 text-center">Reps</div>
-          {hasAnyPct && (
+          {showTargetColumn && (
             <button onClick={() => setShowMaxSettings(true)}
               className="w-16 text-right pr-1 active:opacity-80">
               Target
@@ -424,13 +469,16 @@ export function ExerciseRow({
                 <SetRow setNumber={set.setNumber} reps={set.reps}
                   value={set.value} unit={unit} completed={set.completed}
                   pct={set.pct}
+                  rpe={set.rpe}
+                  rir={set.rir}
                   oneRepMax={oneRepMax}
+                  rawOneRepMax={rawOneRepMax}
                   repsFlag={set.reps !== summaryReps}
                   valueFlag={!showSlashedTargets && set.value !== summaryValue}
                   onToggle={() => onToggleSet(setIdx)}
                   onRepsChange={(v) => onUpdateSet(setIdx, 'reps', v)}
                   onValueChange={(v) => onUpdateSet(setIdx, 'value', v)}
-                  onTargetClick={set.pct != null ? () => setShowMaxSettings(true) : undefined} />
+                  onTargetClick={(set.pct != null || set.rpe != null || set.rir != null) ? () => setShowMaxSettings(true) : undefined} />
               </SwipeableRow>
             </div>
           )

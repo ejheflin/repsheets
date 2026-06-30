@@ -145,7 +145,11 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
               const matchingSet = expanded.find(
                 (s) => s.exercise === ex.exercise && s.setNumber === set.setNumber
               )
-              if (matchingSet) set.pct = matchingSet.pct
+              if (matchingSet) {
+                set.pct = matchingSet.pct
+                set.rpe = matchingSet.rpe ?? null
+                set.rir = matchingSet.rir ?? null
+              }
             }
           }
 
@@ -210,6 +214,8 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
             reps: resolved.reps,
             value: resolved.value,
             pct: s.pct,
+            rpe: s.rpe ?? null,
+            rir: s.rir ?? null,
             unit: s.unit,
             completed: false,
             isAdded: false,
@@ -322,6 +328,8 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         reps: lastSet.reps,
         value: lastSet.value,
         pct: lastSet.pct,
+        rpe: lastSet.rpe ?? null,
+        rir: lastSet.rir ?? null,
         unit: lastSet.unit,
         completed: false,
         isAdded: true,

@@ -1,4 +1,5 @@
 import { useRef, useEffect } from 'react'
+import { rpeToPct, rirToPct } from '../../workout/rpe'
 
 interface SetRowProps {
   setNumber: number
@@ -7,7 +8,10 @@ interface SetRowProps {
   unit: string
   completed: boolean
   pct?: number | null
+  rpe?: number | null
+  rir?: number | null
   oneRepMax?: number | null
+  rawOneRepMax?: number | null
   repsFlag?: boolean
   valueFlag?: boolean
   onToggle: () => void
@@ -18,7 +22,7 @@ interface SetRowProps {
 
 export function SetRow({
   setNumber, reps, value, unit: _unit, completed,
-  pct, oneRepMax,
+  pct, rpe, rir, oneRepMax, rawOneRepMax,
   repsFlag, valueFlag,
   onToggle, onRepsChange, onValueChange, onTargetClick,
 }: SetRowProps) {
@@ -27,9 +31,23 @@ export function SetRow({
     ? Math.round(pct * oneRepMax / 100 / 5) * 5
     : null
 
+  const showRpeLabel = !showPctLabel && rpe != null
+  const showRirLabel = !showPctLabel && rpe == null && rir != null
+  const rpeRirTarget = rawOneRepMax != null
+    ? showRpeLabel
+      ? Math.round(rpeToPct(reps ?? 1, rpe!) * rawOneRepMax / 5) * 5
+      : showRirLabel
+        ? Math.round(rirToPct(reps ?? 1, rir!) * rawOneRepMax / 5) * 5
+        : null
+    : null
+
   const pctLabel = showPctLabel
     ? targetWeight != null ? `${Math.round(pct!)}%/${targetWeight}` : `${Math.round(pct!)}%`
-    : null
+    : showRpeLabel
+      ? rpeRirTarget != null ? `@${rpe}/${rpeRirTarget}` : `@${rpe}`
+      : showRirLabel
+        ? rpeRirTarget != null ? `${rir}RIR/${rpeRirTarget}` : `${rir}RIR`
+        : null
 
   const valueRef = useRef<HTMLInputElement>(null)
   const prevValue = useRef(value)

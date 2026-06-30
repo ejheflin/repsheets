@@ -136,7 +136,9 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
     const map = new Map<string, number | null>()
     if (!workout) return map
     for (const ex of workout.exercises) {
-      if (ex.sets.some((s) => s.pct != null)) {
+      const hasPct = ex.sets.some((s) => s.pct != null)
+      const hasRpeRir = ex.sets.some((s) => s.rpe != null || s.rir != null)
+      if (hasPct || hasRpeRir) {
         const setToPct = new Map(ex.sets.map((s) => [s.setNumber, s.pct]))
         map.set(ex.exercise, estimateOneRepMax(myLogs, ex.exercise, athleteName ?? '', setToPct))
       }
@@ -393,6 +395,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
                   isDeleting={deletingExerciseIdx === exIdx}
                   isEditMode={isEditMode}
                   oneRepMax={oneRepMaxMap.get(ex.exercise) ?? null}
+                  rawOneRepMax={rawE1RMMap.get(ex.exercise) ?? null}
                   calculatedE1RM={rawE1RMMap.get(ex.exercise) ?? null}
                   exerciseSettings={exerciseSettings[ex.exercise] ?? {}}
                   onSaveSettings={(s) => saveSettings(ex.exercise, s)}
@@ -469,6 +472,7 @@ interface SortableExerciseRowProps {
   isDeleting: boolean
   isEditMode: boolean
   oneRepMax: number | null
+  rawOneRepMax: number | null
   calculatedE1RM: number | null
   exerciseSettings: import('../../types').ExerciseSettings
   onSaveSettings: (s: import('../../types').ExerciseSettings) => void
@@ -489,7 +493,7 @@ interface SortableExerciseRowProps {
 
 function SortableExerciseRow({
   ex, historyExercises, isPR, isNewPR, isDeleting, isEditMode,
-  oneRepMax, calculatedE1RM, exerciseSettings,
+  oneRepMax, rawOneRepMax, calculatedE1RM, exerciseSettings,
   onSaveSettings, onToggleExpand, onToggleExercise, onToggleSet,
   onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet, onShowHistory,
   onStartDelete, onDeleteDone, onRenameExercise, onRemoveSet, tourId,
@@ -525,6 +529,7 @@ function SortableExerciseRow({
         exercise={ex}
         isPR={isPR}
         oneRepMax={oneRepMax}
+        rawOneRepMax={rawOneRepMax}
         calculatedE1RM={calculatedE1RM}
         exerciseSettings={exerciseSettings}
         onSaveSettings={onSaveSettings}

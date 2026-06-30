@@ -63,6 +63,8 @@ export interface ExpandedSet {
   reps: number | null
   value: number | null
   pct?: number | null
+  rpe?: number | null
+  rir?: number | null
   unit: string
   notes: string
   supersetGroup: string | null  // "a", "b", etc. or null
@@ -84,6 +86,8 @@ export interface WorkoutSet {
   reps: number | null
   value: number | null
   pct?: number | null   // target percentage of 1RM, null if absolute weight
+  rpe?: number | null   // target RPE, resolves to a weight via raw e1rm
+  rir?: number | null   // target RIR, resolves to a weight via raw e1rm
   unit: string
   completed: boolean
   isAdded: boolean      // true if user added this set (not in routine config)
