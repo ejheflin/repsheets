@@ -50,6 +50,7 @@ export function useSwipeActions({ actionWidth, threshold = 0.4 }: UseSwipeAction
 
       if (!gestureOwned.current) return
       e.preventDefault()
+      e.stopPropagation() // don't let a nested row's swipe bubble to an ancestor SwipeableRow
 
       const clamped = Math.max(-actionWidth, Math.min(0, baseOffset.current + dx))
       liveOffset.current = clamped
