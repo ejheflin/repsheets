@@ -854,7 +854,10 @@ function ExerciseList({ exercises, focusIdx, setFocusIdx, act, onDeleteExercise,
   )
 
   const handleDragStart = useCallback(() => {
-    ;(document.activeElement as HTMLElement | null)?.blur()
+    const ae = document.activeElement as HTMLInputElement | null
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA') && typeof ae.setSelectionRange === 'function') {
+      try { ae.setSelectionRange(0, 0) } catch { /* number inputs can't setSelectionRange */ }
+    }
     window.getSelection?.()?.removeAllRanges()
   }, [])
 
