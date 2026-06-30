@@ -184,4 +184,30 @@ describe('reduce', () => {
     expect(input.exercises[0].sets[0].reps).toBe(3)
     expect(input.exercises[0].sets[0].rpe).toBeUndefined()
   })
+
+  it('removeExercise then insertExercise at the same index restores the exercises', () => {
+    const input = seed()
+    const removed = input.exercises[0]
+    const afterRemove = reduce(input, { type: 'removeExercise', ex: 0 })
+    expect(afterRemove.exercises).toHaveLength(1)
+    expect(afterRemove.exercises[0].exercise).toBe('Bench')
+    const restored = reduce(afterRemove, { type: 'insertExercise', index: 0, exercise: removed })
+    expect(restored.exercises).toEqual(input.exercises)
+  })
+  it('insertExercise clamps the index to [0, length]', () => {
+    const input = seed()
+    const ex = input.exercises[0]
+    const s = reduce(input, { type: 'insertExercise', index: 99, exercise: ex })
+    expect(s.exercises).toHaveLength(3)
+    expect(s.exercises[2].exercise).toBe('Squat')
+  })
+  it('insertExercise does not mutate input state or the inserted exercise', () => {
+    const input = reduce(seed(), { type: 'setSetCount', ex: 0, count: 2 })
+    const ex = input.exercises[0]
+    const s = reduce(input, { type: 'insertExercise', index: 1, exercise: ex })
+    expect(input.exercises).toHaveLength(2)
+    // mutating the inserted copy must not affect the source exercise object
+    s.exercises[1].sets[0].reps = 999
+    expect(ex.sets[0].reps).toBe(3)
+  })
 })

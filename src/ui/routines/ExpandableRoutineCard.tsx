@@ -4,6 +4,7 @@ import { toEditable } from '../../data/routineModel'
 import { formatValue, formatDuration, measureOf, MEASURES } from '../../data/measure'
 import { rpeToPct, rirToPct } from '../../workout/rpe'
 import { SwipeableRow } from '../shared/SwipeableRow'
+import { useUndoToast, UndoToast } from '../shared/UndoToast'
 import type { Action } from '../../data/routineEditorReducer'
 import type { EditableRoutine, RoutineRow, EditableExercise } from '../../types'
 
@@ -660,6 +661,7 @@ interface ExerciseRowProps {
   focusIdx: number | null
   onFocused: () => void
   onRename: (name: string) => void
+  onDelete: () => void
   act: (a: Action) => void
   knownExercises: string[]
   weightUnit: string
@@ -667,7 +669,7 @@ interface ExerciseRowProps {
   hasNext: boolean
 }
 
-function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, act, knownExercises, weightUnit, oneRepMax, hasNext }: ExerciseRowProps) {
+function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, onDelete, act, knownExercises, weightUnit, oneRepMax, hasNext }: ExerciseRowProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [inputFocused, setInputFocused] = useState(false)
   const [expanded, setExpanded] = useState(false)
@@ -692,7 +694,11 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, act, knownExercis
   }, [knownExercises, ex.exercise, isDefault])
 
   return (
-    <div className="bg-[#2a2a4a] rounded-[10px] p-3 mb-2 border border-[#3a3a5a]">
+    <SwipeableRow
+      className="mb-2 rounded-[10px]"
+      actions={[{ label: 'Delete', icon: <SetTrashIcon />, color: '#c0392b', onClick: onDelete }]}
+    >
+    <div className="bg-[#2a2a4a] rounded-[10px] p-3 border border-[#3a3a5a]">
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           <button
@@ -744,6 +750,7 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, act, knownExercis
         )}
       </div>
     </div>
+    </SwipeableRow>
   )
 }
 
@@ -776,11 +783,12 @@ interface ExerciseListProps {
   focusIdx: number | null
   setFocusIdx: (i: number | null) => void
   act: (a: Action) => void
+  onDeleteExercise: (index: number, exercise: EditableExercise) => void
   chipSource: string[]
   weightUnit: string
 }
 
-function ExerciseList({ exercises, focusIdx, setFocusIdx, act, chipSource, weightUnit }: ExerciseListProps) {
+function ExerciseList({ exercises, focusIdx, setFocusIdx, act, onDeleteExercise, chipSource, weightUnit }: ExerciseListProps) {
   const runs = groupRuns(exercises)
   return (
     <>
@@ -794,6 +802,7 @@ function ExerciseList({ exercises, focusIdx, setFocusIdx, act, chipSource, weigh
             focusIdx={focusIdx}
             onFocused={() => setFocusIdx(null)}
             onRename={(name) => act({ type: 'renameExercise', ex: i, name })}
+            onDelete={() => onDeleteExercise(i, exercises[i])}
             act={act}
             knownExercises={chipSource}
             weightUnit={weightUnit}
@@ -837,6 +846,7 @@ export function ExpandableRoutineCard({
 }: ExpandableRoutineCardProps) {
   const [expanded, setExpanded] = useState(initialExpanded)
   const [focusIdx, setFocusIdx] = useState<number | null>(null)
+  const undoToast = useUndoToast()
 
   const allRowsRef = useRef(allRows)
   allRowsRef.current = allRows
@@ -856,6 +866,11 @@ export function ExpandableRoutineCard({
 
   const initial = toEditable(routine.rows)
   const { state, status, act } = useRoutineEditor(spreadsheetId, initial, stableOnSaved)
+
+  const handleDeleteExercise = useCallback((index: number, exercise: EditableExercise) => {
+    act({ type: 'removeExercise', ex: index })
+    undoToast.show('Exercise removed', () => act({ type: 'insertExercise', index, exercise }))
+  }, [act, undoToast])
 
   const chipSource = useMemo(
     () => buildChipSource(allRows, loggedExercises, state.program, state.routine, state.exercises),
@@ -933,6 +948,7 @@ export function ExpandableRoutineCard({
               focusIdx={focusIdx}
               setFocusIdx={setFocusIdx}
               act={act}
+              onDeleteExercise={handleDeleteExercise}
               chipSource={chipSource}
               weightUnit={weightUnit}
             />
@@ -950,6 +966,7 @@ export function ExpandableRoutineCard({
           </div>
         </div>
       )}
+      {undoToast.pending && <UndoToast message={undoToast.pending.message} onUndo={undoToast.undo} />}
     </div>
   )
 }
@@ -976,6 +993,7 @@ export function DraftRoutineCard({
   weightUnit,
 }: DraftRoutineCardProps) {
   const [focusIdx, setFocusIdx] = useState<number | null>(null)
+  const undoToast = useUndoToast()
 
   const allRowsRef = useRef(allRows)
   allRowsRef.current = allRows
@@ -995,6 +1013,11 @@ export function DraftRoutineCard({
 
   const initial: EditableRoutine = { program, routine: 'New Routine', exercises: [] }
   const { state, status, act } = useRoutineEditor(spreadsheetId, initial, stableOnSaved)
+
+  const handleDeleteExercise = useCallback((index: number, exercise: EditableExercise) => {
+    act({ type: 'removeExercise', ex: index })
+    undoToast.show('Exercise removed', () => act({ type: 'insertExercise', index, exercise }))
+  }, [act, undoToast])
 
   const chipSource = useMemo(
     () => buildChipSource(allRows, loggedExercises, state.program, state.routine, state.exercises),
@@ -1042,6 +1065,7 @@ export function DraftRoutineCard({
             focusIdx={focusIdx}
             setFocusIdx={setFocusIdx}
             act={act}
+            onDeleteExercise={handleDeleteExercise}
             chipSource={chipSource}
             weightUnit={weightUnit}
           />
@@ -1058,6 +1082,7 @@ export function DraftRoutineCard({
           </button>
         </div>
       </div>
+      {undoToast.pending && <UndoToast message={undoToast.pending.message} onUndo={undoToast.undo} />}
     </div>
   )
 }

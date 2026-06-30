@@ -12,6 +12,7 @@ export type Action =
   | { type: 'setBasis'; ex: number; basis: '1rm' | 'tm' }
   | { type: 'addExercise'; name: string; unit: string }
   | { type: 'removeExercise'; ex: number }
+  | { type: 'insertExercise'; index: number; exercise: EditableExercise }
   | { type: 'reorder'; from: number; to: number }
   | { type: 'setPerSet'; ex: number; set: number; reps?: number | null; value?: number | null; pct?: number | null; rpe?: number | null; rir?: number | null }
   | { type: 'addSet'; ex: number }
@@ -67,6 +68,12 @@ export function reduce(state: EditableRoutine, a: Action): EditableRoutine {
       return { ...state, exercises: exs }
     }
     case 'removeExercise': { exs.splice(a.ex, 1); return { ...state, exercises: exs } }
+    case 'insertExercise': {
+      const idx = Math.max(0, Math.min(a.index, exs.length))
+      const copy: EditableExercise = { ...a.exercise, sets: a.exercise.sets.map((s) => ({ ...s })) }
+      exs.splice(idx, 0, copy)
+      return { ...state, exercises: exs }
+    }
     case 'reorder': { const [m] = exs.splice(a.from, 1); exs.splice(a.to, 0, m); return { ...state, exercises: exs } }
     case 'setPerSet': {
       const s = at(a.ex).sets[a.set]
