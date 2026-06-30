@@ -584,17 +584,21 @@ async function checkMetaType(spreadsheetId: string): Promise<string | null> {
 }
 
 export async function appendRoutineRows(spreadsheetId: string, rows: RoutineRow[]): Promise<void> {
+  // Undo-restore clears the tombstone so the routine can be saved/edited again.
+  for (const r of rows) routineTombstones.delete(tombstoneKey(r.program, r.routine))
   const values = rows.map((r) => [
     r.program, r.routine, r.exercise, r.sets,
     serializeReps({ reps: r.reps, repsMax: r.repsMax, repsOpen: r.repsOpen }), serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis, rpe: r.rpe, rir: r.rir }), r.unit, r.notes,
   ])
-  const url = `${SHEETS_BASE}/${spreadsheetId}/values/Routines!A:H:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`
-  const res = await authFetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ values }),
+  await enqueueRoutineWrite(async () => {
+    const url = `${SHEETS_BASE}/${spreadsheetId}/values/Routines!A:H:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`
+    const res = await authFetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ values }),
+    })
+    if (!res.ok) throw new Error('Failed to append routines')
   })
-  if (!res.ok) throw new Error('Failed to append routines')
 }
 
 // ─── Routine persistence (whole-tab read-modify-write) ─────────────────────
@@ -641,38 +645,71 @@ async function rewriteRoutinesTab(spreadsheetId: string, rows: RoutineRow[]): Pr
   await writeRange(spreadsheetId, 'Routines!A1', [ROUTINE_HEADERS, ...rowsToValues(rows)])
 }
 
+// All Routines-tab read-modify-writes run sequentially so no operation can write a
+// stale snapshot over another's change (e.g. an in-flight autosave resurrecting a
+// routine that was deleted in between the save's read and its write).
+let routineWriteChain: Promise<unknown> = Promise.resolve()
+function enqueueRoutineWrite<T>(fn: () => Promise<T>): Promise<T> {
+  const run = routineWriteChain.then(fn, fn)
+  routineWriteChain = run.then(() => undefined, () => undefined)
+  return run
+}
+
+// A delete leaves a short-lived tombstone so a save that was already in flight for
+// that routine can't re-add it. The TTL lets the same name be re-created later, and
+// undo (appendRoutineRows) clears it immediately.
+const routineTombstones = new Set<string>()
+const tombstoneKey = (program: string, routine: string) => `${program} ${routine}`
+const TOMBSTONE_TTL_MS = 8000
+function addRoutineTombstone(program: string, routine: string) {
+  const key = tombstoneKey(program, routine)
+  routineTombstones.add(key)
+  setTimeout(() => routineTombstones.delete(key), TOMBSTONE_TTL_MS)
+}
+
 export async function saveRoutineRows(
   spreadsheetId: string, program: string, routine: string, newRows: RoutineRow[],
 ): Promise<RoutineRow[]> {
-  const all = await fetchRoutineRows(spreadsheetId)
-  const next = replaceRoutineInRows(all, program, routine, newRows)
-  await rewriteRoutinesTab(spreadsheetId, next)
-  return next
+  return enqueueRoutineWrite(async () => {
+    const all = await fetchRoutineRows(spreadsheetId)
+    // The routine was deleted while this save was pending/in flight — don't resurrect it.
+    if (routineTombstones.has(tombstoneKey(program, routine))) return all
+    const next = replaceRoutineInRows(all, program, routine, newRows)
+    await rewriteRoutinesTab(spreadsheetId, next)
+    return next
+  })
 }
 
 export async function deleteRoutineRows(
   spreadsheetId: string, program: string, routine: string,
 ): Promise<RoutineRow[]> {
-  const all = await fetchRoutineRows(spreadsheetId)
-  const next = deleteRoutineInRows(all, program, routine)
-  await rewriteRoutinesTab(spreadsheetId, next)
-  return next
+  addRoutineTombstone(program, routine)
+  return enqueueRoutineWrite(async () => {
+    const all = await fetchRoutineRows(spreadsheetId)
+    const next = deleteRoutineInRows(all, program, routine)
+    await rewriteRoutinesTab(spreadsheetId, next)
+    return next
+  })
 }
 
 export async function renameProgram(
   spreadsheetId: string, from: string, to: string,
 ): Promise<RoutineRow[]> {
-  const all = await fetchRoutineRows(spreadsheetId)
-  const next = renameProgramInRows(all, from, to)
-  await rewriteRoutinesTab(spreadsheetId, next)
-  return next
+  return enqueueRoutineWrite(async () => {
+    const all = await fetchRoutineRows(spreadsheetId)
+    const next = renameProgramInRows(all, from, to)
+    await rewriteRoutinesTab(spreadsheetId, next)
+    return next
+  })
 }
 
 export async function deleteProgram(
   spreadsheetId: string, program: string,
 ): Promise<RoutineRow[]> {
-  const all = await fetchRoutineRows(spreadsheetId)
-  const next = deleteProgramInRows(all, program)
-  await rewriteRoutinesTab(spreadsheetId, next)
-  return next
+  return enqueueRoutineWrite(async () => {
+    const all = await fetchRoutineRows(spreadsheetId)
+    const next = deleteProgramInRows(all, program)
+    await rewriteRoutinesTab(spreadsheetId, next)
+    return next
+  })
 }
