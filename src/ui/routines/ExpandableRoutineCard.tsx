@@ -16,6 +16,37 @@ import { useUndoToast, UndoToast } from '../shared/UndoToast'
 import type { Action } from '../../data/routineEditorReducer'
 import type { EditableRoutine, RoutineRow, EditableExercise } from '../../types'
 
+export type GetMax = (name: string) => { e1rm: number | null; tm: number | null }
+
+function barIncrement(unit: string): number {
+  return measureOf(unit) === 'weight' && (unit || '').trim().toLowerCase() === 'kg' ? 2.5 : 5
+}
+
+// Suggested working weight for autoregulation modes, rounded to the bar increment.
+// Returns null when there's no e1rm basis to compute from.
+function suggestedWeight(
+  type: LoadType,
+  ex: EditableExercise,
+  reps: number,
+  load: { value: number | null; pct: number | null; rpe: number | null; rir: number | null },
+  max: { e1rm: number | null; tm: number | null },
+  unit: string,
+): number | null {
+  const { e1rm, tm } = max
+  if (e1rm == null) return null
+  let raw: number | null = null
+  if (type === 'pct' && load.pct != null) {
+    raw = ex.basis === 'tm' ? (load.pct / 100) * e1rm * (tm ?? 0.9) : (load.pct / 100) * e1rm
+  } else if (type === 'rpe' && load.rpe != null) {
+    raw = rpeToPct(reps, load.rpe) * e1rm
+  } else if (type === 'rir' && load.rir != null) {
+    raw = rirToPct(reps, load.rir) * e1rm
+  }
+  if (raw == null) return null
+  const inc = barIncrement(unit)
+  return Math.round(raw / inc) * inc
+}
+
 function SetTrashIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -394,7 +425,7 @@ function loadHeaderLabel(ex: EditableExercise, weightUnit: string): string {
   }
 }
 
-function LoadControl({ ex, idx, act, weightUnit, oneRepMax, mismatch = false }: { ex: EditableExercise; idx: number; act: (a: Action) => void; weightUnit: string; oneRepMax?: number | null; mismatch?: boolean }) {
+function LoadControl({ ex, idx, act, weightUnit, getMax, mismatch = false }: { ex: EditableExercise; idx: number; act: (a: Action) => void; weightUnit: string; getMax?: GetMax; mismatch?: boolean }) {
   const type = loadTypeOf(ex)
   const s0 = ex.sets[0]
   const value = s0?.value ?? null
@@ -412,12 +443,11 @@ function LoadControl({ ex, idx, act, weightUnit, oneRepMax, mismatch = false }: 
   }
 
   // ≈ weight hint
-  let hint: string | null = null
-  if (oneRepMax != null) {
-    if (type === 'pct' && pct != null) hint = `≈ ${Math.round(pct * oneRepMax / 100 / 5) * 5} ${ex.unit || weightUnit}`
-    else if (type === 'rpe' && rpe != null) hint = `≈ ${Math.round(rpeToPct(reps, rpe) * oneRepMax / 5) * 5} ${ex.unit || weightUnit}`
-    else if (type === 'rir' && rir != null) hint = `≈ ${Math.round(rirToPct(reps, rir) * oneRepMax / 5) * 5} ${ex.unit || weightUnit}`
-  }
+  const hintUnit = ex.unit || weightUnit
+  const suggested = getMax
+    ? suggestedWeight(type, ex, reps, { value, pct, rpe, rir }, getMax(ex.exercise), hintUnit)
+    : null
+  const hint = suggested != null ? `≈ ${suggested} ${hintUnit}` : null
 
   const ring = mismatch ? ` ${mismatchRing}` : ''
 
@@ -485,6 +515,18 @@ function LoadControl({ ex, idx, act, weightUnit, oneRepMax, mismatch = false }: 
       <div className="flex flex-col items-center justify-center">
         <div className="flex items-center justify-center h-9">{valueBox}</div>
         {hint && <span className="text-[10px] text-gray-500 leading-none">{hint}</span>}
+        {type === 'pct' && (
+          <Dropdown<'1rm' | 'tm'>
+            label={ex.basis === 'tm' ? 'of TM' : 'of 1RM'}
+            current={ex.basis === 'tm' ? 'tm' : '1rm'}
+            width="w-40"
+            onSelect={(b) => act({ type: 'setBasis', ex: idx, basis: b })}
+            options={[
+              { value: '1rm', label: '1RM', sub: 'one-rep max' },
+              { value: 'tm', label: 'Training Max', sub: 'tm ?? 90% of 1RM' },
+            ]}
+          />
+        )}
       </div>
     </div>
   )
@@ -495,10 +537,10 @@ interface EditControlsProps {
   idx: number
   act: (a: Action) => void
   weightUnit: string
-  oneRepMax?: number | null
+  getMax?: GetMax
 }
 
-function ExerciseEditControls({ ex, idx, act, weightUnit, oneRepMax }: EditControlsProps) {
+function ExerciseEditControls({ ex, idx, act, weightUnit, getMax }: EditControlsProps) {
   const repsMismatch = repsMismatchOf(ex)
   const loadMismatch = loadMismatchOf(ex)
   return (
@@ -508,7 +550,7 @@ function ExerciseEditControls({ ex, idx, act, weightUnit, oneRepMax }: EditContr
         <Stepper value={ex.sets.length} min={1} onChange={(v) => act({ type: 'setSetCount', ex: idx, count: v })} />
       </div>
       <RepsControl ex={ex} idx={idx} act={act} mismatch={repsMismatch} />
-      <LoadControl ex={ex} idx={idx} act={act} weightUnit={weightUnit} oneRepMax={oneRepMax} mismatch={loadMismatch} />
+      <LoadControl ex={ex} idx={idx} act={act} weightUnit={weightUnit} getMax={getMax} mismatch={loadMismatch} />
     </div>
   )
 }
@@ -516,9 +558,9 @@ function ExerciseEditControls({ ex, idx, act, weightUnit, oneRepMax }: EditContr
 // ─── Per-set editor (expanded) ───────────────────────────────────────────────
 const setBox = 'bg-[#1a1a2e] rounded text-center font-semibold py-1 outline-none [appearance:textfield] focus:ring-1 focus:ring-[#6c63ff]'
 
-function PerSetValueBox({ ex, idx, setIdx, type, act, weightUnit, oneRepMax, mismatch = false }: {
+function PerSetValueBox({ ex, idx, setIdx, type, act, weightUnit, getMax, mismatch = false }: {
   ex: EditableExercise; idx: number; setIdx: number; type: LoadType
-  act: (a: Action) => void; weightUnit: string; oneRepMax?: number | null; mismatch?: boolean
+  act: (a: Action) => void; weightUnit: string; getMax?: GetMax; mismatch?: boolean
 }) {
   const s = ex.sets[setIdx]
   const value = s?.value ?? null
@@ -530,12 +572,10 @@ function PerSetValueBox({ ex, idx, setIdx, type, act, weightUnit, oneRepMax, mis
   const [durText, setDurText] = useState(value != null ? formatDuration(value) : '')
   useEffect(() => { if (type === 'time') setDurText(value != null ? formatDuration(value) : '') }, [type, value])
 
-  let hint: string | null = null
-  if (oneRepMax != null) {
-    if (type === 'pct' && pct != null) hint = `≈ ${Math.round(pct * oneRepMax / 100 / 5) * 5}`
-    else if (type === 'rpe' && rpe != null) hint = `≈ ${Math.round(rpeToPct(reps, rpe) * oneRepMax / 5) * 5}`
-    else if (type === 'rir' && rir != null) hint = `≈ ${Math.round(rirToPct(reps, rir) * oneRepMax / 5) * 5}`
-  }
+  const suggested = getMax
+    ? suggestedWeight(type, ex, reps, { value, pct, rpe, rir }, getMax(ex.exercise), ex.unit || weightUnit)
+    : null
+  const hint = suggested != null ? `≈ ${suggested}` : null
 
   const ring = mismatch ? ` ${mismatchRing}` : ''
 
@@ -581,7 +621,6 @@ function PerSetValueBox({ ex, idx, setIdx, type, act, weightUnit, oneRepMax, mis
     )
   }
 
-  void weightUnit
   return (
     <div className="flex flex-col items-center">
       {box}
@@ -590,8 +629,8 @@ function PerSetValueBox({ ex, idx, setIdx, type, act, weightUnit, oneRepMax, mis
   )
 }
 
-function PerSetEditor({ ex, idx, act, weightUnit, oneRepMax, hasNext }: {
-  ex: EditableExercise; idx: number; act: (a: Action) => void; weightUnit: string; oneRepMax?: number | null; hasNext: boolean
+function PerSetEditor({ ex, idx, act, weightUnit, getMax, hasNext }: {
+  ex: EditableExercise; idx: number; act: (a: Action) => void; weightUnit: string; getMax?: GetMax; hasNext: boolean
 }) {
   const type = loadTypeOf(ex)
   const hasValueCol = type !== 'bodyweight'
@@ -625,7 +664,7 @@ function PerSetEditor({ ex, idx, act, weightUnit, oneRepMax, hasNext }: {
             </div>
             {hasValueCol && (
               <div className="flex-1 flex items-center justify-center">
-                <PerSetValueBox ex={ex} idx={idx} setIdx={setIdx} type={type} act={act} weightUnit={weightUnit} oneRepMax={oneRepMax} mismatch={loadFlag} />
+                <PerSetValueBox ex={ex} idx={idx} setIdx={setIdx} type={type} act={act} weightUnit={weightUnit} getMax={getMax} mismatch={loadFlag} />
               </div>
             )}
             <div className="w-5" />
@@ -673,14 +712,14 @@ interface ExerciseRowProps {
   act: (a: Action) => void
   knownExercises: string[]
   weightUnit: string
-  oneRepMax?: number | null
+  getMax?: GetMax
   hasNext: boolean
   dragListeners?: SyntheticListenerMap
   dragAttributes?: DraggableAttributes
   isDragging?: boolean
 }
 
-function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, onDelete, act, knownExercises, weightUnit, oneRepMax, hasNext, dragListeners, dragAttributes, isDragging }: ExerciseRowProps) {
+function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, onDelete, act, knownExercises, weightUnit, getMax, hasNext, dragListeners, dragAttributes, isDragging }: ExerciseRowProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [inputFocused, setInputFocused] = useState(false)
   const [expanded, setExpanded] = useState(false)
@@ -758,10 +797,10 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, onDelete, act, kn
             ))}
           </div>
         )}
-        <ExerciseEditControls ex={ex} idx={idx} act={act} weightUnit={weightUnit} oneRepMax={oneRepMax} />
+        <ExerciseEditControls ex={ex} idx={idx} act={act} weightUnit={weightUnit} getMax={getMax} />
         {expanded && (
           <div className="mt-3 pt-3 border-t border-[#3a3a5a]">
-            <PerSetEditor ex={ex} idx={idx} act={act} weightUnit={weightUnit} oneRepMax={oneRepMax} hasNext={hasNext} />
+            <PerSetEditor ex={ex} idx={idx} act={act} weightUnit={weightUnit} getMax={getMax} hasNext={hasNext} />
           </div>
         )}
       </div>
@@ -803,10 +842,11 @@ interface SortableExerciseRowProps {
   onDeleteExercise: (index: number, exercise: EditableExercise) => void
   chipSource: string[]
   weightUnit: string
+  getMax?: GetMax
   exerciseCount: number
 }
 
-function SortableExerciseRow({ ex, idx, focusIdx, setFocusIdx, act, onDeleteExercise, chipSource, weightUnit, exerciseCount }: SortableExerciseRowProps) {
+function SortableExerciseRow({ ex, idx, focusIdx, setFocusIdx, act, onDeleteExercise, chipSource, weightUnit, getMax, exerciseCount }: SortableExerciseRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: ex.id })
   return (
     <div
@@ -828,6 +868,7 @@ function SortableExerciseRow({ ex, idx, focusIdx, setFocusIdx, act, onDeleteExer
         act={act}
         knownExercises={chipSource}
         weightUnit={weightUnit}
+        getMax={getMax}
         hasNext={idx < exerciseCount - 1}
         dragListeners={listeners}
         dragAttributes={attributes}
@@ -845,9 +886,10 @@ interface ExerciseListProps {
   onDeleteExercise: (index: number, exercise: EditableExercise) => void
   chipSource: string[]
   weightUnit: string
+  getMax?: GetMax
 }
 
-function ExerciseList({ exercises, focusIdx, setFocusIdx, act, onDeleteExercise, chipSource, weightUnit }: ExerciseListProps) {
+function ExerciseList({ exercises, focusIdx, setFocusIdx, act, onDeleteExercise, chipSource, weightUnit, getMax }: ExerciseListProps) {
   const runs = groupRuns(exercises)
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -879,6 +921,7 @@ function ExerciseList({ exercises, focusIdx, setFocusIdx, act, onDeleteExercise,
               onDeleteExercise={onDeleteExercise}
               chipSource={chipSource}
               weightUnit={weightUnit}
+              getMax={getMax}
               exerciseCount={exercises.length}
             />
           ))
@@ -905,6 +948,7 @@ interface ExpandableRoutineCardProps {
   initialExpanded?: boolean
   tourId?: string
   weightUnit: string
+  getMax?: GetMax
 }
 
 export function ExpandableRoutineCard({
@@ -917,6 +961,7 @@ export function ExpandableRoutineCard({
   initialExpanded = false,
   tourId,
   weightUnit,
+  getMax,
 }: ExpandableRoutineCardProps) {
   const [expanded, setExpanded] = useState(initialExpanded)
   const [focusIdx, setFocusIdx] = useState<number | null>(null)
@@ -1025,6 +1070,7 @@ export function ExpandableRoutineCard({
               onDeleteExercise={handleDeleteExercise}
               chipSource={chipSource}
               weightUnit={weightUnit}
+              getMax={getMax}
             />
 
             {/* TODO Task 10 — replace with AddExercisePicker */}
@@ -1054,6 +1100,7 @@ interface DraftRoutineCardProps {
   onSavedToList: () => void
   onNameChange: (name: string) => void
   weightUnit: string
+  getMax?: GetMax
 }
 
 export function DraftRoutineCard({
@@ -1065,6 +1112,7 @@ export function DraftRoutineCard({
   onSavedToList: _onSavedToList,
   onNameChange,
   weightUnit,
+  getMax,
 }: DraftRoutineCardProps) {
   const [focusIdx, setFocusIdx] = useState<number | null>(null)
   const undoToast = useUndoToast()
@@ -1142,6 +1190,7 @@ export function DraftRoutineCard({
             onDeleteExercise={handleDeleteExercise}
             chipSource={chipSource}
             weightUnit={weightUnit}
+            getMax={getMax}
           />
 
           {/* TODO Task 10 — replace with AddExercisePicker */}

@@ -3,6 +3,8 @@ import { ProgramSelector } from './ProgramSelector'
 import { ExpandableRoutineCard, DraftRoutineCard } from './ExpandableRoutineCard'
 import { useRoutines } from '../../data/useRoutines'
 import { useLogs } from '../../data/useLogs'
+import { useExerciseSettings } from '../../data/useExerciseSettings'
+import { estimateOneRepMax } from '../../workout/oneRepMax'
 import { useWorkout } from '../../data/useWorkout'
 import { useAuth } from '../../auth/useAuth'
 import { AuthExpiredError } from '../../auth/authFetch'
@@ -57,10 +59,18 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     setPreference('activeProgram', program)
   }, [])
   const { routineList, programs, isLoading, refresh, mutateCache, allRows } = useRoutines(selectedProgram || null)
-  const { allLogs } = useLogs()
+  const { allLogs, myLogs, athleteName } = useLogs()
   const loggedExercises = useMemo(() => [...new Set(allLogs.map((l) => l.exercise))].filter(Boolean), [allLogs])
   const { workout, startWorkout, discardWorkout } = useWorkout()
   const { spreadsheetId } = useSheetContext()
+  const { settings: exerciseSettings } = useExerciseSettings(spreadsheetId)
+
+  const getMax = useCallback((name: string): { e1rm: number | null; tm: number | null } => {
+    const exSettings = exerciseSettings[name]
+    const e1rm = exSettings?.oneRepMax ?? estimateOneRepMax(myLogs, name, athleteName ?? '', new Map())
+    const tm = exSettings?.tm ?? null
+    return { e1rm, tm }
+  }, [exerciseSettings, myLogs, athleteName])
   const { login } = useAuth()
   const [showSheetSwitcher, setShowSheetSwitcher] = useState(false)
   const [showShare, setShowShare] = useState(false)
@@ -179,6 +189,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
             onStartWorkout={handleStartWorkout}
             tourId={i === 0 ? 'routine-card' : undefined}
             weightUnit={weightUnit}
+            getMax={getMax}
           />
         ))}
       {hasDraft && spreadsheetId && (
@@ -191,6 +202,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
           onSavedToList={handleDraftSaved}
           onNameChange={setDraftName}
           weightUnit={weightUnit}
+          getMax={getMax}
         />
       )}
       {!hasDraft && (
