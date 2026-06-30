@@ -81,12 +81,12 @@ function buildSummaryLine(exercises: EditableRoutine['exercises']): string {
   return acc
 }
 
-const stepBtn = 'w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#2a2a4a]'
-const numField = 'w-12 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] focus:ring-1 focus:ring-[#6c63ff]'
+const stepBtn = 'w-5 h-7 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#2a2a4a] flex-shrink-0'
+const numField = 'w-11 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] focus:ring-1 focus:ring-[#6c63ff]'
 
 function Stepper({ value, min = 0, onChange }: { value: number; min?: number; onChange: (v: number) => void }) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center justify-center gap-1">
       <button type="button" onClick={() => onChange(Math.max(min, value - 1))} className={stepBtn}>−</button>
       <input
         type="text"
@@ -185,51 +185,32 @@ function ExerciseEditControls({ ex, idx, act, oneRepMax }: EditControlsProps) {
   else if (measure === 'time') valueLabel = 'Time'
   else if (measure === 'distance') valueLabel = 'Distance'
 
+  // The numeric value box for the LOAD column (compact, fits the third column).
+  // Unit toggles (lb/kg, m/km/mi) and the %/lb mode toggle live on the second row below.
   let valueControl: React.ReactNode = null
   if (measure === 'weight') {
-    valueControl = (
-      <div className="flex items-center gap-1.5">
-        {ex.loadMode === 'pct' ? (
-          <>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={pct ?? ''}
-              onChange={(e) => act({ type: 'setUniformLoad', ex: idx, value: null, pct: e.target.value ? Number(e.target.value) : null })}
-              onFocus={(e) => e.target.select()}
-              className={numField}
-              style={{ fontSize: 16 }}
-              placeholder="%"
-            />
-            <span className="text-[12px] text-gray-500">
-              {targetWeight != null ? `≈ ${targetWeight} ${ex.unit}` : '%'}
-            </span>
-          </>
-        ) : (
-          <>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={value != null ? Math.round(value) : ''}
-              onChange={(e) => act({ type: 'setUniformLoad', ex: idx, value: e.target.value ? Number(e.target.value) : null, pct: null })}
-              onFocus={(e) => e.target.select()}
-              className={numField}
-              style={{ fontSize: 16 }}
-              placeholder="—"
-            />
-            <UnitToggle units={MEASURES.weight.units} unit={ex.unit} onChange={(u) => act({ type: 'setUnit', ex: idx, unit: u })} />
-          </>
-        )}
-        <button
-          type="button"
-          onClick={() => act({ type: 'setLoadMode', ex: idx, mode: ex.loadMode === 'pct' ? 'lb' : 'pct' })}
-          className={`px-2 py-1 rounded text-[12px] border active:opacity-80 ${
-            ex.loadMode === 'pct' ? 'border-[#6c63ff] text-[#6c63ff]' : 'border-[#3a3a5a] text-gray-400'
-          }`}
-        >
-          {ex.loadMode === 'pct' ? '%' : 'lb'}
-        </button>
-      </div>
+    valueControl = ex.loadMode === 'pct' ? (
+      <input
+        type="text"
+        inputMode="numeric"
+        value={pct ?? ''}
+        onChange={(e) => act({ type: 'setUniformLoad', ex: idx, value: null, pct: e.target.value ? Number(e.target.value) : null })}
+        onFocus={(e) => e.target.select()}
+        className={numField}
+        style={{ fontSize: 16 }}
+        placeholder="%"
+      />
+    ) : (
+      <input
+        type="text"
+        inputMode="decimal"
+        value={value != null ? Math.round(value) : ''}
+        onChange={(e) => act({ type: 'setUniformLoad', ex: idx, value: e.target.value ? Number(e.target.value) : null, pct: null })}
+        onFocus={(e) => e.target.select()}
+        className={numField}
+        style={{ fontSize: 16 }}
+        placeholder="—"
+      />
     )
   } else if (measure === 'time') {
     valueControl = (
@@ -247,27 +228,45 @@ function ExerciseEditControls({ ex, idx, act, oneRepMax }: EditControlsProps) {
     )
   } else if (measure === 'distance') {
     valueControl = (
-      <div className="flex items-center gap-1.5">
-        <input
-          type="text"
-          inputMode="decimal"
-          value={value != null ? value : ''}
-          onChange={(e) => act({ type: 'setUniformLoad', ex: idx, value: e.target.value ? Number(e.target.value) : null, pct: null })}
-          onFocus={(e) => e.target.select()}
-          className={numField}
-          style={{ fontSize: 16 }}
-          placeholder="—"
-        />
-        <UnitToggle units={MEASURES.distance.units} unit={ex.unit} onChange={(u) => act({ type: 'setUnit', ex: idx, unit: u })} />
-      </div>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={value != null ? value : ''}
+        onChange={(e) => act({ type: 'setUniformLoad', ex: idx, value: e.target.value ? Number(e.target.value) : null, pct: null })}
+        onFocus={(e) => e.target.select()}
+        className={numField}
+        style={{ fontSize: 16 }}
+        placeholder="—"
+      />
     )
   }
 
-  const headerCls = 'text-[10px] text-gray-500 uppercase tracking-wider'
+  const headerCls = 'text-[10px] text-gray-500 uppercase tracking-wider text-center'
+
+  // Second-row toggles: %/lb mode for weight, m/km/mi unit for distance.
+  let modeRow: React.ReactNode = null
+  if (measure === 'weight') {
+    modeRow = (
+      <button
+        type="button"
+        onClick={() => act({ type: 'setLoadMode', ex: idx, mode: ex.loadMode === 'pct' ? 'lb' : 'pct' })}
+        className={`px-2 py-1 rounded text-[12px] border active:opacity-80 ${
+          ex.loadMode === 'pct' ? 'border-[#6c63ff] text-[#6c63ff]' : 'border-[#3a3a5a] text-gray-400'
+        }`}
+      >
+        {ex.loadMode === 'pct' ? '%' : 'lb'}
+      </button>
+    )
+  } else if (measure === 'distance') {
+    modeRow = (
+      <UnitToggle units={MEASURES.distance.units} unit={ex.unit} onChange={(u) => act({ type: 'setUnit', ex: idx, unit: u })} />
+    )
+  }
 
   return (
     <div className="mt-2 space-y-2">
-      <div className="flex items-end flex-wrap gap-x-4 gap-y-2">
+      {/* Core row — SETS / REPS / LOAD as compact columns on one line */}
+      <div className={`grid ${valueControl ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
         <div>
           <div className={`${headerCls} pb-1`}>Sets</div>
           <Stepper value={setCount} min={1} onChange={(v) => act({ type: 'setSetCount', ex: idx, count: v })} />
@@ -279,11 +278,20 @@ function ExerciseEditControls({ ex, idx, act, oneRepMax }: EditControlsProps) {
         {valueControl && (
           <div>
             <div className={`${headerCls} pb-1`}>{valueLabel}</div>
-            {valueControl}
+            <div className="flex items-center justify-center">{valueControl}</div>
           </div>
         )}
       </div>
-      <MeasurePicker measure={measure} onChange={(m) => act({ type: 'setMeasure', ex: idx, measure: m })} />
+
+      {/* Second row — measure picker, %/lb or distance unit toggle, ≈ hint */}
+      <div className="flex items-center flex-wrap gap-2">
+        <MeasurePicker measure={measure} onChange={(m) => act({ type: 'setMeasure', ex: idx, measure: m })} />
+        {modeRow}
+        {measure === 'weight' && ex.loadMode === 'pct' && targetWeight != null && (
+          <span className="text-[12px] text-gray-500">≈ {targetWeight} {ex.unit}</span>
+        )}
+        {/* TODO: lb/kg unit slicer */}
+      </div>
     </div>
   )
 }
