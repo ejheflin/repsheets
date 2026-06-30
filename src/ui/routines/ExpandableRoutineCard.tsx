@@ -733,7 +733,7 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, onDelete, act, kn
             onFocus={(e) => { e.target.select(); setInputFocused(true) }}
             onBlur={() => setInputFocused(false)}
             className={`flex-1 min-w-0 bg-transparent font-semibold text-white outline-none border-b border-transparent transition-colors truncate ${ex.exercise.trim() === '' ? 'ring-1 ring-red-500' : 'focus:border-[#6c63ff]'}`}
-            style={{ fontSize: 16, WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' }}
+            style={{ fontSize: 16 }}
           />
         </div>
         {inputFocused && chips.length > 0 && (
