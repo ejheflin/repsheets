@@ -65,6 +65,7 @@ export interface ExpandedSet {
   reps: number | null
   value: number | null
   pct?: number | null
+  basis?: '1rm' | 'tm'  // basis for pct; absent = 1rm
   rpe?: number | null
   rir?: number | null
   unit: string
@@ -88,6 +89,7 @@ export interface WorkoutSet {
   reps: number | null
   value: number | null
   pct?: number | null   // target percentage of 1RM, null if absolute weight
+  basis?: '1rm' | 'tm'  // basis for pct; absent = 1rm (drives TM-prefill in max settings)
   rpe?: number | null   // target RPE, resolves to a weight via raw e1rm
   rir?: number | null   // target RIR, resolves to a weight via raw e1rm
   achievedRpe?: number | null  // RPE actually performed; defaults to prescribed when untouched

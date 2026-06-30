@@ -394,6 +394,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
                   isNewPR={newPRExercises.has(ex.exercise)}
                   isDeleting={deletingExerciseIdx === exIdx}
                   isEditMode={isEditMode}
+                  programName={workout.program}
                   oneRepMax={oneRepMaxMap.get(ex.exercise) ?? null}
                   rawOneRepMax={rawE1RMMap.get(ex.exercise) ?? null}
                   calculatedE1RM={rawE1RMMap.get(ex.exercise) ?? null}
@@ -471,6 +472,7 @@ interface SortableExerciseRowProps {
   isNewPR: boolean
   isDeleting: boolean
   isEditMode: boolean
+  programName?: string
   oneRepMax: number | null
   rawOneRepMax: number | null
   calculatedE1RM: number | null
@@ -492,7 +494,7 @@ interface SortableExerciseRowProps {
 }
 
 function SortableExerciseRow({
-  ex, historyExercises, isPR, isNewPR, isDeleting, isEditMode,
+  ex, historyExercises, isPR, isNewPR, isDeleting, isEditMode, programName,
   oneRepMax, rawOneRepMax, calculatedE1RM, exerciseSettings,
   onSaveSettings, onToggleExpand, onToggleExercise, onToggleSet,
   onUpdateSet, onUpdateAllSets, onUpdateNotes, onAddSet, onShowHistory,
@@ -527,6 +529,7 @@ function SortableExerciseRow({
       >
       <ExerciseRow
         exercise={ex}
+        programName={programName}
         isPR={isPR}
         oneRepMax={oneRepMax}
         rawOneRepMax={rawOneRepMax}

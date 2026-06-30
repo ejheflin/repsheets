@@ -157,8 +157,11 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
                 prev.routine,
                 alias ?? formatAthleteName(user.name)
               )
-              if (resolved.reps !== null) set.reps = resolved.reps
-              if (resolved.value !== null) set.value = resolved.value
+              // Only fill empty slots — never overwrite a value that's already shown
+              // (prefilled or just typed), or this async refresh clobbers a set the
+              // user is mid-edit on, collapsing their selection and reverting input.
+              if (resolved.reps !== null && set.reps == null) set.reps = resolved.reps
+              if (resolved.value !== null && set.value == null) set.value = resolved.value
               // Refresh pct from latest routine in case coach changed percentages
               const matchingSet = expanded.find(
                 (s) => s.exercise === ex.exercise && s.setNumber === set.setNumber
@@ -232,6 +235,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
             reps: resolved.reps,
             value: resolved.value,
             pct: s.pct,
+            basis: s.basis,
             rpe: s.rpe ?? null,
             rir: s.rir ?? null,
             unit: s.unit,
@@ -346,6 +350,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         reps: lastSet.reps,
         value: lastSet.value,
         pct: lastSet.pct,
+        basis: lastSet.basis,
         rpe: lastSet.rpe ?? null,
         rir: lastSet.rir ?? null,
         unit: lastSet.unit,

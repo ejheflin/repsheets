@@ -61,6 +61,7 @@ function NotesIcon({ hasNotes }: { hasNotes: boolean }) {
 
 interface ExerciseRowProps {
   exercise: WorkoutExercise
+  programName?: string
   oneRepMax?: number | null
   rawOneRepMax?: number | null
   calculatedE1RM?: number | null
@@ -141,6 +142,7 @@ function buildSlashedTargets(
 
 export function ExerciseRow({
   exercise,
+  programName,
   oneRepMax,
   rawOneRepMax,
   calculatedE1RM,
@@ -218,6 +220,11 @@ export function ExerciseRow({
     showAchievedColumn ? '3rem' : null, // RPE / RIR
     '1.75rem',                          // ✓
   ].filter(Boolean).join(' ')
+
+  const routineBasis: '1rm' | 'tm' | undefined =
+    exercise.sets.some((s) => s.basis === 'tm') ? 'tm'
+    : exercise.sets.some((s) => s.pct != null) ? '1rm'
+    : undefined
 
   // Plate calculator: next unchecked set, or last set once all are done
   const plateSet = exercise.sets.find((s) => !s.completed) ?? exercise.sets[exercise.sets.length - 1]
@@ -534,6 +541,8 @@ export function ExerciseRow({
           unit={unit}
           calculatedE1RM={calculatedE1RM ?? null}
           settings={exerciseSettings ?? {}}
+          routineBasis={routineBasis}
+          programName={programName}
           onSave={(s) => { onSaveSettings?.(s); setShowMaxSettings(false) }}
           onClose={() => setShowMaxSettings(false)}
         />

@@ -6,15 +6,27 @@ interface ExerciseMaxSettingsProps {
   unit: string
   calculatedE1RM: number | null
   settings: ExerciseSettings
+  routineBasis?: '1rm' | 'tm'
+  programName?: string
+  recommendedTmPct?: number
   onSave: (s: ExerciseSettings) => void
   onClose: () => void
 }
 
 export function ExerciseMaxSettings({
-  exerciseName, unit, calculatedE1RM, settings, onSave, onClose,
+  exerciseName, unit, calculatedE1RM, settings,
+  routineBasis, programName, recommendedTmPct = 90,
+  onSave, onClose,
 }: ExerciseMaxSettingsProps) {
+  // The routine prescribes % of Training Max but the lifter hasn't set one — seed the
+  // field to the usual 90% so percentages resolve, and flag where the number came from.
+  const tmFromProgram = routineBasis === 'tm' && settings.tm == null
   const [ormInput, setOrmInput] = useState(settings.oneRepMax != null ? String(settings.oneRepMax) : '')
-  const [tmInput, setTmInput] = useState(settings.tm != null ? String(Math.round(settings.tm * 100)) : '')
+  const [tmInput, setTmInput] = useState(
+    settings.tm != null ? String(Math.round(settings.tm * 100))
+    : tmFromProgram ? String(recommendedTmPct)
+    : ''
+  )
 
   const parsedOrm = ormInput.trim() ? Number(ormInput.trim()) : null
   const parsedTm = tmInput.trim() ? Number(tmInput.trim()) / 100 : null
@@ -60,8 +72,19 @@ export function ExerciseMaxSettings({
           </div>
 
           <div>
-            <p className="text-xs text-gray-400 mb-0.5">Training Max %</p>
-            <p className="text-[10px] text-gray-500 mb-1.5">Default 100%. Typical: 85–95%.</p>
+            <div className="flex items-center gap-2 mb-0.5">
+              <p className="text-xs text-gray-400">Training Max %</p>
+              {tmFromProgram && (
+                <span className="text-[10px] font-semibold text-[#6c63ff] bg-[#6c63ff]/15 rounded-full px-1.5 py-0.5 leading-none">
+                  ★ from {programName || 'program'}
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] text-gray-500 mb-1.5">
+              {tmFromProgram
+                ? 'Pre-filled from the routine — adjust if you like'
+                : 'Default 100%. Typical: 85–95%.'}
+            </p>
             <div className="flex items-center gap-2 bg-[#2a2a4a] rounded-[10px] px-3 py-2">
               <input
                 type="text"
