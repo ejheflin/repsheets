@@ -1,5 +1,7 @@
 export interface EditableSet {
   reps: number | null
+  repsMax?: number | null
+  repsOpen?: boolean
   value: number | null   // absolute load
   pct: number | null     // percentage
   rpe?: number
@@ -27,6 +29,8 @@ export interface RoutineRow {
   exercise: string
   sets: string       // e.g. "5", "3a", "10"
   reps: number | null
+  repsMax?: number | null
+  repsOpen?: boolean
   value: number | null
   pct?: number | null  // e.g. 80 when cell contains "80%", null otherwise
   basis?: '1rm' | 'tm'   // present only when pct is a percentage; absent = 1rm

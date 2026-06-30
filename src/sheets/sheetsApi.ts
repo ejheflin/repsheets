@@ -1,7 +1,7 @@
 import type { RoutineRow, LogEntry } from '../types'
 import { authFetch } from '../auth/authFetch'
 import { GOOGLE_API_KEY } from '../config'
-import { parseRoutineValue } from './routineSerialization'
+import { parseRoutineValue, parseReps } from './routineSerialization'
 
 /**
  * Converts a Google Sheets serial date number to YYYY-MM-DD.
@@ -53,12 +53,15 @@ export async function fetchPublicRoutineRows(spreadsheetId: string): Promise<Rou
   if (rows.length < 2) return []
   return rows.slice(1).map((row) => {
     const parsed = parseRoutineValue(row[5])
+    const pr = parseReps(row[4])
     return {
       program: row[0] ?? '',
       routine: row[1] ?? '',
       exercise: row[2] ?? '',
       sets: String(row[3] ?? '1'),
-      reps: row[4] ? Number(row[4]) : null,
+      reps: pr.reps,
+      ...(pr.repsMax !== undefined ? { repsMax: pr.repsMax } : {}),
+      ...(pr.repsOpen ? { repsOpen: true } : {}),
       value: parsed.value,
       pct: parsed.pct,
       basis: parsed.basis ?? undefined,
@@ -75,12 +78,15 @@ export async function fetchRoutineRows(spreadsheetId: string): Promise<RoutineRo
   if (rows.length < 2) return []
   return rows.slice(1).map((row) => {
     const parsed = parseRoutineValue(row[5])
+    const pr = parseReps(row[4])
     return {
       program: row[0] ?? '',
       routine: row[1] ?? '',
       exercise: row[2] ?? '',
       sets: String(row[3] ?? '1'),
-      reps: row[4] ? Number(row[4]) : null,
+      reps: pr.reps,
+      ...(pr.repsMax !== undefined ? { repsMax: pr.repsMax } : {}),
+      ...(pr.repsOpen ? { repsOpen: true } : {}),
       value: parsed.value,
       pct: parsed.pct,
       basis: parsed.basis ?? undefined,

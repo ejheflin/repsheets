@@ -80,6 +80,36 @@ export function serializeRoutineValue(v: {
   return load
 }
 
+export interface ParsedReps {
+  reps: number | null
+  repsMax?: number
+  repsOpen?: boolean
+}
+
+export function parseReps(raw: string | number | null | undefined): ParsedReps {
+  const s = String(raw ?? '').trim()
+  if (!s) return { reps: null }
+  if (/^amrap$/i.test(s)) return { reps: null, repsOpen: true }
+
+  const range = s.match(/^(\d+)\s*-\s*(\d+)$/)
+  if (range) return { reps: parseInt(range[1], 10), repsMax: parseInt(range[2], 10) }
+
+  const open = s.match(/^(\d+)\s*\+$/)
+  if (open) return { reps: parseInt(open[1], 10), repsOpen: true }
+
+  const single = s.match(/^\d+$/)
+  if (single) return { reps: parseInt(s, 10) }
+
+  return { reps: null }
+}
+
+export function serializeReps(r: { reps: number | null; repsMax?: number | null; repsOpen?: boolean }): string {
+  if (r.repsOpen) return r.reps != null ? `${r.reps}+` : 'AMRAP'
+  if (r.repsMax != null) return `${r.reps}-${r.repsMax}`
+  if (r.reps != null) return `${r.reps}`
+  return ''
+}
+
 export interface ParsedSets {
   count: number
   group: string | null

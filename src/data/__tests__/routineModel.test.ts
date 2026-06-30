@@ -50,6 +50,11 @@ describe('toEditable / toRows', () => {
     expect(ed.exercises[0].sets[0].rpe).toBe(8)
     expect(toRows(ed)).toEqual(rows)
   })
+  it('rep range round-trips', () => {
+    const rows = [base({ exercise: 'Bench', sets: '3', reps: 8, repsMax: 12 })]
+    const ed = toEditable(rows); expect(ed.exercises[0].sets[0].repsMax).toBe(12)
+    expect(toRows(ed)).toEqual(rows)
+  })
   it('omits blank-named exercises from toRows', () => {
     const ed: EditableRoutine = { program: 'P', routine: 'D', exercises: [
       { exercise: '', unit: 'lbs', notes: '', basis: '1rm', loadMode: 'lb', supersetGroup: null, sets: [{ reps: 5, value: 100, pct: null }] },

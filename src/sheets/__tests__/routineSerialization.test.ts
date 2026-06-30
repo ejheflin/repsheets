@@ -1,6 +1,23 @@
 import { describe, it, expect } from 'vitest'
 import { parseRoutineValue, serializeRoutineValue } from '../routineSerialization'
 import { parseSets, serializeSets } from '../routineSerialization'
+import { parseReps, serializeReps } from '../routineSerialization'
+
+describe('parseReps', () => {
+  it('single', () => expect(parseReps('8')).toEqual({ reps: 8 }))
+  it('range', () => expect(parseReps('8-12')).toEqual({ reps: 8, repsMax: 12 }))
+  it('range with spaces', () => expect(parseReps('8 - 12')).toEqual({ reps: 8, repsMax: 12 }))
+  it('open', () => expect(parseReps('8+')).toEqual({ reps: 8, repsOpen: true }))
+  it('amrap', () => expect(parseReps('AMRAP')).toEqual({ reps: null, repsOpen: true }))
+  it('empty', () => expect(parseReps('')).toEqual({ reps: null }))
+})
+describe('serializeReps', () => {
+  it('single', () => expect(serializeReps({ reps: 8 })).toBe('8'))
+  it('range', () => expect(serializeReps({ reps: 8, repsMax: 12 })).toBe('8-12'))
+  it('open', () => expect(serializeReps({ reps: 8, repsOpen: true })).toBe('8+'))
+  it('amrap', () => expect(serializeReps({ reps: null, repsOpen: true })).toBe('AMRAP'))
+  it('empty', () => expect(serializeReps({ reps: null })).toBe(''))
+})
 
 describe('parseRoutineValue', () => {
   it('absolute weight', () => {

@@ -23,6 +23,8 @@ export function toEditable(rows: RoutineRow[]): EditableRoutine {
       for (let i = 0; i < toEmit; i++) {
         sets.push({
           reps: r.reps,
+          ...(r.repsMax !== undefined ? { repsMax: r.repsMax } : {}),
+          ...(r.repsOpen ? { repsOpen: true } : {}),
           value: r.value,
           pct: r.pct ?? null,
           ...(r.rpe !== undefined ? { rpe: r.rpe } : {}),
@@ -63,6 +65,8 @@ export function toRows(ed: EditableRoutine): RoutineRow[] {
         exercise: ex.exercise,
         sets: serializeSets(cumulative, ex.supersetGroup),
         reps: s.reps,
+        ...(s.repsMax !== undefined && s.repsMax !== null ? { repsMax: s.repsMax } : {}),
+        ...(s.repsOpen ? { repsOpen: true } : {}),
         value: ex.loadMode === 'pct' ? null : s.value,
         pct: ex.loadMode === 'pct' ? s.pct : null,
         ...(s.rpe !== undefined ? { rpe: s.rpe } : {}),
@@ -81,5 +85,6 @@ export function toRows(ed: EditableRoutine): RoutineRow[] {
 }
 
 function sameSet(a: EditableSet, b: EditableSet): boolean {
-  return a.reps === b.reps && a.value === b.value && a.pct === b.pct && a.rpe === b.rpe && a.rir === b.rir
+  return a.reps === b.reps && (a.repsMax ?? null) === (b.repsMax ?? null) && Boolean(a.repsOpen) === Boolean(b.repsOpen)
+    && a.value === b.value && a.pct === b.pct && a.rpe === b.rpe && a.rir === b.rir
 }

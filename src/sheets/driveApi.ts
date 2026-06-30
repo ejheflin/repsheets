@@ -1,7 +1,7 @@
 import type { RoutineRow, RepSheet, ExerciseSettings } from '../types'
 import { authFetch } from '../auth/authFetch'
 import { getStoredUser } from '../auth/googleAuth'
-import { serializeRoutineValue } from './routineSerialization'
+import { serializeRoutineValue, serializeReps } from './routineSerialization'
 import { fetchRoutineRows } from './sheetsApi'
 
 const DRIVE_BASE = 'https://www.googleapis.com/drive/v3'
@@ -409,7 +409,7 @@ export async function createExampleSheet(programRows: RoutineRow[]): Promise<str
     ROUTINE_HEADERS,
     ...programRows.map((r) => [
       r.program, r.routine, r.exercise, r.sets,
-      r.reps ?? '', serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis, rpe: r.rpe, rir: r.rir }), r.unit, r.notes,
+      serializeReps({ reps: r.reps, repsMax: r.repsMax, repsOpen: r.repsOpen }), serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis, rpe: r.rpe, rir: r.rir }), r.unit, r.notes,
     ]),
   ]
   await writeRange(spreadsheetId, 'Routines!A1', routineValues)
@@ -448,7 +448,7 @@ export async function createSharedTemplate(
     ROUTINE_HEADERS,
     ...programRows.map((r) => [
       r.program, r.routine, r.exercise, r.sets,
-      r.reps ?? '', serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis, rpe: r.rpe, rir: r.rir }), r.unit, r.notes,
+      serializeReps({ reps: r.reps, repsMax: r.repsMax, repsOpen: r.repsOpen }), serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis, rpe: r.rpe, rir: r.rir }), r.unit, r.notes,
     ]),
   ]
   await writeRange(spreadsheetId, 'Routines!A1', routineValues)
@@ -494,7 +494,7 @@ export async function createCompeteSheet(
     ROUTINE_HEADERS,
     ...programRows.map((r) => [
       r.program, r.routine, r.exercise, r.sets,
-      r.reps ?? '', serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis, rpe: r.rpe, rir: r.rir }), r.unit, r.notes,
+      serializeReps({ reps: r.reps, repsMax: r.repsMax, repsOpen: r.repsOpen }), serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis, rpe: r.rpe, rir: r.rir }), r.unit, r.notes,
     ]),
   ]
   await writeRange(spreadsheetId, 'Routines!A1', routineValues)
@@ -586,7 +586,7 @@ async function checkMetaType(spreadsheetId: string): Promise<string | null> {
 export async function appendRoutineRows(spreadsheetId: string, rows: RoutineRow[]): Promise<void> {
   const values = rows.map((r) => [
     r.program, r.routine, r.exercise, r.sets,
-    r.reps ?? '', serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis, rpe: r.rpe, rir: r.rir }), r.unit, r.notes,
+    serializeReps({ reps: r.reps, repsMax: r.repsMax, repsOpen: r.repsOpen }), serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis, rpe: r.rpe, rir: r.rir }), r.unit, r.notes,
   ])
   const url = `${SHEETS_BASE}/${spreadsheetId}/values/Routines!A:H:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`
   const res = await authFetch(url, {
@@ -626,7 +626,7 @@ export function renameProgramInRows(all: RoutineRow[], from: string, to: string)
 
 function rowsToValues(rows: RoutineRow[]): (string | number)[][] {
   return rows.map((r) => [
-    r.program, r.routine, r.exercise, r.sets, r.reps ?? '',
+    r.program, r.routine, r.exercise, r.sets, serializeReps({ reps: r.reps, repsMax: r.repsMax, repsOpen: r.repsOpen }),
     serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis, rpe: r.rpe, rir: r.rir }),
     r.unit, r.notes,
   ])
