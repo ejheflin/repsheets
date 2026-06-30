@@ -415,14 +415,17 @@ function RepsControl({ ex, idx, act, mismatch = false }: { ex: EditableExercise;
 // ─── LOAD column ────────────────────────────────────────────────────────────
 type LoadType = 'weight' | 'pct' | 'rpe' | 'rir' | 'bodyweight' | 'time' | 'distance'
 
-const LOAD_MENU: { type: LoadType; label: string; sub: string }[] = [
-  { type: 'weight', label: 'Weight', sub: 'lb / kg' },
-  { type: 'pct', label: '% of 1RM/TM', sub: 'percent of 1RM or training max' },
-  { type: 'rpe', label: 'RPE', sub: 'rate of perceived exertion' },
-  { type: 'rir', label: 'RIR', sub: 'reps in reserve' },
-  { type: 'bodyweight', label: 'Bodyweight', sub: 'no load' },
-  { type: 'time', label: 'Time', sub: 'm:ss' },
-  { type: 'distance', label: 'Distance', sub: 'm / km / mi' },
+type LoadMenuValue = 'weight' | 'pct1rm' | 'pcttm' | 'rpe' | 'rir' | 'bodyweight' | 'time' | 'distance'
+
+const LOAD_MENU: { value: LoadMenuValue; label: string; sub: string }[] = [
+  { value: 'weight', label: 'Weight', sub: 'lb / kg' },
+  { value: 'pct1rm', label: '% of 1RM', sub: 'percent of 1-rep max' },
+  { value: 'pcttm', label: '% of Training Max', sub: 'percent of training max' },
+  { value: 'rpe', label: 'RPE', sub: 'rate of perceived exertion' },
+  { value: 'rir', label: 'RIR', sub: 'reps in reserve' },
+  { value: 'bodyweight', label: 'Bodyweight', sub: 'no load' },
+  { value: 'time', label: 'Time', sub: 'm:ss' },
+  { value: 'distance', label: 'Distance', sub: 'm / km / mi' },
 ]
 
 function loadTypeOf(ex: EditableExercise): LoadType {
@@ -462,7 +465,7 @@ function loadHeaderLabel(ex: EditableExercise, weightUnit: string): string {
   const t = loadTypeOf(ex)
   switch (t) {
     case 'weight': return (ex.unit || weightUnit).toUpperCase()
-    case 'pct': return '%'
+    case 'pct': return ex.basis === 'tm' ? '% TM' : '% 1RM'
     case 'rpe': return 'RPE'
     case 'rir': return 'RIR'
     case 'time': return 'TIME'
@@ -483,10 +486,17 @@ function LoadControl({ ex, idx, act, weightUnit, getMax, mismatch = false }: { e
   const [durText, setDurText] = useState(value != null ? formatDuration(value) : '')
   useEffect(() => { if (type === 'time') setDurText(value != null ? formatDuration(value) : '') }, [type, value])
 
-  const select = (t: LoadType) => {
-    const unit = (t === 'weight' || t === 'pct' || t === 'rpe' || t === 'rir') ? weightUnit : undefined
-    act({ type: 'setLoadType', ex: idx, loadType: t, unit })
+  const selectMenu = (v: LoadMenuValue) => {
+    if (v === 'pct1rm' || v === 'pcttm') {
+      act({ type: 'setLoadType', ex: idx, loadType: 'pct', unit: weightUnit })
+      act({ type: 'setBasis', ex: idx, basis: v === 'pcttm' ? 'tm' : '1rm' })
+      return
+    }
+    const unit = (v === 'weight' || v === 'rpe' || v === 'rir') ? weightUnit : undefined
+    act({ type: 'setLoadType', ex: idx, loadType: v, unit })
   }
+
+  const currentMenu: LoadMenuValue = type === 'pct' ? (ex.basis === 'tm' ? 'pcttm' : 'pct1rm') : type
 
   // ≈ weight hint
   const hintUnit = ex.unit || weightUnit
@@ -552,27 +562,15 @@ function LoadControl({ ex, idx, act, weightUnit, getMax, mismatch = false }: { e
 
   return (
     <div className="relative">
-      <Dropdown<LoadType>
+      <Dropdown<LoadMenuValue>
         label={loadHeaderLabel(ex, weightUnit)}
-        current={type}
-        onSelect={select}
-        options={LOAD_MENU.map((m) => ({ value: m.type, label: m.label, sub: m.sub }))}
+        current={currentMenu}
+        onSelect={selectMenu}
+        options={LOAD_MENU}
       />
       <div className="flex flex-col items-center justify-center">
         <div className="flex items-center justify-center h-9">{valueBox}</div>
         {hint && <span className="text-[10px] text-gray-500 leading-none">{hint}</span>}
-        {type === 'pct' && (
-          <Dropdown<'1rm' | 'tm'>
-            label={ex.basis === 'tm' ? 'of TM' : 'of 1RM'}
-            current={ex.basis === 'tm' ? 'tm' : '1rm'}
-            width="w-40"
-            onSelect={(b) => act({ type: 'setBasis', ex: idx, basis: b })}
-            options={[
-              { value: '1rm', label: '1RM', sub: 'one-rep max' },
-              { value: 'tm', label: 'Training Max', sub: 'tm ?? 90% of 1RM' },
-            ]}
-          />
-        )}
       </div>
     </div>
   )
