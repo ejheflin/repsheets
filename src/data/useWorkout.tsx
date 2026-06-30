@@ -69,7 +69,13 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
               const match = expanded.find(
                 (s) => s.exercise === ex.exercise && s.setNumber === set.setNumber
               )
-              if (match) set.pct = match.pct ?? null
+              if (match) {
+                // Carry the full current prescription, not just pct, so a set whose
+                // routine is now rpe/rir doesn't get a stale pct resurrected.
+                set.pct = match.pct ?? null
+                set.rpe = match.rpe ?? null
+                set.rir = match.rir ?? null
+              }
             }
           }
           setWorkout(patched)

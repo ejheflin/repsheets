@@ -332,6 +332,16 @@ function Stepper({ value, min = 0, onChange, width = 'w-10', mismatch = false }:
   )
 }
 
+// Sanitize a free-typed numeric field: keep digits and a single dot, parse to a
+// finite number, otherwise null. Never yields NaN (so the controlled input can't
+// get stuck showing NaN and stays clearable).
+function sanitizeNumber(raw: string): number | null {
+  const cleaned = raw.replace(/[^0-9.]/g, '')
+  if (cleaned === '') return null
+  const n = parseFloat(cleaned)
+  return Number.isFinite(n) ? n : null
+}
+
 function parseDuration(text: string): number | null {
   const t = text.trim()
   if (t === '') return null
@@ -539,25 +549,25 @@ function LoadControl({ ex, idx, act, weightUnit, getMax, mismatch = false }: { e
   } else if (type === 'weight') {
     valueBox = (
       <input type="text" inputMode="decimal" value={value != null ? Math.round(value) : ''}
-        onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: e.target.value ? Number(e.target.value) : null })}
+        onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: sanitizeNumber(e.target.value) })}
         onFocus={(e) => e.target.select()} className={`w-14 ${boxBase}${ring}`} style={{ fontSize: 16 }} placeholder="—" />
     )
   } else if (type === 'pct') {
     valueBox = (
       <input type="text" inputMode="numeric" value={pct ?? ''}
-        onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: e.target.value ? Number(e.target.value) : null })}
+        onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: sanitizeNumber(e.target.value) })}
         onFocus={(e) => e.target.select()} className={`w-12 ${boxBase}${ring}`} style={{ fontSize: 16 }} placeholder="%" />
     )
   } else if (type === 'rpe') {
     valueBox = (
       <input type="text" inputMode="decimal" value={rpe ?? ''}
-        onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: e.target.value ? Number(e.target.value) : null })}
+        onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: sanitizeNumber(e.target.value) })}
         onFocus={(e) => e.target.select()} className={`w-12 ${boxBase}${ring}`} style={{ fontSize: 16 }} placeholder="—" />
     )
   } else if (type === 'rir') {
     valueBox = (
       <input type="text" inputMode="numeric" value={rir ?? ''}
-        onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: e.target.value ? Number(e.target.value) : null })}
+        onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: sanitizeNumber(e.target.value) })}
         onFocus={(e) => e.target.select()} className={`w-12 ${boxBase}${ring}`} style={{ fontSize: 16 }} placeholder="—" />
     )
   } else if (type === 'time') {
@@ -573,7 +583,7 @@ function LoadControl({ ex, idx, act, weightUnit, getMax, mismatch = false }: { e
     valueBox = (
       <div className="flex items-center gap-1">
         <input type="text" inputMode="decimal" value={value != null ? value : ''}
-          onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: e.target.value ? Number(e.target.value) : null })}
+          onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: sanitizeNumber(e.target.value) })}
           onFocus={(e) => e.target.select()} className={`w-12 ${boxBase}${ring}`} style={{ fontSize: 16 }} placeholder="—" />
         <Dropdown<string>
           label={ex.unit || MEASURES.distance.units[0]}
@@ -653,25 +663,25 @@ function PerSetValueBox({ ex, idx, setIdx, type, act, weightUnit, getMax, mismat
   if (type === 'weight') {
     box = (
       <input type="text" inputMode="decimal" value={value != null ? Math.round(value) : ''}
-        onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, value: e.target.value ? Number(e.target.value) : null })}
+        onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, value: sanitizeNumber(e.target.value) })}
         onFocus={(e) => e.target.select()} className={`w-16 ${setBox}${ring}`} style={{ fontSize: 16 }} placeholder="—" />
     )
   } else if (type === 'pct') {
     box = (
       <input type="text" inputMode="numeric" value={pct ?? ''}
-        onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, pct: e.target.value ? Number(e.target.value) : null })}
+        onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, pct: sanitizeNumber(e.target.value) })}
         onFocus={(e) => e.target.select()} className={`w-14 ${setBox}${ring}`} style={{ fontSize: 16 }} placeholder="%" />
     )
   } else if (type === 'rpe') {
     box = (
       <input type="text" inputMode="decimal" value={rpe ?? ''}
-        onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, rpe: e.target.value ? Number(e.target.value) : null })}
+        onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, rpe: sanitizeNumber(e.target.value) })}
         onFocus={(e) => e.target.select()} className={`w-14 ${setBox}${ring}`} style={{ fontSize: 16 }} placeholder="—" />
     )
   } else if (type === 'rir') {
     box = (
       <input type="text" inputMode="numeric" value={rir ?? ''}
-        onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, rir: e.target.value ? Number(e.target.value) : null })}
+        onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, rir: sanitizeNumber(e.target.value) })}
         onFocus={(e) => e.target.select()} className={`w-14 ${setBox}${ring}`} style={{ fontSize: 16 }} placeholder="—" />
     )
   } else if (type === 'time') {
@@ -686,7 +696,7 @@ function PerSetValueBox({ ex, idx, setIdx, type, act, weightUnit, getMax, mismat
     // distance
     box = (
       <input type="text" inputMode="decimal" value={value != null ? value : ''}
-        onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, value: e.target.value ? Number(e.target.value) : null })}
+        onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, value: sanitizeNumber(e.target.value) })}
         onFocus={(e) => e.target.select()} className={`w-16 ${setBox}${ring}`} style={{ fontSize: 16 }} placeholder="—" />
     )
   }

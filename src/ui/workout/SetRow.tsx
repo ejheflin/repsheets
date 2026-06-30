@@ -51,14 +51,16 @@ export function SetRow({
 
   const valueRef = useRef<HTMLInputElement>(null)
   const prevValue = useRef(value)
-  const valueUserTyped = useRef(false)
+  // True once the user has typed into this field; stays true until they leave and
+  // re-enter (onFocus resets it). Prevents the autofill select-on-appear effect from
+  // re-selecting and clobbering keystrokes as the user types successive digits.
+  const userEditing = useRef(false)
   useEffect(() => {
     const prev = prevValue.current
     prevValue.current = value
-    if (value != null && prev == null && !valueUserTyped.current && document.activeElement === valueRef.current) {
+    if (value != null && prev == null && !userEditing.current && document.activeElement === valueRef.current) {
       valueRef.current?.select()
     }
-    valueUserTyped.current = false
   }, [value])
 
   return (
@@ -87,8 +89,8 @@ export function SetRow({
       )}
       <div className="flex-1 text-center">
         <input ref={valueRef} type="text" inputMode="decimal" value={value != null ? Math.round(value) : ''}
-          onChange={(e) => { valueUserTyped.current = true; onValueChange(e.target.value ? Number(e.target.value) : null) }}
-          onFocus={(e) => e.target.select()}
+          onChange={(e) => { userEditing.current = true; onValueChange(e.target.value ? Number(e.target.value) : null) }}
+          onFocus={(e) => { userEditing.current = false; e.target.select() }}
           className={`w-16 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
           placeholder="—" />
       </div>
