@@ -1058,7 +1058,7 @@ export function ExpandableRoutineCard({
   return (
     <div
       data-tour={tourId}
-      className="bg-[#2a2a4a] rounded-[10px] mb-2 overflow-hidden border border-transparent"
+      className="bg-[#2a2a4a] rounded-[10px] overflow-hidden border border-transparent"
     >
       <div className="flex items-center gap-2 p-3.5">
         <button
