@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { replaceRoutineInRows, deleteRoutineInRows, renameProgramInRows } from '../driveApi'
+import { replaceRoutineInRows, deleteRoutineInRows, renameProgramInRows, deleteProgramInRows } from '../driveApi'
 import type { RoutineRow } from '../../types'
 const r = (o: Partial<RoutineRow>): RoutineRow => ({
   program: 'P', routine: 'A', exercise: 'X', sets: '5', reps: 5, value: 225,
@@ -23,5 +23,10 @@ describe('row transforms', () => {
   it('renames program on matching rows only', () => {
     const all = [r({ program: 'P' }), r({ program: 'Q' })]
     expect(renameProgramInRows(all, 'P', 'P2').map((x) => x.program)).toEqual(['P2', 'Q'])
+  })
+  it('deletes all rows of a program, keeps other programs', () => {
+    const all = [r({ program: 'P', routine: 'A' }), r({ program: 'P', routine: 'B' }), r({ program: 'Q', routine: 'A' })]
+    const out = deleteProgramInRows(all, 'P')
+    expect(out.map((x) => x.program)).toEqual(['Q'])
   })
 })

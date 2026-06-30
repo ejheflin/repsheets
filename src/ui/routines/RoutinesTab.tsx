@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { ProgramSelector } from './ProgramSelector'
+import { ProgramActions } from './ProgramActions'
+import { NamePromptModal } from './NamePromptModal'
 import { ExpandableRoutineCard, DraftRoutineCard } from './ExpandableRoutineCard'
+import { SwipeableRow } from '../shared/SwipeableRow'
+import { useUndoToast, UndoToast } from '../shared/UndoToast'
+import { renameProgram, deleteProgram, deleteRoutineRows, appendRoutineRows } from '../../sheets/driveApi'
 import { useRoutines } from '../../data/useRoutines'
 import { useLogs } from '../../data/useLogs'
 import { useExerciseSettings } from '../../data/useExerciseSettings'
@@ -20,6 +25,17 @@ function ShareIcon() {
       <path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7" />
       <polyline points="16 6 12 2 8 6" />
       <line x1="12" y1="2" x2="12" y2="15" />
+    </svg>
+  )
+}
+
+function RoutineTrashIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
     </svg>
   )
 }
@@ -46,6 +62,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
   const [prefLoaded, setPrefLoaded] = useState(false)
   const [hasDraft, setHasDraft] = useState(false)
   const [draftName, setDraftName] = useState('New Routine')
+  const [draftProgram, setDraftProgram] = useState<string | null>(null)
   const [unitSystem, setUnitSystemState] = useState<'imperial' | 'metric'>('imperial')
   const weightUnit = unitSystem === 'metric' ? 'kg' : 'lbs'
 
@@ -78,6 +95,9 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
   const [confirmDiscard, setConfirmDiscard] = useState<{
     program: string; routine: string; rows: RoutineRow[]
   } | null>(null)
+  const [programModal, setProgramModal] = useState<'new' | 'rename' | null>(null)
+  const [confirmDeleteProgram, setConfirmDeleteProgram] = useState(false)
+  const routineUndo = useUndoToast()
 
   // Load saved preference once on mount
   useEffect(() => {
@@ -92,6 +112,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
 
   // Once both preference and programs are available, reconcile
   useEffect(() => {
+    if (draftProgram) return // keep the draft program selected until it's saved
     if (!prefLoaded || programs.length === 0) return
     if (selectedProgram && programs.includes(selectedProgram)) return
 
@@ -100,7 +121,12 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     } else {
       setSelectedProgram(programs[0])
     }
-  }, [prefLoaded, programs, savedProgram, selectedProgram, setSelectedProgram])
+  }, [draftProgram, prefLoaded, programs, savedProgram, selectedProgram, setSelectedProgram])
+
+  // Once the draft program has rows on the sheet, it's real — clear the draft.
+  useEffect(() => {
+    if (draftProgram && programs.includes(draftProgram)) setDraftProgram(null)
+  }, [draftProgram, programs])
 
   const handleStartWorkout = (rows: RoutineRow[]) => {
     const program = rows[0]?.program ?? selectedProgram
@@ -135,6 +161,80 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     refresh().catch(() => {})
   }, [refresh])
 
+  const displayPrograms = useMemo(() => {
+    if (draftProgram && !programs.includes(draftProgram)) return [...programs, draftProgram]
+    return programs
+  }, [programs, draftProgram])
+
+  // A draft program (selected, not yet on the sheet) cannot be renamed/deleted on the server.
+  const isDraftSelected = !!draftProgram && selectedProgram === draftProgram
+  const canModifyProgram = !!selectedProgram
+
+  const handleNewProgram = (name: string) => {
+    setProgramModal(null)
+    if (!name) return
+    setDraftProgram(name)
+    setSelectedProgram(name)
+    setHasDraft(false)
+  }
+
+  const handleRenameProgram = async (name: string) => {
+    setProgramModal(null)
+    const current = selectedProgram
+    if (!name || !current || name === current) return
+    if (isDraftSelected) {
+      setDraftProgram(name)
+      setSelectedProgram(name)
+      return
+    }
+    if (!spreadsheetId) return
+    try {
+      await renameProgram(spreadsheetId, current, name)
+      await refresh()
+      setSelectedProgram(name)
+    } catch (e) {
+      if (e instanceof AuthExpiredError) login()
+    }
+  }
+
+  const handleDeleteProgram = async () => {
+    setConfirmDeleteProgram(false)
+    const current = selectedProgram
+    if (!current) return
+    if (isDraftSelected) {
+      setDraftProgram(null)
+      setHasDraft(false)
+      const next = programs.find((p) => p !== current)
+      if (next) setSelectedProgram(next)
+      else setSelectedProgramState('')
+      return
+    }
+    if (!spreadsheetId) return
+    try {
+      await deleteProgram(spreadsheetId, current)
+      await refresh()
+      const remaining = programs.filter((p) => p !== current)
+      if (remaining.length > 0) setSelectedProgram(remaining[0])
+      else setSelectedProgramState('')
+    } catch (e) {
+      if (e instanceof AuthExpiredError) login()
+    }
+  }
+
+  const handleDeleteRoutine = useCallback((routineName: string, rows: RoutineRow[]) => {
+    if (!spreadsheetId) return
+    const program = rows[0]?.program ?? selectedProgram
+    mutateCache(allRows.filter((r) => !(r.program === program && r.routine === routineName)))
+    deleteRoutineRows(spreadsheetId, program, routineName)
+      .then(() => refresh())
+      .catch((e) => { if (e instanceof AuthExpiredError) login() })
+    routineUndo.show('Routine deleted', () => {
+      appendRoutineRows(spreadsheetId, rows)
+        .then(() => refresh())
+        .catch((e) => { if (e instanceof AuthExpiredError) login() })
+    })
+  }, [spreadsheetId, selectedProgram, allRows, mutateCache, refresh, routineUndo, login])
+
   if (isLoading) {
     return <div className="text-gray-400 text-center mt-10">Loading routines...</div>
   }
@@ -146,7 +246,13 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
           className="w-12 rounded-[10px] bg-[#2a2a4a] border border-[#3a3a5a] flex items-center justify-center flex-shrink-0 active:opacity-80">
           <SheetIcon />
         </button>
-        <ProgramSelector programs={programs} selected={selectedProgram} onSelect={setSelectedProgram} />
+        <ProgramSelector programs={displayPrograms} selected={selectedProgram} onSelect={setSelectedProgram} />
+        <ProgramActions
+          canModify={canModifyProgram}
+          onNewProgram={() => setProgramModal('new')}
+          onRenameProgram={() => setProgramModal('rename')}
+          onDeleteProgram={() => setConfirmDeleteProgram(true)}
+        />
         <button onClick={handleRefresh} disabled={isRefreshing}
           className={`w-12 rounded-[10px] bg-[#2a2a4a] border border-[#3a3a5a] flex items-center justify-center flex-shrink-0 active:opacity-80 ${isRefreshing ? 'animate-spin' : ''}`}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -179,18 +285,23 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
       {routineList
         .filter((r) => !hasDraft || r.name.trim().toLowerCase() !== draftName.trim().toLowerCase())
         .map((r, i) => (
-          <ExpandableRoutineCard
+          <SwipeableRow
             key={r.name}
-            routine={r}
-            spreadsheetId={spreadsheetId ?? ''}
-            allRows={allRows}
-            loggedExercises={loggedExercises}
-            mutateCache={mutateCache}
-            onStartWorkout={handleStartWorkout}
-            tourId={i === 0 ? 'routine-card' : undefined}
-            weightUnit={weightUnit}
-            getMax={getMax}
-          />
+            className="mb-2 rounded-[10px]"
+            actions={[{ label: 'Delete', icon: <RoutineTrashIcon />, color: '#c0392b', onClick: () => handleDeleteRoutine(r.name, r.rows) }]}
+          >
+            <ExpandableRoutineCard
+              routine={r}
+              spreadsheetId={spreadsheetId ?? ''}
+              allRows={allRows}
+              loggedExercises={loggedExercises}
+              mutateCache={mutateCache}
+              onStartWorkout={handleStartWorkout}
+              tourId={i === 0 ? 'routine-card' : undefined}
+              weightUnit={weightUnit}
+              getMax={getMax}
+            />
+          </SwipeableRow>
         ))}
       {hasDraft && spreadsheetId && (
         <DraftRoutineCard
@@ -205,7 +316,20 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
           getMax={getMax}
         />
       )}
-      {!hasDraft && (
+      {displayPrograms.length === 0 && !hasDraft ? (
+        <div className="text-center mt-12 px-6">
+          <h2 className="text-[20px] font-bold mb-2">Build your first program</h2>
+          <p className="text-gray-400 text-sm mb-6">
+            A program is a collection of routines. Create one to start adding workouts.
+          </p>
+          <button
+            onClick={() => setProgramModal('new')}
+            className="w-full bg-[#6c63ff] rounded-[10px] py-3 text-center font-semibold active:opacity-80"
+          >
+            + New program
+          </button>
+        </div>
+      ) : !hasDraft && (
         <button
           onClick={() => { setDraftName('New Routine'); setHasDraft(true) }}
           className="w-full mt-2 rounded-[10px] border border-dashed border-[#3a3a5a] bg-transparent flex items-center justify-center py-3 text-[#6c63ff] text-sm font-semibold active:opacity-80"
@@ -245,6 +369,40 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
           </div>
         </div>
       )}
+      {programModal === 'new' && (
+        <NamePromptModal
+          title="New program"
+          confirmLabel="Create"
+          onConfirm={handleNewProgram}
+          onCancel={() => setProgramModal(null)}
+        />
+      )}
+      {programModal === 'rename' && (
+        <NamePromptModal
+          title="Rename program"
+          initialValue={selectedProgram}
+          confirmLabel="Rename"
+          onConfirm={handleRenameProgram}
+          onCancel={() => setProgramModal(null)}
+        />
+      )}
+      {confirmDeleteProgram && (
+        <div className="fixed inset-0 bg-black/60 flex items-end z-50">
+          <div className="w-full bg-[#1a1a2e] rounded-t-2xl p-5">
+            <p className="text-center font-bold mb-1">Delete program</p>
+            <p className="text-center text-gray-400 text-sm mb-4">
+              Delete "{selectedProgram}" and all its routines? Your workout history is not affected.
+            </p>
+            <button onClick={handleDeleteProgram}
+              className="w-full bg-red-500 rounded-[10px] p-3 text-center font-semibold mb-2 active:opacity-80">
+              Delete program
+            </button>
+            <button onClick={() => setConfirmDeleteProgram(false)}
+              className="w-full p-3 text-center text-gray-400 font-semibold">Cancel</button>
+          </div>
+        </div>
+      )}
+      {routineUndo.pending && <UndoToast message={routineUndo.pending.message} onUndo={routineUndo.undo} />}
     </div>
   )
 }

@@ -624,6 +624,10 @@ export function renameProgramInRows(all: RoutineRow[], from: string, to: string)
   return all.map((row) => (row.program === from ? { ...row, program: to } : row))
 }
 
+export function deleteProgramInRows(all: RoutineRow[], program: string): RoutineRow[] {
+  return all.filter((row) => row.program !== program)
+}
+
 function rowsToValues(rows: RoutineRow[]): (string | number)[][] {
   return rows.map((r) => [
     r.program, r.routine, r.exercise, r.sets, serializeReps({ reps: r.reps, repsMax: r.repsMax, repsOpen: r.repsOpen }),
@@ -660,6 +664,15 @@ export async function renameProgram(
 ): Promise<RoutineRow[]> {
   const all = await fetchRoutineRows(spreadsheetId)
   const next = renameProgramInRows(all, from, to)
+  await rewriteRoutinesTab(spreadsheetId, next)
+  return next
+}
+
+export async function deleteProgram(
+  spreadsheetId: string, program: string,
+): Promise<RoutineRow[]> {
+  const all = await fetchRoutineRows(spreadsheetId)
+  const next = deleteProgramInRows(all, program)
   await rewriteRoutinesTab(spreadsheetId, next)
   return next
 }
