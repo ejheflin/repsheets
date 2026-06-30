@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useRoutineEditor } from '../../data/useRoutineEditor'
 import { toEditable } from '../../data/routineModel'
 import { formatValue } from '../../data/measure'
@@ -78,13 +78,15 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, knownExercises, r
   }, [focusIdx, idx, onFocused])
 
   const isDefault = ex.exercise === '' || ex.exercise === 'New exercise'
-  const lowerInput = ex.exercise.toLowerCase()
 
-  const chips = knownExercises.filter((name) => {
-    const lowerName = name.toLowerCase()
-    if (!isDefault && !lowerName.includes(lowerInput)) return false
-    return !routineExerciseNames.some((n) => n.toLowerCase() === lowerName)
-  })
+  const chips = useMemo(() => {
+    const lowerInput = ex.exercise.toLowerCase()
+    return knownExercises.filter((name) => {
+      const lowerName = name.toLowerCase()
+      if (!isDefault && !lowerName.includes(lowerInput)) return false
+      return !routineExerciseNames.some((n) => n.toLowerCase() === lowerName)
+    }).slice(0, 24)
+  }, [knownExercises, ex.exercise, routineExerciseNames, isDefault])
 
   return (
     <div className="bg-[#1a1a2e] rounded-[10px] p-3 mb-2 flex items-center gap-3">
@@ -104,7 +106,7 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, knownExercises, r
         {inputFocused && chips.length > 0 && (
           <div
             className="flex flex-wrap gap-2 mt-2"
-            style={{ maxHeight: 104, overflowY: 'auto' }}
+            style={{ maxHeight: 84, overflowY: 'auto' }}
           >
             {chips.map((name) => (
               <button
@@ -116,7 +118,7 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, knownExercises, r
                   setInputFocused(false)
                   inputRef.current?.blur()
                 }}
-                className="bg-[#3a3a5a] rounded-full px-3 py-1.5 text-sm text-white active:bg-[#6c63ff] active:opacity-80"
+                className="bg-[#3a3a5a] rounded-full px-2.5 py-1 text-xs text-white active:bg-[#6c63ff] active:opacity-80"
               >
                 {name}
               </button>
