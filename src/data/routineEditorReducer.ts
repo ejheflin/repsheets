@@ -1,5 +1,6 @@
 import type { EditableRoutine, EditableExercise } from '../types'
 import { MEASURES, WEIGHT_UNITS, DISTANCE_UNITS, type Measure } from './measure'
+import { newExerciseId } from './routineModel'
 
 export type Action =
   | { type: 'setRoutine'; name: string }
@@ -63,7 +64,7 @@ export function reduce(state: EditableRoutine, a: Action): EditableRoutine {
     case 'setUnit': { at(a.ex).unit = a.unit; return { ...state, exercises: exs } }
     case 'setBasis': { at(a.ex).basis = a.basis; return { ...state, exercises: exs } }
     case 'addExercise': {
-      exs.push({ exercise: a.name, unit: a.unit, notes: '', basis: '1rm', loadMode: 'lb', supersetGroup: null,
+      exs.push({ id: newExerciseId(), exercise: a.name, unit: a.unit, notes: '', basis: '1rm', loadMode: 'lb', supersetGroup: null,
         sets: [{ reps: 5, value: null, pct: null }, { reps: 5, value: null, pct: null }, { reps: 5, value: null, pct: null }] })
       return { ...state, exercises: exs }
     }

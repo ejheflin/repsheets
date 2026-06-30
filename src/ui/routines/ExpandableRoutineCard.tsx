@@ -807,7 +807,7 @@ interface SortableExerciseRowProps {
 }
 
 function SortableExerciseRow({ ex, idx, focusIdx, setFocusIdx, act, onDeleteExercise, chipSource, weightUnit, exerciseCount }: SortableExerciseRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: String(idx) })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: ex.id })
   return (
     <div
       ref={setNodeRef}
@@ -855,21 +855,21 @@ function ExerciseList({ exercises, focusIdx, setFocusIdx, act, onDeleteExercise,
 
   const handleDragEnd = useCallback(({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return
-    const from = Number(active.id)
-    const to = Number(over.id)
-    if (Number.isInteger(from) && Number.isInteger(to) && from !== to) {
+    const from = exercises.findIndex((e) => e.id === active.id)
+    const to = exercises.findIndex((e) => e.id === over.id)
+    if (from >= 0 && to >= 0 && from !== to) {
       act({ type: 'reorder', from, to })
     }
-  }, [act])
+  }, [act, exercises])
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={exercises.map((_, i) => String(i))} strategy={verticalListSortingStrategy}>
+      <SortableContext items={exercises.map((e) => e.id)} strategy={verticalListSortingStrategy}>
         {runs.map((run) => {
           const isSuperset = run.length >= 2
           const rows = run.map((i) => (
             <SortableExerciseRow
-              key={i}
+              key={exercises[i].id}
               ex={exercises[i]}
               idx={i}
               focusIdx={focusIdx}

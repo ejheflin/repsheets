@@ -57,8 +57,8 @@ describe('toEditable / toRows', () => {
   })
   it('omits blank-named exercises from toRows', () => {
     const ed: EditableRoutine = { program: 'P', routine: 'D', exercises: [
-      { exercise: '', unit: 'lbs', notes: '', basis: '1rm', loadMode: 'lb', supersetGroup: null, sets: [{ reps: 5, value: 100, pct: null }] },
-      { exercise: 'Squat', unit: 'lbs', notes: '', basis: '1rm', loadMode: 'lb', supersetGroup: null, sets: [{ reps: 5, value: 225, pct: null }] },
+      { id: 'x1', exercise: '', unit: 'lbs', notes: '', basis: '1rm', loadMode: 'lb', supersetGroup: null, sets: [{ reps: 5, value: 100, pct: null }] },
+      { id: 'x2', exercise: 'Squat', unit: 'lbs', notes: '', basis: '1rm', loadMode: 'lb', supersetGroup: null, sets: [{ reps: 5, value: 225, pct: null }] },
     ] }
     const rows = toRows(ed)
     expect(rows.every((r) => r.exercise.trim() !== '')).toBe(true)

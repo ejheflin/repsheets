@@ -1,6 +1,11 @@
 import type { RoutineRow, EditableExercise, EditableRoutine, EditableSet } from '../types'
 import { parseSets, serializeSets } from '../sheets/routineSerialization'
 
+let idCounter = 0
+export function newExerciseId(): string {
+  return `e${++idCounter}`
+}
+
 export function toEditable(rows: RoutineRow[]): EditableRoutine {
   const program = rows[0]?.program ?? ''
   const routine = rows[0]?.routine ?? ''
@@ -35,6 +40,7 @@ export function toEditable(rows: RoutineRow[]): EditableRoutine {
     }
     const usesPct = sets.some((s) => s.pct != null)
     return {
+      id: newExerciseId(),
       exercise: name,
       unit: rs[0].unit,
       notes: rs[0].notes,

@@ -3,9 +3,9 @@ import { reduce } from '../routineEditorReducer'
 import type { EditableRoutine } from '../../types'
 
 const seed = (): EditableRoutine => ({ program: 'P', routine: 'A', exercises: [
-  { exercise: 'Squat', unit: 'lbs', notes: '', basis: '1rm', loadMode: 'lb', supersetGroup: null,
+  { id: 'x1', exercise: 'Squat', unit: 'lbs', notes: '', basis: '1rm', loadMode: 'lb', supersetGroup: null,
     sets: [{ reps: 3, value: 225, pct: null }] },
-  { exercise: 'Bench', unit: 'lbs', notes: '', basis: '1rm', loadMode: 'lb', supersetGroup: null,
+  { id: 'x2', exercise: 'Bench', unit: 'lbs', notes: '', basis: '1rm', loadMode: 'lb', supersetGroup: null,
     sets: [{ reps: 5, value: 135, pct: null }] },
 ] })
 

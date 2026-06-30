@@ -8,6 +8,7 @@ export interface EditableSet {
   rir?: number
 }
 export interface EditableExercise {
+  id: string  // transient editor-only id for dnd-kit stable keys; not serialized
   exercise: string
   unit: string
   notes: string
