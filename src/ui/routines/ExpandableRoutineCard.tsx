@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useRoutineEditor } from '../../data/useRoutineEditor'
 import { toEditable } from '../../data/routineModel'
-import { formatValue } from '../../data/measure'
+import { formatValue, formatDuration, measureOf, MEASURES, type Measure } from '../../data/measure'
+import type { Action } from '../../data/routineEditorReducer'
 import type { EditableRoutine, RoutineRow } from '../../types'
 
 function buildChipSource(
@@ -80,16 +81,210 @@ function buildSummaryLine(exercises: EditableRoutine['exercises']): string {
   return acc
 }
 
+const stepBtn = 'w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#2a2a4a]'
+const numField = 'w-12 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] focus:ring-1 focus:ring-[#6c63ff]'
+
+function Stepper({ value, min = 0, onChange }: { value: number; min?: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex items-center gap-1">
+      <button type="button" onClick={() => onChange(Math.max(min, value - 1))} className={stepBtn}>−</button>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={value}
+        onChange={(e) => onChange(e.target.value ? Math.max(min, Number(e.target.value)) : min)}
+        onFocus={(e) => e.target.select()}
+        className={numField}
+        style={{ fontSize: 16 }}
+      />
+      <button type="button" onClick={() => onChange(value + 1)} className={stepBtn}>+</button>
+    </div>
+  )
+}
+
+function parseDuration(text: string): number | null {
+  const t = text.trim()
+  if (t === '') return null
+  if (t.includes(':')) {
+    const [m, s] = t.split(':')
+    const mins = Number(m) || 0
+    const secs = Number(s) || 0
+    return mins * 60 + secs
+  }
+  const n = Number(t)
+  return Number.isFinite(n) ? n : null
+}
+
+const MEASURE_ORDER: Measure[] = ['weight', 'reps', 'time', 'distance']
+
+function MeasurePicker({ measure, onChange }: { measure: Measure; onChange: (m: Measure) => void }) {
+  return (
+    <div className="flex items-center gap-1">
+      {MEASURE_ORDER.map((m) => (
+        <button
+          key={m}
+          type="button"
+          onClick={() => onChange(m)}
+          className={`px-2 py-0.5 rounded-full text-[11px] border active:opacity-80 ${
+            measure === m
+              ? 'border-[#6c63ff] text-[#6c63ff] bg-[#6c63ff]/10'
+              : 'border-[#3a3a5a] text-gray-500'
+          }`}
+        >
+          {MEASURES[m].label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function UnitToggle({ units, unit, onChange }: { units: readonly string[]; unit: string; onChange: (u: string) => void }) {
+  return (
+    <div className="flex items-center rounded bg-[#1a1a2e] overflow-hidden border border-[#3a3a5a]">
+      {units.map((u) => (
+        <button
+          key={u}
+          type="button"
+          onClick={() => onChange(u)}
+          className={`px-2 py-1 text-[12px] active:opacity-80 ${
+            unit === u ? 'bg-[#6c63ff] text-white font-semibold' : 'text-gray-400'
+          }`}
+        >
+          {u}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+interface EditControlsProps {
+  ex: EditableRoutine['exercises'][number]
+  idx: number
+  act: (a: Action) => void
+  oneRepMax?: number | null
+}
+
+function ExerciseEditControls({ ex, idx, act, oneRepMax }: EditControlsProps) {
+  const measure = measureOf(ex.unit)
+  const setCount = ex.sets.length
+  const reps = ex.sets[0]?.reps ?? 0
+  const value = ex.sets[0]?.value ?? null
+  const pct = ex.sets[0]?.pct ?? null
+  const [durText, setDurText] = useState(value != null ? formatDuration(value) : '')
+
+  useEffect(() => {
+    setDurText(value != null ? formatDuration(value) : '')
+  }, [value])
+
+  const targetWeight = pct != null && oneRepMax != null
+    ? Math.round(pct * oneRepMax / 100 / 5) * 5
+    : null
+
+  let valueControl: React.ReactNode = null
+  if (measure === 'weight') {
+    valueControl = (
+      <div className="flex items-center gap-1.5">
+        {ex.loadMode === 'pct' ? (
+          <>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={pct ?? ''}
+              onChange={(e) => act({ type: 'setUniformLoad', ex: idx, value: null, pct: e.target.value ? Number(e.target.value) : null })}
+              onFocus={(e) => e.target.select()}
+              className={numField}
+              style={{ fontSize: 16 }}
+              placeholder="%"
+            />
+            <span className="text-[12px] text-gray-500">
+              {targetWeight != null ? `≈ ${targetWeight} ${ex.unit}` : '%'}
+            </span>
+          </>
+        ) : (
+          <>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={value != null ? Math.round(value) : ''}
+              onChange={(e) => act({ type: 'setUniformLoad', ex: idx, value: e.target.value ? Number(e.target.value) : null, pct: null })}
+              onFocus={(e) => e.target.select()}
+              className={numField}
+              style={{ fontSize: 16 }}
+              placeholder="—"
+            />
+            <UnitToggle units={MEASURES.weight.units} unit={ex.unit} onChange={(u) => act({ type: 'setUnit', ex: idx, unit: u })} />
+          </>
+        )}
+        <button
+          type="button"
+          onClick={() => act({ type: 'setLoadMode', ex: idx, mode: ex.loadMode === 'pct' ? 'lb' : 'pct' })}
+          className={`px-2 py-1 rounded text-[12px] border active:opacity-80 ${
+            ex.loadMode === 'pct' ? 'border-[#6c63ff] text-[#6c63ff]' : 'border-[#3a3a5a] text-gray-400'
+          }`}
+        >
+          {ex.loadMode === 'pct' ? '%' : 'lb'}
+        </button>
+      </div>
+    )
+  } else if (measure === 'time') {
+    valueControl = (
+      <input
+        type="text"
+        inputMode="numeric"
+        value={durText}
+        onChange={(e) => setDurText(e.target.value)}
+        onFocus={(e) => e.target.select()}
+        onBlur={() => act({ type: 'setUniformLoad', ex: idx, value: parseDuration(durText), pct: null })}
+        className="w-16 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none focus:ring-1 focus:ring-[#6c63ff]"
+        style={{ fontSize: 16 }}
+        placeholder="m:ss"
+      />
+    )
+  } else if (measure === 'distance') {
+    valueControl = (
+      <div className="flex items-center gap-1.5">
+        <input
+          type="text"
+          inputMode="decimal"
+          value={value != null ? value : ''}
+          onChange={(e) => act({ type: 'setUniformLoad', ex: idx, value: e.target.value ? Number(e.target.value) : null, pct: null })}
+          onFocus={(e) => e.target.select()}
+          className={numField}
+          style={{ fontSize: 16 }}
+          placeholder="—"
+        />
+        <UnitToggle units={MEASURES.distance.units} unit={ex.unit} onChange={(u) => act({ type: 'setUnit', ex: idx, unit: u })} />
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-2 space-y-2">
+      <div className="flex items-center flex-wrap gap-x-2 gap-y-2 text-[12px] text-gray-500">
+        <span>Sets</span>
+        <Stepper value={setCount} min={1} onChange={(v) => act({ type: 'setSetCount', ex: idx, count: v })} />
+        <span>×</span>
+        <span>Reps</span>
+        <Stepper value={reps} min={0} onChange={(v) => act({ type: 'setUniformReps', ex: idx, reps: v })} />
+        {valueControl && <span>@</span>}
+        {valueControl}
+      </div>
+      <MeasurePicker measure={measure} onChange={(m) => act({ type: 'setMeasure', ex: idx, measure: m })} />
+    </div>
+  )
+}
+
 interface ExerciseRowProps {
   ex: EditableRoutine['exercises'][number]
   idx: number
   focusIdx: number | null
   onFocused: () => void
   onRename: (name: string) => void
+  act: (a: Action) => void
   knownExercises: string[]
 }
 
-function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, knownExercises }: ExerciseRowProps) {
+function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, act, knownExercises }: ExerciseRowProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [inputFocused, setInputFocused] = useState(false)
 
@@ -113,10 +308,9 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, knownExercises }:
   }, [knownExercises, ex.exercise, isDefault])
 
   return (
-    <div className="bg-[#1a1a2e] rounded-[10px] p-3 mb-2 flex items-center gap-3">
-      {/* TODO Task 8: rich measure-aware editable card */}
+    <div className="bg-[#1a1a2e] rounded-[10px] p-3 mb-2">
       {/* TODO Task 8: swipe-to-delete via SwipeableRow */}
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0">
         <input
           ref={inputRef}
           type="text"
@@ -149,7 +343,7 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, knownExercises }:
             ))}
           </div>
         )}
-        <div className="text-[12px] text-gray-500 mt-0.5">{buildScheme(ex)}</div>
+        <ExerciseEditControls ex={ex} idx={idx} act={act} />
       </div>
     </div>
   )
@@ -283,6 +477,7 @@ export function ExpandableRoutineCard({
                 focusIdx={focusIdx}
                 onFocused={() => setFocusIdx(null)}
                 onRename={(name) => act({ type: 'renameExercise', ex: i, name })}
+                act={act}
                 knownExercises={chipSource}
               />
             ))}
@@ -393,6 +588,7 @@ export function DraftRoutineCard({
               focusIdx={focusIdx}
               onFocused={() => setFocusIdx(null)}
               onRename={(name) => act({ type: 'renameExercise', ex: i, name })}
+              act={act}
               knownExercises={chipSource}
             />
           ))}

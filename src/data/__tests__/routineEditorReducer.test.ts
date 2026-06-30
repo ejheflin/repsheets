@@ -57,4 +57,22 @@ describe('reduce', () => {
     expect(s.exercises[0].exercise).toBe('Front Squat')
     expect(input.exercises[0].exercise).toBe('Squat') // input unchanged
   })
+  it('setMeasure to time sets unit sec and clears pct on all sets', () => {
+    const grown = reduce(seed(), { type: 'setSetCount', ex: 0, count: 3 })
+    const withPct = reduce(grown, { type: 'setUniformLoad', ex: 0, value: null, pct: 75 })
+    const s = reduce(withPct, { type: 'setMeasure', ex: 0, measure: 'time' })
+    expect(s.exercises[0].unit).toBe('sec')
+    expect(s.exercises[0].loadMode).toBe('lb')
+    expect(s.exercises[0].sets.every((x) => x.pct === null)).toBe(true)
+  })
+  it('setMeasure to weight sets unit lbs', () => {
+    const s = reduce(seed(), { type: 'setMeasure', ex: 0, measure: 'weight' })
+    expect(s.exercises[0].unit).toBe('lbs')
+  })
+  it('setUnit sets the unit without mutating input', () => {
+    const input = seed()
+    const s = reduce(input, { type: 'setUnit', ex: 0, unit: 'kg' })
+    expect(s.exercises[0].unit).toBe('kg')
+    expect(input.exercises[0].unit).toBe('lbs')
+  })
 })

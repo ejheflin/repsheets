@@ -1,4 +1,5 @@
 import type { EditableRoutine, EditableExercise } from '../types'
+import { MEASURES, type Measure } from './measure'
 
 export type Action =
   | { type: 'setRoutine'; name: string }
@@ -6,6 +7,8 @@ export type Action =
   | { type: 'setUniformReps'; ex: number; reps: number | null }
   | { type: 'setUniformLoad'; ex: number; value: number | null; pct: number | null }
   | { type: 'setLoadMode'; ex: number; mode: 'lb' | 'pct' }
+  | { type: 'setMeasure'; ex: number; measure: Measure }
+  | { type: 'setUnit'; ex: number; unit: string }
   | { type: 'setBasis'; ex: number; basis: '1rm' | 'tm' }
   | { type: 'addExercise'; name: string; unit: string }
   | { type: 'removeExercise'; ex: number }
@@ -42,6 +45,13 @@ export function reduce(state: EditableRoutine, a: Action): EditableRoutine {
     case 'setUniformReps': { at(a.ex).sets.forEach((s) => (s.reps = a.reps)); return { ...state, exercises: exs } }
     case 'setUniformLoad': { at(a.ex).sets.forEach((s) => { s.value = a.value; s.pct = a.pct }); return { ...state, exercises: exs } }
     case 'setLoadMode': { at(a.ex).loadMode = a.mode; return { ...state, exercises: exs } }
+    case 'setMeasure': {
+      const e = at(a.ex)
+      e.unit = MEASURES[a.measure].defaultUnit
+      if (a.measure !== 'weight') { e.loadMode = 'lb'; e.sets.forEach((s) => { s.pct = null }) }
+      return { ...state, exercises: exs }
+    }
+    case 'setUnit': { at(a.ex).unit = a.unit; return { ...state, exercises: exs } }
     case 'setBasis': { at(a.ex).basis = a.basis; return { ...state, exercises: exs } }
     case 'addExercise': {
       exs.push({ exercise: a.name, unit: a.unit, notes: '', basis: '1rm', loadMode: 'lb', supersetGroup: null,
