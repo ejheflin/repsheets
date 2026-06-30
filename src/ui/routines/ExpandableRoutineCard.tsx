@@ -112,6 +112,54 @@ function buildSummaryLine(exercises: EditableRoutine['exercises']): string {
 const stepBtn = 'w-5 h-7 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#2a2a4a] flex-shrink-0'
 const boxBase = 'bg-[#1a1a2e] rounded text-center font-semibold py-1 outline-none [appearance:textfield] focus:ring-1 focus:ring-[#6c63ff]'
 const headerCls = 'text-[10px] uppercase tracking-wider text-gray-500 text-center pb-1'
+const triggerCls = 'text-[10px] uppercase tracking-wider text-[#6c63ff] text-center pb-1 flex items-center justify-center gap-0.5 w-full active:opacity-80'
+
+function CaretDown() {
+  return (
+    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  )
+}
+
+// Shared small anchored dropdown: tap trigger → menu, closes on select / outside-tap.
+function Dropdown<T extends string>({
+  label,
+  current,
+  options,
+  onSelect,
+  width = 'w-44',
+}: {
+  label: React.ReactNode
+  current: T
+  options: { value: T; label: string; sub?: string }[]
+  onSelect: (value: T) => void
+  width?: string
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="relative">
+      <button type="button" onClick={() => setOpen((v) => !v)} className={triggerCls}>
+        {label}
+        <CaretDown />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className={`absolute z-50 right-0 top-full mt-1 ${width} bg-[#1a1a2e] border border-[#3a3a5a] rounded-[10px] py-1 shadow-lg`}>
+            {options.map((o) => (
+              <button key={o.value} type="button" onClick={() => { onSelect(o.value); setOpen(false) }}
+                className={`w-full text-left px-3 py-1.5 active:bg-[#2a2a4a] ${current === o.value ? 'text-[#6c63ff]' : 'text-white'}`}>
+                <div className="text-[13px] font-semibold leading-tight">{o.label}</div>
+                {o.sub && <div className="text-[10px] text-gray-500 leading-tight">{o.sub}</div>}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 function Stepper({ value, min = 0, onChange, width = 'w-10' }: { value: number; min?: number; onChange: (v: number) => void; width?: string }) {
   return (
@@ -159,11 +207,12 @@ function RepsControl({ ex, idx, act }: { ex: EditableExercise; idx: number; act:
   const reps = s0?.reps ?? null
   const repsMax = s0?.repsMax ?? null
 
-  const cycle = () => {
+  const selectMode = (next: RepsMode) => {
+    if (next === mode) return
     const r = reps ?? 0
-    if (mode === 'single') act({ type: 'setReps', ex: idx, reps: r, repsMax: r })
-    else if (mode === 'range') act({ type: 'setReps', ex: idx, reps: r, repsOpen: true })
-    else act({ type: 'setReps', ex: idx, reps: r })
+    if (next === 'single') act({ type: 'setReps', ex: idx, reps: r })
+    else if (next === 'range') act({ type: 'setReps', ex: idx, reps: r, repsMax: r })
+    else act({ type: 'setReps', ex: idx, reps: r, repsOpen: true })
   }
 
   const label = mode === 'single' ? 'Reps' : mode === 'range' ? 'Range' : 'AMRAP'
@@ -220,13 +269,17 @@ function RepsControl({ ex, idx, act }: { ex: EditableExercise; idx: number; act:
 
   return (
     <div>
-      <button type="button" onClick={cycle} className={`${headerCls} flex items-center justify-center gap-0.5 w-full active:opacity-70`}>
-        {label}
-        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="7 10 12 5 17 10" />
-          <polyline points="17 14 12 19 7 14" />
-        </svg>
-      </button>
+      <Dropdown<RepsMode>
+        label={label}
+        current={mode}
+        width="w-36"
+        onSelect={selectMode}
+        options={[
+          { value: 'single', label: 'Single', sub: 'one rep target' },
+          { value: 'range', label: 'Range', sub: 'min–max' },
+          { value: 'amrap', label: 'AMRAP', sub: 'open / max reps' },
+        ]}
+      />
       <div className="flex items-center justify-center">{control}</div>
     </div>
   )
@@ -237,7 +290,7 @@ type LoadType = 'weight' | 'pct' | 'rpe' | 'rir' | 'bodyweight' | 'time' | 'dist
 
 const LOAD_MENU: { type: LoadType; label: string; sub: string }[] = [
   { type: 'weight', label: 'Weight', sub: 'lb / kg' },
-  { type: 'pct', label: '% of max', sub: 'percent 1RM' },
+  { type: 'pct', label: '% of 1RM/TM', sub: 'percent of 1RM or training max' },
   { type: 'rpe', label: 'RPE', sub: 'rate of perceived exertion' },
   { type: 'rir', label: 'RIR', sub: 'reps in reserve' },
   { type: 'bodyweight', label: 'Bodyweight', sub: 'no load' },
@@ -270,7 +323,6 @@ function loadHeaderLabel(ex: EditableExercise, weightUnit: string): string {
 }
 
 function LoadControl({ ex, idx, act, weightUnit, oneRepMax }: { ex: EditableExercise; idx: number; act: (a: Action) => void; weightUnit: string; oneRepMax?: number | null }) {
-  const [menuOpen, setMenuOpen] = useState(false)
   const type = loadTypeOf(ex)
   const s0 = ex.sets[0]
   const value = s0?.value ?? null
@@ -285,7 +337,6 @@ function LoadControl({ ex, idx, act, weightUnit, oneRepMax }: { ex: EditableExer
   const select = (t: LoadType) => {
     const unit = (t === 'weight' || t === 'pct' || t === 'rpe' || t === 'rir') ? weightUnit : undefined
     act({ type: 'setLoadType', ex: idx, loadType: t, unit })
-    setMenuOpen(false)
   }
 
   // ≈ weight hint
@@ -338,44 +389,29 @@ function LoadControl({ ex, idx, act, weightUnit, oneRepMax }: { ex: EditableExer
         <input type="text" inputMode="decimal" value={value != null ? value : ''}
           onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: e.target.value ? Number(e.target.value) : null })}
           onFocus={(e) => e.target.select()} className={`w-12 ${boxBase}`} style={{ fontSize: 16 }} placeholder="—" />
-        <div className="flex flex-col">
-          {MEASURES.distance.units.map((u) => (
-            <button key={u} type="button" onClick={() => act({ type: 'setUnit', ex: idx, unit: u })}
-              className={`px-1 leading-tight text-[10px] ${ex.unit === u ? 'text-[#6c63ff] font-semibold' : 'text-gray-600'}`}>
-              {u}
-            </button>
-          ))}
-        </div>
+        <Dropdown<string>
+          label={ex.unit || MEASURES.distance.units[0]}
+          current={ex.unit || MEASURES.distance.units[0]}
+          width="w-20"
+          onSelect={(u) => act({ type: 'setUnit', ex: idx, unit: u })}
+          options={MEASURES.distance.units.map((u) => ({ value: u, label: u }))}
+        />
       </div>
     )
   }
 
   return (
     <div className="relative">
-      <button type="button" onClick={() => setMenuOpen((v) => !v)} className={`${headerCls} flex items-center justify-center gap-0.5 w-full active:opacity-70`}>
-        {loadHeaderLabel(ex, weightUnit)}
-        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </button>
+      <Dropdown<LoadType>
+        label={loadHeaderLabel(ex, weightUnit)}
+        current={type}
+        onSelect={select}
+        options={LOAD_MENU.map((m) => ({ value: m.type, label: m.label, sub: m.sub }))}
+      />
       <div className="flex flex-col items-center justify-center">
         <div className="flex items-center justify-center h-9">{valueBox}</div>
         {hint && <span className="text-[10px] text-gray-500 leading-none">{hint}</span>}
       </div>
-      {menuOpen && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-          <div className="absolute z-50 right-0 top-full mt-1 w-44 bg-[#1a1a2e] border border-[#3a3a5a] rounded-[10px] py-1 shadow-lg">
-            {LOAD_MENU.map((m) => (
-              <button key={m.type} type="button" onClick={() => select(m.type)}
-                className={`w-full text-left px-3 py-1.5 active:bg-[#2a2a4a] ${type === m.type ? 'text-[#6c63ff]' : 'text-white'}`}>
-                <div className="text-[13px] font-semibold leading-tight">{m.label}</div>
-                <div className="text-[10px] text-gray-500 leading-tight">{m.sub}</div>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
     </div>
   )
 }
