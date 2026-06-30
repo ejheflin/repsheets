@@ -19,6 +19,32 @@ import type { EditableRoutine, RoutineRow, EditableExercise } from '../../types'
 
 export type GetMax = (name: string) => { e1rm: number | null; tm: number | null }
 
+// Tracks whether keyboard focus currently lives inside a card. Focus moving
+// between two inputs in the same card briefly fires blur→focus; a short timeout
+// (cancelled by the incoming focus) keeps `editing` true across that gap so we
+// don't flush+remount between every field. Only a true exit flips it to false.
+function useCardEditing() {
+  const [editing, setEditing] = useState(false)
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  useEffect(() => () => clearTimeout(blurTimer.current), [])
+
+  const onFocusCapture = useCallback(() => {
+    clearTimeout(blurTimer.current)
+    setEditing(true)
+  }, [])
+
+  const onBlurCapture = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
+    const card = e.currentTarget
+    clearTimeout(blurTimer.current)
+    blurTimer.current = setTimeout(() => {
+      if (!card.contains(document.activeElement)) setEditing(false)
+    }, 150)
+  }, [])
+
+  return { editing, onFocusCapture, onBlurCapture }
+}
+
 function barIncrement(unit: string): number {
   return measureOf(unit) === 'weight' && (unit || '').trim().toLowerCase() === 'kg' ? 2.5 : 5
 }
@@ -1010,6 +1036,7 @@ export function ExpandableRoutineCard({
   const [expanded, setExpanded] = useState(initialExpanded)
   const [focusIdx, setFocusIdx] = useState<number | null>(null)
   const undoToast = useUndoToast()
+  const { editing, onFocusCapture, onBlurCapture } = useCardEditing()
 
   const allRowsRef = useRef(allRows)
   allRowsRef.current = allRows
@@ -1025,7 +1052,7 @@ export function ExpandableRoutineCard({
   }, [])
 
   const initial = toEditable(routine.rows)
-  const { state, status, act } = useRoutineEditor(spreadsheetId, initial, stableOnSaved)
+  const { state, status, act } = useRoutineEditor(spreadsheetId, initial, stableOnSaved, editing)
 
   const handleDeleteExercise = useCallback((index: number, exercise: EditableExercise) => {
     act({ type: 'removeExercise', ex: index })
@@ -1055,6 +1082,8 @@ export function ExpandableRoutineCard({
   return (
     <div
       data-tour={tourId}
+      onFocusCapture={onFocusCapture}
+      onBlurCapture={onBlurCapture}
       className="bg-[#2a2a4a] rounded-[10px] overflow-hidden border border-transparent"
     >
       <div className="flex items-center gap-2 p-3.5">
@@ -1159,6 +1188,7 @@ export function DraftRoutineCard({
 }: DraftRoutineCardProps) {
   const [focusIdx, setFocusIdx] = useState<number | null>(null)
   const undoToast = useUndoToast()
+  const { editing, onFocusCapture, onBlurCapture } = useCardEditing()
 
   const allRowsRef = useRef(allRows)
   allRowsRef.current = allRows
@@ -1174,7 +1204,7 @@ export function DraftRoutineCard({
   }, [])
 
   const initial: EditableRoutine = { program, routine: 'New Routine', exercises: [] }
-  const { state, status, act } = useRoutineEditor(spreadsheetId, initial, stableOnSaved)
+  const { state, status, act } = useRoutineEditor(spreadsheetId, initial, stableOnSaved, editing)
 
   const handleDeleteExercise = useCallback((index: number, exercise: EditableExercise) => {
     act({ type: 'removeExercise', ex: index })
@@ -1200,7 +1230,11 @@ export function DraftRoutineCard({
   const defaultUnit = state.exercises.length > 0 ? state.exercises[0].unit : weightUnit
 
   return (
-    <div className="bg-[#2a2a4a] rounded-[10px] mb-2 overflow-hidden border border-[#6c63ff]/40">
+    <div
+      onFocusCapture={onFocusCapture}
+      onBlurCapture={onBlurCapture}
+      className="bg-[#2a2a4a] rounded-[10px] mb-2 overflow-hidden border border-[#6c63ff]/40"
+    >
       <div className="flex items-center gap-2 p-3.5">
         <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
           <ChevronDown />
