@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { ProgramSelector } from './ProgramSelector'
 import { ExpandableRoutineCard, DraftRoutineCard } from './ExpandableRoutineCard'
 import { useRoutines } from '../../data/useRoutines'
@@ -52,10 +52,6 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
   const { workout, startWorkout, discardWorkout } = useWorkout()
   const { spreadsheetId } = useSheetContext()
   const { login } = useAuth()
-  const knownExercises = useMemo(
-    () => [...new Set(allRows.map((r) => r.exercise))].filter(Boolean),
-    [allRows]
-  )
   const [showSheetSwitcher, setShowSheetSwitcher] = useState(false)
   const [showShare, setShowShare] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -153,7 +149,6 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
             mutateCache={mutateCache}
             onStartWorkout={handleStartWorkout}
             tourId={i === 0 ? 'routine-card' : undefined}
-            knownExercises={knownExercises}
           />
         ))}
       {hasDraft && spreadsheetId && (
@@ -164,7 +159,6 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
           mutateCache={mutateCache}
           onSavedToList={handleDraftSaved}
           onNameChange={setDraftName}
-          knownExercises={knownExercises}
         />
       )}
       {!hasDraft && (

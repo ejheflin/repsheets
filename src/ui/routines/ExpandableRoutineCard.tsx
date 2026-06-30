@@ -62,10 +62,9 @@ interface ExerciseRowProps {
   onFocused: () => void
   onRename: (name: string) => void
   knownExercises: string[]
-  routineExerciseNames: string[]
 }
 
-function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, knownExercises, routineExerciseNames }: ExerciseRowProps) {
+function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, knownExercises }: ExerciseRowProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [inputFocused, setInputFocused] = useState(false)
 
@@ -84,9 +83,9 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, knownExercises, r
     return knownExercises.filter((name) => {
       const lowerName = name.toLowerCase()
       if (!isDefault && !lowerName.includes(lowerInput)) return false
-      return !routineExerciseNames.some((n) => n.toLowerCase() === lowerName)
+      return true
     }).slice(0, 24)
-  }, [knownExercises, ex.exercise, routineExerciseNames, isDefault])
+  }, [knownExercises, ex.exercise, isDefault])
 
   return (
     <div className="bg-[#1a1a2e] rounded-[10px] p-3 mb-2 flex items-center gap-3">
@@ -139,7 +138,6 @@ interface ExpandableRoutineCardProps {
   onStartWorkout: (rows: RoutineRow[]) => void
   initialExpanded?: boolean
   tourId?: string
-  knownExercises: string[]
 }
 
 export function ExpandableRoutineCard({
@@ -150,7 +148,6 @@ export function ExpandableRoutineCard({
   onStartWorkout,
   initialExpanded = false,
   tourId,
-  knownExercises,
 }: ExpandableRoutineCardProps) {
   const [expanded, setExpanded] = useState(initialExpanded)
   const [focusIdx, setFocusIdx] = useState<number | null>(null)
@@ -174,6 +171,15 @@ export function ExpandableRoutineCard({
 
   const initial = toEditable(routine.rows)
   const { state, status, act } = useRoutineEditor(spreadsheetId, initial, stableOnSaved)
+
+  const chipSource = useMemo(
+    () => [...new Set(
+      allRows
+        .filter((r) => !(r.program === state.program && r.routine === state.routine))
+        .map((r) => r.exercise)
+    )].filter(Boolean),
+    [allRows, state.program, state.routine]
+  )
 
   const statusText =
     status === 'saving' ? 'Saving…' :
@@ -254,8 +260,7 @@ export function ExpandableRoutineCard({
                 focusIdx={focusIdx}
                 onFocused={() => setFocusIdx(null)}
                 onRename={(name) => act({ type: 'renameExercise', ex: i, name })}
-                knownExercises={knownExercises}
-                routineExerciseNames={state.exercises.map((e) => e.exercise)}
+                knownExercises={chipSource}
               />
             ))}
 
@@ -283,7 +288,6 @@ interface DraftRoutineCardProps {
   mutateCache: (rows: RoutineRow[]) => void
   onSavedToList: () => void
   onNameChange: (name: string) => void
-  knownExercises: string[]
 }
 
 export function DraftRoutineCard({
@@ -293,7 +297,6 @@ export function DraftRoutineCard({
   mutateCache,
   onSavedToList: _onSavedToList,
   onNameChange,
-  knownExercises,
 }: DraftRoutineCardProps) {
   const [focusIdx, setFocusIdx] = useState<number | null>(null)
 
@@ -315,6 +318,15 @@ export function DraftRoutineCard({
 
   const initial: EditableRoutine = { program, routine: 'New Routine', exercises: [] }
   const { state, status, act } = useRoutineEditor(spreadsheetId, initial, stableOnSaved)
+
+  const chipSource = useMemo(
+    () => [...new Set(
+      allRows
+        .filter((r) => !(r.program === state.program && r.routine === state.routine))
+        .map((r) => r.exercise)
+    )].filter(Boolean),
+    [allRows, state.program, state.routine]
+  )
 
   const statusText =
     status === 'saving' ? 'Saving…' :
@@ -360,8 +372,7 @@ export function DraftRoutineCard({
               focusIdx={focusIdx}
               onFocused={() => setFocusIdx(null)}
               onRename={(name) => act({ type: 'renameExercise', ex: i, name })}
-              knownExercises={knownExercises}
-              routineExerciseNames={state.exercises.map((e) => e.exercise)}
+              knownExercises={chipSource}
             />
           ))}
 
