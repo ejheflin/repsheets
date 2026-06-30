@@ -180,6 +180,11 @@ function ExerciseEditControls({ ex, idx, act, oneRepMax }: EditControlsProps) {
     ? Math.round(pct * oneRepMax / 100 / 5) * 5
     : null
 
+  let valueLabel: string | null = null
+  if (measure === 'weight') valueLabel = ex.loadMode === 'pct' ? '% 1RM' : 'Load'
+  else if (measure === 'time') valueLabel = 'Time'
+  else if (measure === 'distance') valueLabel = 'Distance'
+
   let valueControl: React.ReactNode = null
   if (measure === 'weight') {
     valueControl = (
@@ -258,16 +263,25 @@ function ExerciseEditControls({ ex, idx, act, oneRepMax }: EditControlsProps) {
     )
   }
 
+  const headerCls = 'text-[10px] text-gray-500 uppercase tracking-wider'
+
   return (
     <div className="mt-2 space-y-2">
-      <div className="flex items-center flex-wrap gap-x-2 gap-y-2 text-[12px] text-gray-500">
-        <span>Sets</span>
-        <Stepper value={setCount} min={1} onChange={(v) => act({ type: 'setSetCount', ex: idx, count: v })} />
-        <span>×</span>
-        <span>Reps</span>
-        <Stepper value={reps} min={0} onChange={(v) => act({ type: 'setUniformReps', ex: idx, reps: v })} />
-        {valueControl && <span>@</span>}
-        {valueControl}
+      <div className="flex items-end flex-wrap gap-x-4 gap-y-2">
+        <div>
+          <div className={`${headerCls} pb-1`}>Sets</div>
+          <Stepper value={setCount} min={1} onChange={(v) => act({ type: 'setSetCount', ex: idx, count: v })} />
+        </div>
+        <div>
+          <div className={`${headerCls} pb-1`}>Reps</div>
+          <Stepper value={reps} min={0} onChange={(v) => act({ type: 'setUniformReps', ex: idx, reps: v })} />
+        </div>
+        {valueControl && (
+          <div>
+            <div className={`${headerCls} pb-1`}>{valueLabel}</div>
+            {valueControl}
+          </div>
+        )}
       </div>
       <MeasurePicker measure={measure} onChange={(m) => act({ type: 'setMeasure', ex: idx, measure: m })} />
     </div>
@@ -308,7 +322,7 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, act, knownExercis
   }, [knownExercises, ex.exercise, isDefault])
 
   return (
-    <div className="bg-[#1a1a2e] rounded-[10px] p-3 mb-2">
+    <div className="bg-[#2a2a4a] rounded-[10px] p-3 mb-2 border border-[#3a3a5a]">
       {/* TODO Task 8: swipe-to-delete via SwipeableRow */}
       <div className="min-w-0">
         <input
