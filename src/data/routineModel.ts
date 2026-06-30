@@ -48,6 +48,7 @@ export function toEditable(rows: RoutineRow[]): EditableRoutine {
 export function toRows(ed: EditableRoutine): RoutineRow[] {
   const out: RoutineRow[] = []
   for (const ex of ed.exercises) {
+    if (!ex.exercise.trim()) continue
     let i = 0
     let cumulative = 0
     while (i < ex.sets.length) {

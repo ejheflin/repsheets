@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { ProgramSelector } from './ProgramSelector'
 import { ExpandableRoutineCard, DraftRoutineCard } from './ExpandableRoutineCard'
 import { useRoutines } from '../../data/useRoutines'
+import { useLogs } from '../../data/useLogs'
 import { useWorkout } from '../../data/useWorkout'
 import { useAuth } from '../../auth/useAuth'
 import { AuthExpiredError } from '../../auth/authFetch'
@@ -49,6 +50,8 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     setPreference('activeProgram', program)
   }, [])
   const { routineList, programs, isLoading, refresh, mutateCache, allRows } = useRoutines(selectedProgram || null)
+  const { allLogs } = useLogs()
+  const loggedExercises = useMemo(() => [...new Set(allLogs.map((l) => l.exercise))].filter(Boolean), [allLogs])
   const { workout, startWorkout, discardWorkout } = useWorkout()
   const { spreadsheetId } = useSheetContext()
   const { login } = useAuth()
@@ -146,6 +149,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
             routine={r}
             spreadsheetId={spreadsheetId ?? ''}
             allRows={allRows}
+            loggedExercises={loggedExercises}
             mutateCache={mutateCache}
             onStartWorkout={handleStartWorkout}
             tourId={i === 0 ? 'routine-card' : undefined}
@@ -156,6 +160,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
           program={selectedProgram || programs[0] || ''}
           spreadsheetId={spreadsheetId}
           allRows={allRows}
+          loggedExercises={loggedExercises}
           mutateCache={mutateCache}
           onSavedToList={handleDraftSaved}
           onNameChange={setDraftName}

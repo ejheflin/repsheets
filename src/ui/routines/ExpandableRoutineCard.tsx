@@ -4,6 +4,31 @@ import { toEditable } from '../../data/routineModel'
 import { formatValue } from '../../data/measure'
 import type { EditableRoutine, RoutineRow } from '../../types'
 
+function buildChipSource(
+  allRows: RoutineRow[],
+  loggedExercises: string[],
+  program: string,
+  routine: string,
+  exercises: EditableRoutine['exercises'],
+): string[] {
+  const otherRoutineNames = allRows
+    .filter((r) => !(r.program === program && r.routine === routine))
+    .map((r) => r.exercise)
+  const current = new Set(
+    exercises.map((e) => e.exercise.trim().toLowerCase()).filter(Boolean)
+  )
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const name of [...otherRoutineNames, ...loggedExercises]) {
+    if (!name) continue
+    const key = name.toLowerCase()
+    if (seen.has(key) || current.has(key)) continue
+    seen.add(key)
+    out.push(name)
+  }
+  return out
+}
+
 function ChevronRight() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -99,7 +124,7 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, knownExercises }:
           onChange={(e) => onRename(e.target.value)}
           onFocus={(e) => { e.target.select(); setInputFocused(true) }}
           onBlur={() => setInputFocused(false)}
-          className="w-full bg-transparent font-semibold text-white outline-none border-b border-transparent focus:border-[#6c63ff] transition-colors truncate"
+          className={`w-full bg-transparent font-semibold text-white outline-none border-b border-transparent transition-colors truncate ${ex.exercise.trim() === '' ? 'ring-1 ring-red-500' : 'focus:border-[#6c63ff]'}`}
           style={{ fontSize: 16 }}
         />
         {inputFocused && chips.length > 0 && (
@@ -134,6 +159,7 @@ interface ExpandableRoutineCardProps {
   routine: { name: string; exercises: string[]; rows: RoutineRow[] }
   spreadsheetId: string
   allRows: RoutineRow[]
+  loggedExercises: string[]
   mutateCache: (rows: RoutineRow[]) => void
   onStartWorkout: (rows: RoutineRow[]) => void
   initialExpanded?: boolean
@@ -144,6 +170,7 @@ export function ExpandableRoutineCard({
   routine,
   spreadsheetId,
   allRows,
+  loggedExercises,
   mutateCache,
   onStartWorkout,
   initialExpanded = false,
@@ -173,12 +200,8 @@ export function ExpandableRoutineCard({
   const { state, status, act } = useRoutineEditor(spreadsheetId, initial, stableOnSaved)
 
   const chipSource = useMemo(
-    () => [...new Set(
-      allRows
-        .filter((r) => !(r.program === state.program && r.routine === state.routine))
-        .map((r) => r.exercise)
-    )].filter(Boolean),
-    [allRows, state.program, state.routine]
+    () => buildChipSource(allRows, loggedExercises, state.program, state.routine, state.exercises),
+    [allRows, loggedExercises, state.program, state.routine, state.exercises]
   )
 
   const statusText =
@@ -285,6 +308,7 @@ interface DraftRoutineCardProps {
   program: string
   spreadsheetId: string
   allRows: RoutineRow[]
+  loggedExercises: string[]
   mutateCache: (rows: RoutineRow[]) => void
   onSavedToList: () => void
   onNameChange: (name: string) => void
@@ -294,6 +318,7 @@ export function DraftRoutineCard({
   program,
   spreadsheetId,
   allRows,
+  loggedExercises,
   mutateCache,
   onSavedToList: _onSavedToList,
   onNameChange,
@@ -320,12 +345,8 @@ export function DraftRoutineCard({
   const { state, status, act } = useRoutineEditor(spreadsheetId, initial, stableOnSaved)
 
   const chipSource = useMemo(
-    () => [...new Set(
-      allRows
-        .filter((r) => !(r.program === state.program && r.routine === state.routine))
-        .map((r) => r.exercise)
-    )].filter(Boolean),
-    [allRows, state.program, state.routine]
+    () => buildChipSource(allRows, loggedExercises, state.program, state.routine, state.exercises),
+    [allRows, loggedExercises, state.program, state.routine, state.exercises]
   )
 
   const statusText =

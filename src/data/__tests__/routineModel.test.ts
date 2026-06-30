@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { toEditable, toRows } from '../routineModel'
-import type { RoutineRow } from '../../types'
+import type { RoutineRow, EditableRoutine } from '../../types'
 
 const base = (o: Partial<RoutineRow>): RoutineRow => ({
   program: 'P', routine: 'D', exercise: 'Squat', sets: '5', reps: 5,
@@ -49,5 +49,14 @@ describe('toEditable / toRows', () => {
     const ed = toEditable(rows)
     expect(ed.exercises[0].sets[0].rpe).toBe(8)
     expect(toRows(ed)).toEqual(rows)
+  })
+  it('omits blank-named exercises from toRows', () => {
+    const ed: EditableRoutine = { program: 'P', routine: 'D', exercises: [
+      { exercise: '', unit: 'lbs', notes: '', basis: '1rm', loadMode: 'lb', supersetGroup: null, sets: [{ reps: 5, value: 100, pct: null }] },
+      { exercise: 'Squat', unit: 'lbs', notes: '', basis: '1rm', loadMode: 'lb', supersetGroup: null, sets: [{ reps: 5, value: 225, pct: null }] },
+    ] }
+    const rows = toRows(ed)
+    expect(rows.every((r) => r.exercise.trim() !== '')).toBe(true)
+    expect(rows.map((r) => r.exercise)).toEqual(['Squat'])
   })
 })
