@@ -13,7 +13,9 @@ export type Action =
   | { type: 'addExercise'; name: string; unit: string }
   | { type: 'removeExercise'; ex: number }
   | { type: 'reorder'; from: number; to: number }
-  | { type: 'setPerSet'; ex: number; set: number; reps?: number | null; value?: number | null; pct?: number | null }
+  | { type: 'setPerSet'; ex: number; set: number; reps?: number | null; value?: number | null; pct?: number | null; rpe?: number | null; rir?: number | null }
+  | { type: 'addSet'; ex: number }
+  | { type: 'removeSet'; ex: number; set: number }
   | { type: 'groupWithNext'; ex: number }
   | { type: 'ungroup'; ex: number }
   | { type: 'renameExercise'; ex: number; name: string }
@@ -71,6 +73,20 @@ export function reduce(state: EditableRoutine, a: Action): EditableRoutine {
       if (a.reps !== undefined) s.reps = a.reps
       if (a.value !== undefined) s.value = a.value
       if (a.pct !== undefined) s.pct = a.pct
+      if (a.rpe !== undefined) s.rpe = a.rpe ?? undefined
+      if (a.rir !== undefined) s.rir = a.rir ?? undefined
+      return { ...state, exercises: exs }
+    }
+    case 'addSet': {
+      const e = at(a.ex)
+      const last = e.sets[e.sets.length - 1] ?? { reps: null, value: null, pct: null }
+      e.sets.push({ ...last })
+      return { ...state, exercises: exs }
+    }
+    case 'removeSet': {
+      const e = at(a.ex)
+      if (e.sets.length <= 1) return { ...state, exercises: exs }
+      e.sets.splice(a.set, 1)
       return { ...state, exercises: exs }
     }
     case 'groupWithNext': {

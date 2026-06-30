@@ -3,8 +3,20 @@ import { useRoutineEditor } from '../../data/useRoutineEditor'
 import { toEditable } from '../../data/routineModel'
 import { formatValue, formatDuration, measureOf, MEASURES } from '../../data/measure'
 import { rpeToPct, rirToPct } from '../../workout/rpe'
+import { SwipeableRow } from '../shared/SwipeableRow'
 import type { Action } from '../../data/routineEditorReducer'
 import type { EditableRoutine, RoutineRow, EditableExercise } from '../../types'
+
+function SetTrashIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+    </svg>
+  )
+}
 
 function buildChipSource(
   allRows: RoutineRow[],
@@ -437,6 +449,128 @@ function ExerciseEditControls({ ex, idx, act, weightUnit, oneRepMax }: EditContr
   )
 }
 
+// ─── Per-set editor (expanded) ───────────────────────────────────────────────
+const setBox = 'bg-[#1a1a2e] rounded text-center font-semibold py-1 outline-none [appearance:textfield] focus:ring-1 focus:ring-[#6c63ff]'
+
+function PerSetValueBox({ ex, idx, setIdx, type, act, weightUnit, oneRepMax }: {
+  ex: EditableExercise; idx: number; setIdx: number; type: LoadType
+  act: (a: Action) => void; weightUnit: string; oneRepMax?: number | null
+}) {
+  const s = ex.sets[setIdx]
+  const value = s?.value ?? null
+  const pct = s?.pct ?? null
+  const rpe = s?.rpe ?? null
+  const rir = s?.rir ?? null
+  const reps = s?.reps ?? 1
+
+  const [durText, setDurText] = useState(value != null ? formatDuration(value) : '')
+  useEffect(() => { if (type === 'time') setDurText(value != null ? formatDuration(value) : '') }, [type, value])
+
+  let hint: string | null = null
+  if (oneRepMax != null) {
+    if (type === 'pct' && pct != null) hint = `≈ ${Math.round(pct * oneRepMax / 100 / 5) * 5}`
+    else if (type === 'rpe' && rpe != null) hint = `≈ ${Math.round(rpeToPct(reps, rpe) * oneRepMax / 5) * 5}`
+    else if (type === 'rir' && rir != null) hint = `≈ ${Math.round(rirToPct(reps, rir) * oneRepMax / 5) * 5}`
+  }
+
+  let box: React.ReactNode
+  if (type === 'weight') {
+    box = (
+      <input type="text" inputMode="decimal" value={value != null ? Math.round(value) : ''}
+        onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, value: e.target.value ? Number(e.target.value) : null })}
+        onFocus={(e) => e.target.select()} className={`w-16 ${setBox}`} style={{ fontSize: 16 }} placeholder="—" />
+    )
+  } else if (type === 'pct') {
+    box = (
+      <input type="text" inputMode="numeric" value={pct ?? ''}
+        onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, pct: e.target.value ? Number(e.target.value) : null })}
+        onFocus={(e) => e.target.select()} className={`w-14 ${setBox}`} style={{ fontSize: 16 }} placeholder="%" />
+    )
+  } else if (type === 'rpe') {
+    box = (
+      <input type="text" inputMode="decimal" value={rpe ?? ''}
+        onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, rpe: e.target.value ? Number(e.target.value) : null })}
+        onFocus={(e) => e.target.select()} className={`w-14 ${setBox}`} style={{ fontSize: 16 }} placeholder="—" />
+    )
+  } else if (type === 'rir') {
+    box = (
+      <input type="text" inputMode="numeric" value={rir ?? ''}
+        onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, rir: e.target.value ? Number(e.target.value) : null })}
+        onFocus={(e) => e.target.select()} className={`w-14 ${setBox}`} style={{ fontSize: 16 }} placeholder="—" />
+    )
+  } else if (type === 'time') {
+    box = (
+      <input type="text" inputMode="numeric" value={durText}
+        onChange={(e) => setDurText(e.target.value)}
+        onFocus={(e) => e.target.select()}
+        onBlur={() => act({ type: 'setPerSet', ex: idx, set: setIdx, value: parseDuration(durText) })}
+        className={`w-16 ${setBox}`} style={{ fontSize: 16 }} placeholder="m:ss" />
+    )
+  } else {
+    // distance
+    box = (
+      <input type="text" inputMode="decimal" value={value != null ? value : ''}
+        onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, value: e.target.value ? Number(e.target.value) : null })}
+        onFocus={(e) => e.target.select()} className={`w-16 ${setBox}`} style={{ fontSize: 16 }} placeholder="—" />
+    )
+  }
+
+  void weightUnit
+  return (
+    <div className="flex flex-col items-center">
+      {box}
+      {hint && <span className="text-[10px] text-gray-500 leading-none mt-0.5">{hint}</span>}
+    </div>
+  )
+}
+
+function PerSetEditor({ ex, idx, act, weightUnit, oneRepMax }: {
+  ex: EditableExercise; idx: number; act: (a: Action) => void; weightUnit: string; oneRepMax?: number | null
+}) {
+  const type = loadTypeOf(ex)
+  const hasValueCol = type !== 'bodyweight'
+  const valueLabel = loadHeaderLabel(ex, weightUnit)
+
+  return (
+    <div>
+      <div className="flex items-center pb-1 text-[10px] uppercase tracking-wider text-gray-600">
+        <div className="w-7">Set</div>
+        <div className="flex-1 text-center">Reps</div>
+        {hasValueCol && <div className="flex-1 text-center">{valueLabel}</div>}
+        <div className="w-5" />
+      </div>
+      {ex.sets.map((s, setIdx) => (
+        <SwipeableRow
+          key={setIdx}
+          actions={[{ label: 'Delete', icon: <SetTrashIcon />, color: '#c0392b', onClick: () => act({ type: 'removeSet', ex: idx, set: setIdx }) }]}
+        >
+          <div className={`flex items-center py-1.5 bg-[#2a2a4a] ${setIdx < ex.sets.length - 1 ? 'border-b border-[#3a3a5a]' : ''}`}>
+            <div className="w-7 text-xs text-gray-500">{setIdx + 1}</div>
+            <div className="flex-1 flex items-center justify-center">
+              <input type="text" inputMode="numeric" value={s.reps ?? ''}
+                onChange={(e) => act({ type: 'setPerSet', ex: idx, set: setIdx, reps: e.target.value ? Number(e.target.value) : null })}
+                onFocus={(e) => e.target.select()} className={`w-14 ${setBox}`} style={{ fontSize: 16 }} placeholder="—" />
+            </div>
+            {hasValueCol && (
+              <div className="flex-1 flex items-center justify-center">
+                <PerSetValueBox ex={ex} idx={idx} setIdx={setIdx} type={type} act={act} weightUnit={weightUnit} oneRepMax={oneRepMax} />
+              </div>
+            )}
+            <div className="w-5" />
+          </div>
+        </SwipeableRow>
+      ))}
+      <button
+        type="button"
+        onClick={() => act({ type: 'addSet', ex: idx })}
+        className="w-full mt-2 rounded-[10px] border border-dashed border-[#3a3a5a] bg-transparent flex items-center justify-center py-2 text-[#6c63ff] text-[13px] font-semibold active:opacity-80"
+      >
+        + Add set
+      </button>
+    </div>
+  )
+}
+
 interface ExerciseRowProps {
   ex: EditableExercise
   idx: number
@@ -520,8 +654,8 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, act, knownExercis
         )}
         <ExerciseEditControls ex={ex} idx={idx} act={act} weightUnit={weightUnit} oneRepMax={oneRepMax} />
         {expanded && (
-          <div className="mt-3 pt-3 border-t border-[#3a3a5a] text-[12px] text-gray-500">
-            {/* Task 9: per-set editor */}
+          <div className="mt-3 pt-3 border-t border-[#3a3a5a]">
+            <PerSetEditor ex={ex} idx={idx} act={act} weightUnit={weightUnit} oneRepMax={oneRepMax} />
           </div>
         )}
       </div>

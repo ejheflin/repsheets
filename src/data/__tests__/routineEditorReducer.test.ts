@@ -134,4 +134,54 @@ describe('reduce', () => {
     expect(input.exercises[0].sets[0].reps).toBe(3)
     expect(input.exercises[0].sets[0].repsMax).toBeUndefined()
   })
+
+  it('addSet appends a copy of the last set', () => {
+    const grown = reduce(seed(), { type: 'setSetCount', ex: 0, count: 2 })
+    const diverged = reduce(grown, { type: 'setPerSet', ex: 0, set: 1, reps: 8, value: 250 })
+    const s = reduce(diverged, { type: 'addSet', ex: 0 })
+    expect(s.exercises[0].sets).toHaveLength(3)
+    expect(s.exercises[0].sets[2]).toEqual({ reps: 8, value: 250, pct: null })
+  })
+  it('addSet does not mutate input', () => {
+    const input = seed()
+    reduce(input, { type: 'addSet', ex: 0 })
+    expect(input.exercises[0].sets).toHaveLength(1)
+  })
+
+  it('removeSet removes the right index', () => {
+    const grown = reduce(seed(), { type: 'setSetCount', ex: 0, count: 3 })
+    const diverged = reduce(grown, { type: 'setPerSet', ex: 0, set: 1, reps: 7 })
+    const s = reduce(diverged, { type: 'removeSet', ex: 0, set: 1 })
+    expect(s.exercises[0].sets).toHaveLength(2)
+    expect(s.exercises[0].sets.every((x) => x.reps === 3)).toBe(true)
+  })
+  it('removeSet will not go below 1 set', () => {
+    const s = reduce(seed(), { type: 'removeSet', ex: 0, set: 0 })
+    expect(s.exercises[0].sets).toHaveLength(1)
+  })
+  it('removeSet does not mutate input', () => {
+    const input = reduce(seed(), { type: 'setSetCount', ex: 0, count: 3 })
+    reduce(input, { type: 'removeSet', ex: 0, set: 1 })
+    expect(input.exercises[0].sets).toHaveLength(3)
+  })
+
+  it('setPerSet sets rpe on a single set without touching others', () => {
+    const grown = reduce(seed(), { type: 'setSetCount', ex: 0, count: 3 })
+    const s = reduce(grown, { type: 'setPerSet', ex: 0, set: 1, rpe: 8 })
+    expect(s.exercises[0].sets[1].rpe).toBe(8)
+    expect(s.exercises[0].sets[0].rpe).toBeUndefined()
+    expect(s.exercises[0].sets[2].rpe).toBeUndefined()
+  })
+  it('setPerSet sets rir on a single set', () => {
+    const grown = reduce(seed(), { type: 'setSetCount', ex: 0, count: 3 })
+    const s = reduce(grown, { type: 'setPerSet', ex: 0, set: 0, rir: 2 })
+    expect(s.exercises[0].sets[0].rir).toBe(2)
+    expect(s.exercises[0].sets[1].rir).toBeUndefined()
+  })
+  it('setPerSet does not mutate input', () => {
+    const input = reduce(seed(), { type: 'setSetCount', ex: 0, count: 2 })
+    reduce(input, { type: 'setPerSet', ex: 0, set: 0, reps: 99, rpe: 9 })
+    expect(input.exercises[0].sets[0].reps).toBe(3)
+    expect(input.exercises[0].sets[0].rpe).toBeUndefined()
+  })
 })
