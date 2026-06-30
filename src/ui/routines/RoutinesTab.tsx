@@ -44,6 +44,13 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
   const [prefLoaded, setPrefLoaded] = useState(false)
   const [hasDraft, setHasDraft] = useState(false)
   const [draftName, setDraftName] = useState('New Routine')
+  const [unitSystem, setUnitSystemState] = useState<'imperial' | 'metric'>('imperial')
+  const weightUnit = unitSystem === 'metric' ? 'kg' : 'lbs'
+
+  const setUnitSystem = useCallback((sys: 'imperial' | 'metric') => {
+    setUnitSystemState(sys)
+    setPreference('unitSystem', sys)
+  }, [])
 
   const setSelectedProgram = useCallback((program: string) => {
     setSelectedProgramState(program)
@@ -67,6 +74,9 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     getPreference('activeProgram').then((saved) => {
       setSavedProgram(saved ?? null)
       setPrefLoaded(true)
+    })
+    getPreference('unitSystem').then((u) => {
+      if (u === 'metric' || u === 'imperial') setUnitSystemState(u)
     })
   }, [])
 
@@ -140,7 +150,22 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
           <ShareIcon />
         </button>
       </div>
-      <h1 className="text-[20px] font-bold mb-3">Routines</h1>
+      <div className="flex items-center justify-between mb-3">
+        <h1 className="text-[20px] font-bold">Routines</h1>
+        <div className="flex items-center rounded-[8px] border border-[#3a3a5a] overflow-hidden">
+          {(['imperial', 'metric'] as const).map((sys) => (
+            <button
+              key={sys}
+              onClick={() => setUnitSystem(sys)}
+              className={`px-2.5 py-1 text-[11px] font-semibold active:opacity-80 ${
+                unitSystem === sys ? 'bg-[#6c63ff] text-white' : 'text-gray-400'
+              }`}
+            >
+              {sys === 'imperial' ? 'LB' : 'KG'}
+            </button>
+          ))}
+        </div>
+      </div>
       {routineList
         .filter((r) => !hasDraft || r.name.trim().toLowerCase() !== draftName.trim().toLowerCase())
         .map((r, i) => (
@@ -153,6 +178,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
             mutateCache={mutateCache}
             onStartWorkout={handleStartWorkout}
             tourId={i === 0 ? 'routine-card' : undefined}
+            weightUnit={weightUnit}
           />
         ))}
       {hasDraft && spreadsheetId && (
@@ -164,6 +190,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
           mutateCache={mutateCache}
           onSavedToList={handleDraftSaved}
           onNameChange={setDraftName}
+          weightUnit={weightUnit}
         />
       )}
       {!hasDraft && (

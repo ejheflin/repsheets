@@ -1,9 +1,10 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useRoutineEditor } from '../../data/useRoutineEditor'
 import { toEditable } from '../../data/routineModel'
-import { formatValue, formatDuration, measureOf, MEASURES, type Measure } from '../../data/measure'
+import { formatValue, formatDuration, measureOf, MEASURES } from '../../data/measure'
+import { rpeToPct, rirToPct } from '../../workout/rpe'
 import type { Action } from '../../data/routineEditorReducer'
-import type { EditableRoutine, RoutineRow } from '../../types'
+import type { EditableRoutine, RoutineRow, EditableExercise } from '../../types'
 
 function buildChipSource(
   allRows: RoutineRow[],
@@ -46,20 +47,48 @@ function ChevronDown() {
   )
 }
 
+// Small caret used inside the per-exercise card header (mirrors workout ExerciseRow).
+function RowChevronRight() {
+  return (
+    <svg width="8" height="20" viewBox="0 0 8 24" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="2 6 6 12 2 18" />
+    </svg>
+  )
+}
+
+function RowChevronDown() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#555" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="2 4 6 8 10 4" />
+    </svg>
+  )
+}
+
 
 function buildScheme(ex: EditableRoutine['exercises'][number]): string {
   const setCount = ex.sets.length
-  const reps = ex.sets[0]?.reps
-  const value = ex.sets[0]?.value
+  const s0 = ex.sets[0]
+  const reps = s0?.reps
+  const value = s0?.value
   const parts: string[] = []
-  if (reps != null) {
-    parts.push(`${setCount}×${reps}`)
+  let repsStr: string | null = null
+  if (s0?.repsOpen) repsStr = reps != null ? `${reps}+` : 'AMRAP'
+  else if (s0?.repsMax != null && reps != null) repsStr = `${reps}-${s0.repsMax}`
+  else if (reps != null) repsStr = String(reps)
+  if (repsStr != null) {
+    parts.push(`${setCount}×${repsStr}`)
   } else {
     parts.push(`${setCount} sets`)
   }
   if (value != null) {
     const formatted = formatValue(value, ex.unit)
     if (formatted) parts.push(formatted)
+  } else if (s0?.pct != null) {
+    parts.push(`${s0.pct}%`)
+  } else if (s0?.rpe != null) {
+    parts.push(`@${s0.rpe} RPE`)
+  } else if (s0?.rir != null) {
+    parts.push(`${s0.rir} RIR`)
   }
   return parts.join(' ')
 }
@@ -69,7 +98,6 @@ function buildSummaryLine(exercises: EditableRoutine['exercises']): string {
   const parts = exercises.map((ex) => `${ex.exercise} ${buildScheme(ex)}`)
   const joined = parts.join(' · ')
   if (joined.length <= MAX_CHARS) return joined
-  // Truncate gracefully — show as many full exercise entries as fit, then "…"
   let acc = ''
   for (let i = 0; i < parts.length; i++) {
     const next = i === 0 ? parts[i] : ` · ${parts[i]}`
@@ -82,9 +110,10 @@ function buildSummaryLine(exercises: EditableRoutine['exercises']): string {
 }
 
 const stepBtn = 'w-5 h-7 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#2a2a4a] flex-shrink-0'
-const numField = 'w-11 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] focus:ring-1 focus:ring-[#6c63ff]'
+const boxBase = 'bg-[#1a1a2e] rounded text-center font-semibold py-1 outline-none [appearance:textfield] focus:ring-1 focus:ring-[#6c63ff]'
+const headerCls = 'text-[10px] uppercase tracking-wider text-gray-500 text-center pb-1'
 
-function Stepper({ value, min = 0, onChange }: { value: number; min?: number; onChange: (v: number) => void }) {
+function Stepper({ value, min = 0, onChange, width = 'w-10' }: { value: number; min?: number; onChange: (v: number) => void; width?: string }) {
   return (
     <div className="flex items-center justify-center gap-1">
       <button type="button" onClick={() => onChange(Math.max(min, value - 1))} className={stepBtn}>−</button>
@@ -94,7 +123,7 @@ function Stepper({ value, min = 0, onChange }: { value: number; min?: number; on
         value={value}
         onChange={(e) => onChange(e.target.value ? Math.max(min, Number(e.target.value)) : min)}
         onFocus={(e) => e.target.select()}
-        className={numField}
+        className={`${width} ${boxBase}`}
         style={{ fontSize: 16 }}
       />
       <button type="button" onClick={() => onChange(value + 1)} className={stepBtn}>+</button>
@@ -115,200 +144,279 @@ function parseDuration(text: string): number | null {
   return Number.isFinite(n) ? n : null
 }
 
-const MEASURE_ORDER: Measure[] = ['weight', 'reps', 'time', 'distance']
+type RepsMode = 'single' | 'range' | 'amrap'
 
-function MeasurePicker({ measure, onChange }: { measure: Measure; onChange: (m: Measure) => void }) {
+function repsModeOf(s: EditableExercise['sets'][number] | undefined): RepsMode {
+  if (s?.repsOpen) return 'amrap'
+  if (s?.repsMax != null) return 'range'
+  return 'single'
+}
+
+// ─── REPS column ────────────────────────────────────────────────────────────
+function RepsControl({ ex, idx, act }: { ex: EditableExercise; idx: number; act: (a: Action) => void }) {
+  const s0 = ex.sets[0]
+  const mode = repsModeOf(s0)
+  const reps = s0?.reps ?? null
+  const repsMax = s0?.repsMax ?? null
+
+  const cycle = () => {
+    const r = reps ?? 0
+    if (mode === 'single') act({ type: 'setReps', ex: idx, reps: r, repsMax: r })
+    else if (mode === 'range') act({ type: 'setReps', ex: idx, reps: r, repsOpen: true })
+    else act({ type: 'setReps', ex: idx, reps: r })
+  }
+
+  const label = mode === 'single' ? 'Reps' : mode === 'range' ? 'Range' : 'AMRAP'
+
+  // Range: single masked text input "m – n"
+  const [rangeText, setRangeText] = useState(`${reps ?? ''} – ${repsMax ?? ''}`)
+  useEffect(() => {
+    if (mode === 'range') setRangeText(`${reps ?? ''} – ${repsMax ?? ''}`)
+  }, [mode, reps, repsMax])
+
+  const commitRange = (text: string) => {
+    const nums = text.match(/\d+/g)
+    const min = nums?.[0] != null ? Number(nums[0]) : null
+    const max = nums?.[1] != null ? Number(nums[1]) : min
+    act({ type: 'setReps', ex: idx, reps: min, repsMax: max })
+  }
+
+  // AMRAP: single box, min then "+"
+  const amrapDisplay = reps != null ? `${reps}+` : 'AMRAP'
+
+  let control: React.ReactNode
+  if (mode === 'single') {
+    control = <Stepper value={reps ?? 0} min={0} onChange={(v) => act({ type: 'setReps', ex: idx, reps: v })} />
+  } else if (mode === 'range') {
+    control = (
+      <input
+        type="text"
+        inputMode="numeric"
+        value={rangeText}
+        onChange={(e) => { setRangeText(e.target.value); commitRange(e.target.value) }}
+        onFocus={(e) => e.target.select()}
+        className={`w-[72px] ${boxBase}`}
+        style={{ fontSize: 16 }}
+        placeholder="8 – 12"
+      />
+    )
+  } else {
+    control = (
+      <input
+        type="text"
+        inputMode="numeric"
+        value={amrapDisplay}
+        onChange={(e) => {
+          const n = e.target.value.match(/\d+/)
+          act({ type: 'setReps', ex: idx, reps: n ? Number(n[0]) : null, repsOpen: true })
+        }}
+        onFocus={(e) => e.target.select()}
+        className={`w-[72px] ${boxBase}`}
+        style={{ fontSize: 16 }}
+        placeholder="AMRAP"
+      />
+    )
+  }
+
   return (
-    <div className="flex items-center gap-1">
-      {MEASURE_ORDER.map((m) => (
-        <button
-          key={m}
-          type="button"
-          onClick={() => onChange(m)}
-          className={`px-2 py-0.5 rounded-full text-[11px] border active:opacity-80 ${
-            measure === m
-              ? 'border-[#6c63ff] text-[#6c63ff] bg-[#6c63ff]/10'
-              : 'border-[#3a3a5a] text-gray-500'
-          }`}
-        >
-          {MEASURES[m].label}
-        </button>
-      ))}
+    <div>
+      <button type="button" onClick={cycle} className={`${headerCls} flex items-center justify-center gap-0.5 w-full active:opacity-70`}>
+        {label}
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="7 10 12 5 17 10" />
+          <polyline points="17 14 12 19 7 14" />
+        </svg>
+      </button>
+      <div className="flex items-center justify-center">{control}</div>
     </div>
   )
 }
 
-function UnitToggle({ units, unit, onChange }: { units: readonly string[]; unit: string; onChange: (u: string) => void }) {
+// ─── LOAD column ────────────────────────────────────────────────────────────
+type LoadType = 'weight' | 'pct' | 'rpe' | 'rir' | 'bodyweight' | 'time' | 'distance'
+
+const LOAD_MENU: { type: LoadType; label: string; sub: string }[] = [
+  { type: 'weight', label: 'Weight', sub: 'lb / kg' },
+  { type: 'pct', label: '% of max', sub: 'percent 1RM' },
+  { type: 'rpe', label: 'RPE', sub: 'rate of perceived exertion' },
+  { type: 'rir', label: 'RIR', sub: 'reps in reserve' },
+  { type: 'bodyweight', label: 'Bodyweight', sub: 'no load' },
+  { type: 'time', label: 'Time', sub: 'm:ss' },
+  { type: 'distance', label: 'Distance', sub: 'm / km / mi' },
+]
+
+function loadTypeOf(ex: EditableExercise): LoadType {
+  const measure = measureOf(ex.unit)
+  if (measure === 'time') return 'time'
+  if (measure === 'distance') return 'distance'
+  if (measure !== 'weight') return 'bodyweight'
+  if (ex.loadMode === 'pct') return 'pct'
+  if (ex.loadMode === 'rpe') return 'rpe'
+  if (ex.loadMode === 'rir') return 'rir'
+  return 'weight'
+}
+
+function loadHeaderLabel(ex: EditableExercise, weightUnit: string): string {
+  const t = loadTypeOf(ex)
+  switch (t) {
+    case 'weight': return (ex.unit || weightUnit).toUpperCase()
+    case 'pct': return '%'
+    case 'rpe': return 'RPE'
+    case 'rir': return 'RIR'
+    case 'time': return 'TIME'
+    case 'distance': return 'DIST'
+    case 'bodyweight': return '—'
+  }
+}
+
+function LoadControl({ ex, idx, act, weightUnit, oneRepMax }: { ex: EditableExercise; idx: number; act: (a: Action) => void; weightUnit: string; oneRepMax?: number | null }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const type = loadTypeOf(ex)
+  const s0 = ex.sets[0]
+  const value = s0?.value ?? null
+  const pct = s0?.pct ?? null
+  const rpe = s0?.rpe ?? null
+  const rir = s0?.rir ?? null
+  const reps = s0?.reps ?? 1
+
+  const [durText, setDurText] = useState(value != null ? formatDuration(value) : '')
+  useEffect(() => { if (type === 'time') setDurText(value != null ? formatDuration(value) : '') }, [type, value])
+
+  const select = (t: LoadType) => {
+    const unit = (t === 'weight' || t === 'pct' || t === 'rpe' || t === 'rir') ? weightUnit : undefined
+    act({ type: 'setLoadType', ex: idx, loadType: t, unit })
+    setMenuOpen(false)
+  }
+
+  // ≈ weight hint
+  let hint: string | null = null
+  if (oneRepMax != null) {
+    if (type === 'pct' && pct != null) hint = `≈ ${Math.round(pct * oneRepMax / 100 / 5) * 5} ${ex.unit || weightUnit}`
+    else if (type === 'rpe' && rpe != null) hint = `≈ ${Math.round(rpeToPct(reps, rpe) * oneRepMax / 5) * 5} ${ex.unit || weightUnit}`
+    else if (type === 'rir' && rir != null) hint = `≈ ${Math.round(rirToPct(reps, rir) * oneRepMax / 5) * 5} ${ex.unit || weightUnit}`
+  }
+
+  let valueBox: React.ReactNode
+  if (type === 'bodyweight') {
+    valueBox = <span className="text-base text-gray-500">—</span>
+  } else if (type === 'weight') {
+    valueBox = (
+      <input type="text" inputMode="decimal" value={value != null ? Math.round(value) : ''}
+        onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: e.target.value ? Number(e.target.value) : null })}
+        onFocus={(e) => e.target.select()} className={`w-14 ${boxBase}`} style={{ fontSize: 16 }} placeholder="—" />
+    )
+  } else if (type === 'pct') {
+    valueBox = (
+      <input type="text" inputMode="numeric" value={pct ?? ''}
+        onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: e.target.value ? Number(e.target.value) : null })}
+        onFocus={(e) => e.target.select()} className={`w-12 ${boxBase}`} style={{ fontSize: 16 }} placeholder="%" />
+    )
+  } else if (type === 'rpe') {
+    valueBox = (
+      <input type="text" inputMode="decimal" value={rpe ?? ''}
+        onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: e.target.value ? Number(e.target.value) : null })}
+        onFocus={(e) => e.target.select()} className={`w-12 ${boxBase}`} style={{ fontSize: 16 }} placeholder="—" />
+    )
+  } else if (type === 'rir') {
+    valueBox = (
+      <input type="text" inputMode="numeric" value={rir ?? ''}
+        onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: e.target.value ? Number(e.target.value) : null })}
+        onFocus={(e) => e.target.select()} className={`w-12 ${boxBase}`} style={{ fontSize: 16 }} placeholder="—" />
+    )
+  } else if (type === 'time') {
+    valueBox = (
+      <input type="text" inputMode="numeric" value={durText}
+        onChange={(e) => setDurText(e.target.value)}
+        onFocus={(e) => e.target.select()}
+        onBlur={() => act({ type: 'setLoadValue', ex: idx, value: parseDuration(durText) })}
+        className={`w-16 ${boxBase}`} style={{ fontSize: 16 }} placeholder="m:ss" />
+    )
+  } else {
+    // distance
+    valueBox = (
+      <div className="flex items-center gap-1">
+        <input type="text" inputMode="decimal" value={value != null ? value : ''}
+          onChange={(e) => act({ type: 'setLoadValue', ex: idx, value: e.target.value ? Number(e.target.value) : null })}
+          onFocus={(e) => e.target.select()} className={`w-12 ${boxBase}`} style={{ fontSize: 16 }} placeholder="—" />
+        <div className="flex flex-col">
+          {MEASURES.distance.units.map((u) => (
+            <button key={u} type="button" onClick={() => act({ type: 'setUnit', ex: idx, unit: u })}
+              className={`px-1 leading-tight text-[10px] ${ex.unit === u ? 'text-[#6c63ff] font-semibold' : 'text-gray-600'}`}>
+              {u}
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex items-center rounded bg-[#1a1a2e] overflow-hidden border border-[#3a3a5a]">
-      {units.map((u) => (
-        <button
-          key={u}
-          type="button"
-          onClick={() => onChange(u)}
-          className={`px-2 py-1 text-[12px] active:opacity-80 ${
-            unit === u ? 'bg-[#6c63ff] text-white font-semibold' : 'text-gray-400'
-          }`}
-        >
-          {u}
-        </button>
-      ))}
+    <div className="relative">
+      <button type="button" onClick={() => setMenuOpen((v) => !v)} className={`${headerCls} flex items-center justify-center gap-0.5 w-full active:opacity-70`}>
+        {loadHeaderLabel(ex, weightUnit)}
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      <div className="flex flex-col items-center justify-center">
+        <div className="flex items-center justify-center h-9">{valueBox}</div>
+        {hint && <span className="text-[10px] text-gray-500 leading-none">{hint}</span>}
+      </div>
+      {menuOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+          <div className="absolute z-50 right-0 top-full mt-1 w-44 bg-[#1a1a2e] border border-[#3a3a5a] rounded-[10px] py-1 shadow-lg">
+            {LOAD_MENU.map((m) => (
+              <button key={m.type} type="button" onClick={() => select(m.type)}
+                className={`w-full text-left px-3 py-1.5 active:bg-[#2a2a4a] ${type === m.type ? 'text-[#6c63ff]' : 'text-white'}`}>
+                <div className="text-[13px] font-semibold leading-tight">{m.label}</div>
+                <div className="text-[10px] text-gray-500 leading-tight">{m.sub}</div>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }
 
 interface EditControlsProps {
-  ex: EditableRoutine['exercises'][number]
+  ex: EditableExercise
   idx: number
   act: (a: Action) => void
+  weightUnit: string
   oneRepMax?: number | null
 }
 
-function ExerciseEditControls({ ex, idx, act, oneRepMax }: EditControlsProps) {
-  const measure = measureOf(ex.unit)
-  const setCount = ex.sets.length
-  const reps = ex.sets[0]?.reps ?? 0
-  const value = ex.sets[0]?.value ?? null
-  const pct = ex.sets[0]?.pct ?? null
-  const [durText, setDurText] = useState(value != null ? formatDuration(value) : '')
-
-  useEffect(() => {
-    setDurText(value != null ? formatDuration(value) : '')
-  }, [value])
-
-  const targetWeight = pct != null && oneRepMax != null
-    ? Math.round(pct * oneRepMax / 100 / 5) * 5
-    : null
-
-  let valueLabel: string | null = null
-  if (measure === 'weight') valueLabel = ex.loadMode === 'pct' ? '% 1RM' : 'Load'
-  else if (measure === 'time') valueLabel = 'Time'
-  else if (measure === 'distance') valueLabel = 'Distance'
-
-  // The numeric value box for the LOAD column (compact, fits the third column).
-  // Unit toggles (lb/kg, m/km/mi) and the %/lb mode toggle live on the second row below.
-  let valueControl: React.ReactNode = null
-  if (measure === 'weight') {
-    valueControl = ex.loadMode === 'pct' ? (
-      <input
-        type="text"
-        inputMode="numeric"
-        value={pct ?? ''}
-        onChange={(e) => act({ type: 'setUniformLoad', ex: idx, value: null, pct: e.target.value ? Number(e.target.value) : null })}
-        onFocus={(e) => e.target.select()}
-        className={numField}
-        style={{ fontSize: 16 }}
-        placeholder="%"
-      />
-    ) : (
-      <input
-        type="text"
-        inputMode="decimal"
-        value={value != null ? Math.round(value) : ''}
-        onChange={(e) => act({ type: 'setUniformLoad', ex: idx, value: e.target.value ? Number(e.target.value) : null, pct: null })}
-        onFocus={(e) => e.target.select()}
-        className={numField}
-        style={{ fontSize: 16 }}
-        placeholder="—"
-      />
-    )
-  } else if (measure === 'time') {
-    valueControl = (
-      <input
-        type="text"
-        inputMode="numeric"
-        value={durText}
-        onChange={(e) => setDurText(e.target.value)}
-        onFocus={(e) => e.target.select()}
-        onBlur={() => act({ type: 'setUniformLoad', ex: idx, value: parseDuration(durText), pct: null })}
-        className="w-16 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none focus:ring-1 focus:ring-[#6c63ff]"
-        style={{ fontSize: 16 }}
-        placeholder="m:ss"
-      />
-    )
-  } else if (measure === 'distance') {
-    valueControl = (
-      <input
-        type="text"
-        inputMode="decimal"
-        value={value != null ? value : ''}
-        onChange={(e) => act({ type: 'setUniformLoad', ex: idx, value: e.target.value ? Number(e.target.value) : null, pct: null })}
-        onFocus={(e) => e.target.select()}
-        className={numField}
-        style={{ fontSize: 16 }}
-        placeholder="—"
-      />
-    )
-  }
-
-  const headerCls = 'text-[10px] text-gray-500 uppercase tracking-wider text-center'
-
-  // Second-row toggles: %/lb mode for weight, m/km/mi unit for distance.
-  let modeRow: React.ReactNode = null
-  if (measure === 'weight') {
-    modeRow = (
-      <button
-        type="button"
-        onClick={() => act({ type: 'setLoadMode', ex: idx, mode: ex.loadMode === 'pct' ? 'lb' : 'pct' })}
-        className={`px-2 py-1 rounded text-[12px] border active:opacity-80 ${
-          ex.loadMode === 'pct' ? 'border-[#6c63ff] text-[#6c63ff]' : 'border-[#3a3a5a] text-gray-400'
-        }`}
-      >
-        {ex.loadMode === 'pct' ? '%' : 'lb'}
-      </button>
-    )
-  } else if (measure === 'distance') {
-    modeRow = (
-      <UnitToggle units={MEASURES.distance.units} unit={ex.unit} onChange={(u) => act({ type: 'setUnit', ex: idx, unit: u })} />
-    )
-  }
-
+function ExerciseEditControls({ ex, idx, act, weightUnit, oneRepMax }: EditControlsProps) {
   return (
-    <div className="mt-2 space-y-2">
-      {/* Core row — SETS / REPS / LOAD as compact columns on one line */}
-      <div className={`grid ${valueControl ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
-        <div>
-          <div className={`${headerCls} pb-1`}>Sets</div>
-          <Stepper value={setCount} min={1} onChange={(v) => act({ type: 'setSetCount', ex: idx, count: v })} />
-        </div>
-        <div>
-          <div className={`${headerCls} pb-1`}>Reps</div>
-          <Stepper value={reps} min={0} onChange={(v) => act({ type: 'setUniformReps', ex: idx, reps: v })} />
-        </div>
-        {valueControl && (
-          <div>
-            <div className={`${headerCls} pb-1`}>{valueLabel}</div>
-            <div className="flex items-center justify-center">{valueControl}</div>
-          </div>
-        )}
+    <div className="mt-2 grid grid-cols-3 gap-2 items-start">
+      <div>
+        <div className={headerCls}>Sets</div>
+        <Stepper value={ex.sets.length} min={1} onChange={(v) => act({ type: 'setSetCount', ex: idx, count: v })} />
       </div>
-
-      {/* Second row — measure picker, %/lb or distance unit toggle, ≈ hint */}
-      <div className="flex items-center flex-wrap gap-2">
-        <MeasurePicker measure={measure} onChange={(m) => act({ type: 'setMeasure', ex: idx, measure: m })} />
-        {modeRow}
-        {measure === 'weight' && ex.loadMode === 'pct' && targetWeight != null && (
-          <span className="text-[12px] text-gray-500">≈ {targetWeight} {ex.unit}</span>
-        )}
-        {/* TODO: lb/kg unit slicer */}
-      </div>
+      <RepsControl ex={ex} idx={idx} act={act} />
+      <LoadControl ex={ex} idx={idx} act={act} weightUnit={weightUnit} oneRepMax={oneRepMax} />
     </div>
   )
 }
 
 interface ExerciseRowProps {
-  ex: EditableRoutine['exercises'][number]
+  ex: EditableExercise
   idx: number
   focusIdx: number | null
   onFocused: () => void
   onRename: (name: string) => void
   act: (a: Action) => void
   knownExercises: string[]
+  weightUnit: string
+  oneRepMax?: number | null
 }
 
-function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, act, knownExercises }: ExerciseRowProps) {
+function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, act, knownExercises, weightUnit, oneRepMax }: ExerciseRowProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [inputFocused, setInputFocused] = useState(false)
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
     if (focusIdx === idx && inputRef.current) {
@@ -331,18 +439,27 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, act, knownExercis
 
   return (
     <div className="bg-[#2a2a4a] rounded-[10px] p-3 mb-2 border border-[#3a3a5a]">
-      {/* TODO Task 8: swipe-to-delete via SwipeableRow */}
       <div className="min-w-0">
-        <input
-          ref={inputRef}
-          type="text"
-          value={ex.exercise}
-          onChange={(e) => onRename(e.target.value)}
-          onFocus={(e) => { e.target.select(); setInputFocused(true) }}
-          onBlur={() => setInputFocused(false)}
-          className={`w-full bg-transparent font-semibold text-white outline-none border-b border-transparent transition-colors truncate ${ex.exercise.trim() === '' ? 'ring-1 ring-red-500' : 'focus:border-[#6c63ff]'}`}
-          style={{ fontSize: 16 }}
-        />
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="flex-shrink-0 flex items-center justify-center w-4 active:opacity-70"
+            aria-label={expanded ? 'Collapse exercise' : 'Expand exercise'}
+          >
+            {expanded ? <RowChevronDown /> : <RowChevronRight />}
+          </button>
+          <input
+            ref={inputRef}
+            type="text"
+            value={ex.exercise}
+            onChange={(e) => onRename(e.target.value)}
+            onFocus={(e) => { e.target.select(); setInputFocused(true) }}
+            onBlur={() => setInputFocused(false)}
+            className={`flex-1 min-w-0 bg-transparent font-semibold text-white outline-none border-b border-transparent transition-colors truncate ${ex.exercise.trim() === '' ? 'ring-1 ring-red-500' : 'focus:border-[#6c63ff]'}`}
+            style={{ fontSize: 16 }}
+          />
+        </div>
         {inputFocused && chips.length > 0 && (
           <div
             className="flex flex-wrap gap-2 mt-2"
@@ -365,7 +482,12 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, act, knownExercis
             ))}
           </div>
         )}
-        <ExerciseEditControls ex={ex} idx={idx} act={act} />
+        <ExerciseEditControls ex={ex} idx={idx} act={act} weightUnit={weightUnit} oneRepMax={oneRepMax} />
+        {expanded && (
+          <div className="mt-3 pt-3 border-t border-[#3a3a5a] text-[12px] text-gray-500">
+            {/* Task 9: per-set editor */}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -380,6 +502,7 @@ interface ExpandableRoutineCardProps {
   onStartWorkout: (rows: RoutineRow[]) => void
   initialExpanded?: boolean
   tourId?: string
+  weightUnit: string
 }
 
 export function ExpandableRoutineCard({
@@ -391,11 +514,11 @@ export function ExpandableRoutineCard({
   onStartWorkout,
   initialExpanded = false,
   tourId,
+  weightUnit,
 }: ExpandableRoutineCardProps) {
   const [expanded, setExpanded] = useState(initialExpanded)
   const [focusIdx, setFocusIdx] = useState<number | null>(null)
 
-  // Keep onSaved stable — use a ref so allRows closure stays fresh without re-creating the callback
   const allRowsRef = useRef(allRows)
   allRowsRef.current = allRows
 
@@ -431,7 +554,7 @@ export function ExpandableRoutineCard({
     status === 'saving' ? 'text-gray-400' :
     'text-[#6c63ff]'
 
-  const defaultUnit = state.exercises.length > 0 ? state.exercises[0].unit : 'lbs'
+  const defaultUnit = state.exercises.length > 0 ? state.exercises[0].unit : weightUnit
 
   const summaryLine = buildSummaryLine(state.exercises)
 
@@ -440,9 +563,7 @@ export function ExpandableRoutineCard({
       data-tour={tourId}
       className="bg-[#2a2a4a] rounded-[10px] mb-2 overflow-hidden border border-transparent"
     >
-      {/* Card header — always visible */}
       <div className="flex items-center gap-2 p-3.5">
-        {/* Caret — expand/collapse affordance */}
         <button
           onClick={() => setExpanded((v) => !v)}
           className="flex-shrink-0 w-6 h-6 flex items-center justify-center active:opacity-80"
@@ -451,7 +572,6 @@ export function ExpandableRoutineCard({
           {expanded ? <ChevronDown /> : <ChevronRight />}
         </button>
 
-        {/* Title + summary (tapping toggles expand too) */}
         <button
           onClick={() => setExpanded((v) => !v)}
           className="flex-1 min-w-0 text-left active:opacity-80"
@@ -478,7 +598,6 @@ export function ExpandableRoutineCard({
           )}
         </button>
 
-        {/* Start pill — pinned top-right */}
         <button
           onClick={(e) => { e.stopPropagation(); onStartWorkout(routine.rows) }}
           className="flex-shrink-0 bg-[#6c63ff] rounded-full px-3 py-1 text-[12px] font-semibold active:opacity-80"
@@ -487,7 +606,6 @@ export function ExpandableRoutineCard({
         </button>
       </div>
 
-      {/* Expanded body */}
       {expanded && (
         <div className="px-3.5 pb-3.5 border-t border-[#3a3a5a]">
           <div className="pt-3">
@@ -501,6 +619,7 @@ export function ExpandableRoutineCard({
                 onRename={(name) => act({ type: 'renameExercise', ex: i, name })}
                 act={act}
                 knownExercises={chipSource}
+                weightUnit={weightUnit}
               />
             ))}
 
@@ -529,6 +648,7 @@ interface DraftRoutineCardProps {
   mutateCache: (rows: RoutineRow[]) => void
   onSavedToList: () => void
   onNameChange: (name: string) => void
+  weightUnit: string
 }
 
 export function DraftRoutineCard({
@@ -539,6 +659,7 @@ export function DraftRoutineCard({
   mutateCache,
   onSavedToList: _onSavedToList,
   onNameChange,
+  weightUnit,
 }: DraftRoutineCardProps) {
   const [focusIdx, setFocusIdx] = useState<number | null>(null)
 
@@ -577,7 +698,7 @@ export function DraftRoutineCard({
     status === 'saving' ? 'text-gray-400' :
     'text-[#6c63ff]'
 
-  const defaultUnit = state.exercises.length > 0 ? state.exercises[0].unit : 'lbs'
+  const defaultUnit = state.exercises.length > 0 ? state.exercises[0].unit : weightUnit
 
   return (
     <div className="bg-[#2a2a4a] rounded-[10px] mb-2 overflow-hidden border border-[#6c63ff]/40">
@@ -612,6 +733,7 @@ export function DraftRoutineCard({
               onRename={(name) => act({ type: 'renameExercise', ex: i, name })}
               act={act}
               knownExercises={chipSource}
+              weightUnit={weightUnit}
             />
           ))}
 
