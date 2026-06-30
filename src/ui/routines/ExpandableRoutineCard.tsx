@@ -1018,13 +1018,10 @@ export function ExpandableRoutineCard({
   mutateCacheRef.current = mutateCache
 
   const stableOnSaved = useCallback((savedRows: RoutineRow[]) => {
-    const updated = [
-      ...allRowsRef.current.filter(
-        (r) => !(r.program === savedRows[0]?.program && r.routine === savedRows[0]?.routine)
-      ),
-      ...savedRows,
-    ]
-    mutateCacheRef.current(updated)
+    // saveRoutineRows returns the full updated tab already in order; set it directly.
+    // (The old filter+re-append mis-treated this whole-tab array as one routine's rows,
+    // which re-sorted the list — e.g. pushing a new routine to the top.)
+    mutateCacheRef.current(savedRows)
   }, [])
 
   const initial = toEditable(routine.rows)
@@ -1170,13 +1167,10 @@ export function DraftRoutineCard({
   mutateCacheRef.current = mutateCache
 
   const stableOnSaved = useCallback((savedRows: RoutineRow[]) => {
-    const updated = [
-      ...allRowsRef.current.filter(
-        (r) => !(r.program === savedRows[0]?.program && r.routine === savedRows[0]?.routine)
-      ),
-      ...savedRows,
-    ]
-    mutateCacheRef.current(updated)
+    // saveRoutineRows returns the full updated tab already in order; set it directly.
+    // (The old filter+re-append mis-treated this whole-tab array as one routine's rows,
+    // which re-sorted the list — e.g. pushing a new routine to the top.)
+    mutateCacheRef.current(savedRows)
   }, [])
 
   const initial: EditableRoutine = { program, routine: 'New Routine', exercises: [] }
