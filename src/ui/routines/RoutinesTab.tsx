@@ -62,6 +62,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
   const [prefLoaded, setPrefLoaded] = useState(false)
   const [hasDraft, setHasDraft] = useState(false)
   const [draftName, setDraftName] = useState('New Routine')
+  const [justCreatedName, setJustCreatedName] = useState<string | null>(null)
   const [draftProgram, setDraftProgram] = useState<string | null>(null)
   const [unitSystem, setUnitSystemState] = useState<'imperial' | 'metric'>('imperial')
   const weightUnit = unitSystem === 'metric' ? 'kg' : 'lbs'
@@ -127,6 +128,28 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
   useEffect(() => {
     if (draftProgram && programs.includes(draftProgram)) setDraftProgram(null)
   }, [draftProgram, programs])
+
+  // Graduate the draft routine once it has real rows in routineList (i.e. it was
+  // saved with ≥1 exercise). A rename-only draft has no rows → never appears here
+  // → stays an editable draft. Force the now-real card expanded for seamless editing.
+  useEffect(() => {
+    if (!hasDraft) return
+    const key = draftName.trim().toLowerCase()
+    if (!key) return
+    if (routineList.some((r) => r.name.trim().toLowerCase() === key)) {
+      setJustCreatedName(draftName)
+      setHasDraft(false)
+    }
+  }, [hasDraft, draftName, routineList])
+
+  // initialExpanded is consumed once on the real card's mount; release the flag on
+  // the next tick so it doesn't keep force-expanding that routine on later renders.
+  useEffect(() => {
+    if (!justCreatedName) return
+    if (routineList.some((r) => r.name.trim().toLowerCase() === justCreatedName.trim().toLowerCase())) {
+      setJustCreatedName(null)
+    }
+  }, [justCreatedName, routineList])
 
   const handleStartWorkout = (rows: RoutineRow[]) => {
     const program = rows[0]?.program ?? selectedProgram
@@ -297,6 +320,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
               loggedExercises={loggedExercises}
               mutateCache={mutateCache}
               onStartWorkout={handleStartWorkout}
+              initialExpanded={!!justCreatedName && r.name.trim().toLowerCase() === justCreatedName.trim().toLowerCase()}
               tourId={i === 0 ? 'routine-card' : undefined}
               weightUnit={weightUnit}
               getMax={getMax}
@@ -312,6 +336,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
           mutateCache={mutateCache}
           onSavedToList={handleDraftSaved}
           onNameChange={setDraftName}
+          onDiscard={() => setHasDraft(false)}
           weightUnit={weightUnit}
           getMax={getMax}
         />

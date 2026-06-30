@@ -1143,6 +1143,7 @@ interface DraftRoutineCardProps {
   mutateCache: (rows: RoutineRow[]) => void
   onSavedToList: () => void
   onNameChange: (name: string) => void
+  onDiscard: () => void
   weightUnit: string
   getMax?: GetMax
 }
@@ -1155,6 +1156,7 @@ export function DraftRoutineCard({
   mutateCache,
   onSavedToList: _onSavedToList,
   onNameChange,
+  onDiscard,
   weightUnit,
   getMax,
 }: DraftRoutineCardProps) {
@@ -1222,6 +1224,17 @@ export function DraftRoutineCard({
           />
           <div className={`text-[11px] mt-0.5 ${statusColor}`}>{statusText}</div>
         </div>
+        <button
+          type="button"
+          onClick={onDiscard}
+          aria-label="Discard draft routine"
+          className="flex-shrink-0 w-7 h-7 flex items-center justify-center text-gray-400 active:opacity-80"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="6" y1="6" x2="18" y2="18" />
+            <line x1="18" y1="6" x2="6" y2="18" />
+          </svg>
+        </button>
       </div>
 
       <div className="px-3.5 pb-3.5 border-t border-[#3a3a5a]">
