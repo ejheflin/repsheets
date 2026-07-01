@@ -44,6 +44,15 @@ function RoutineTrashIcon() {
   )
 }
 
+function DuplicateIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" />
+      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+    </svg>
+  )
+}
+
 function SheetIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -270,6 +279,20 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     })
   }, [spreadsheetId, selectedProgram, allRows, mutateCache, refresh, routineUndo, login])
 
+  const handleDuplicateRoutine = useCallback((routineName: string, rows: RoutineRow[]) => {
+    if (!spreadsheetId || rows.length === 0) return
+    const existing = new Set(routineList.map((r) => r.name.toLowerCase()))
+    const base = `${routineName} (copy)`
+    let name = base
+    let n = 2
+    while (existing.has(name.toLowerCase())) name = `${base} ${n++}`
+    const newRows = rows.map((r) => ({ ...r, routine: name }))
+    mutateCache([...allRows, ...newRows]) // optimistic — appears at the bottom
+    appendRoutineRows(spreadsheetId, newRows)
+      .then(() => refresh())
+      .catch((e) => { if (e instanceof AuthExpiredError) login() })
+  }, [spreadsheetId, routineList, allRows, mutateCache, refresh, login])
+
   // ─── Cross-routine drag: a single DndContext spans every card so an exercise can
   // be dragged from one routine into another. Each card registers a live handle. ───
   const cardRegistry = useRef(new Map<string, CardRegistration>())
@@ -413,6 +436,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
               key={r.name}
               className="mb-2 rounded-[10px]"
               actions={[{ label: 'Delete', icon: <RoutineTrashIcon />, color: '#c0392b', onClick: () => handleDeleteRoutine(r.name, r.rows) }]}
+              leadingActions={[{ label: 'Duplicate', icon: <DuplicateIcon />, color: '#2f855a', onClick: () => handleDuplicateRoutine(r.name, r.rows) }]}
             >
               <ExpandableRoutineCard
                 routine={r}

@@ -25,6 +25,15 @@ describe('reduce', () => {
     const s = reduce(grown, { type: 'setUniformReps', ex: 0, reps: 5 })
     expect(s.exercises[0].sets.every((x) => x.reps === 5)).toBe(true)
   })
+  it('duplicateExercise inserts a copy below with a fresh id', () => {
+    const s = reduce(seed(), { type: 'duplicateExercise', ex: 0 })
+    expect(s.exercises).toHaveLength(3)
+    expect(s.exercises[1].exercise).toBe('Squat')          // copy sits right after the source
+    expect(s.exercises[2].exercise).toBe('Bench')          // original neighbor pushed down
+    expect(s.exercises[1].id).not.toBe(s.exercises[0].id)  // fresh id, not a collision
+    expect(s.exercises[1].sets).toEqual(s.exercises[0].sets)
+    expect(s.exercises[1].sets).not.toBe(s.exercises[0].sets) // deep-copied, not shared
+  })
   it('does not mutate input state', () => {
     const input = seed()
     reduce(input, { type: 'setUniformReps', ex: 0, reps: 99 })

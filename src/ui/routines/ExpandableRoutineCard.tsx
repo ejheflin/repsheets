@@ -86,6 +86,15 @@ function SetTrashIcon() {
   )
 }
 
+function DuplicateIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" />
+      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+    </svg>
+  )
+}
+
 function buildChipSource(
   allRows: RoutineRow[],
   loggedExercises: string[],
@@ -828,6 +837,7 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, onDelete, act, kn
     <SwipeableRow
       className="mb-2 rounded-[10px]"
       actions={[{ label: 'Delete', icon: <SetTrashIcon />, color: '#c0392b', onClick: onDelete }]}
+      leadingActions={[{ label: 'Duplicate', icon: <DuplicateIcon />, color: '#2f855a', onClick: () => act({ type: 'duplicateExercise', ex: idx }) }]}
     >
     <div
       className="bg-[#2a2a4a] rounded-[10px] p-3 border border-[#3a3a5a]"
