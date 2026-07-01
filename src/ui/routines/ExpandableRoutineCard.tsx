@@ -7,7 +7,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import { CSS } from '@dnd-kit/utilities'
 import { useRoutineEditor } from '../../data/useRoutineEditor'
 import { toEditable, toRows } from '../../data/routineModel'
-import { formatValue, formatDuration, measureOf, MEASURES } from '../../data/measure'
+import { formatValue, formatDuration, measureOf, MEASURES, roundWeight } from '../../data/measure'
 import { rpeToPct, rirToPct } from '../../workout/rpe'
 import { SwipeableRow } from '../shared/SwipeableRow'
 import { useUndoToast, UndoToast } from '../shared/UndoToast'
@@ -51,10 +51,6 @@ function useCardEditing() {
   return { editing, onFocusCapture, onBlurCapture }
 }
 
-function barIncrement(unit: string): number {
-  return measureOf(unit) === 'weight' && (unit || '').trim().toLowerCase() === 'kg' ? 2.5 : 5
-}
-
 // Suggested working weight for autoregulation modes, rounded to the bar increment.
 // Returns null when there's no e1rm basis to compute from.
 function suggestedWeight(
@@ -76,8 +72,7 @@ function suggestedWeight(
     raw = rirToPct(reps, load.rir) * e1rm
   }
   if (raw == null) return null
-  const inc = barIncrement(unit)
-  return Math.round(raw / inc) * inc
+  return roundWeight(raw, unit)
 }
 
 function SetTrashIcon() {

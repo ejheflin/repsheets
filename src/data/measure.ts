@@ -12,6 +12,18 @@ export function measureOf(unit: string | null | undefined): Measure {
   return 'reps'
 }
 
+/** Smallest sensible loading increment for a weight unit: 2.5 kg (a 1.25 kg plate
+ * per side) or 5 lb. Used to round autoregulated/target weights and 1RM estimates. */
+export function weightIncrement(unit: string | null | undefined): number {
+  return (unit ?? '').trim().toLowerCase() === 'kg' ? 2.5 : 5
+}
+
+/** Round a weight to the nearest loadable increment for its unit. */
+export function roundWeight(weight: number, unit: string | null | undefined): number {
+  const inc = weightIncrement(unit)
+  return Math.round(weight / inc) * inc
+}
+
 export function formatDuration(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60)
   const s = totalSeconds % 60

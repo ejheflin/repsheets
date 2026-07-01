@@ -2,10 +2,10 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 
 let idCounter = 0
-import { PlateSettingsModal, loadPlateSettings, type PlateSettingsData } from './PlateSettings'
+import { PlateSettingsModal, loadPlateSettings, type PlateSettingsData, type UnitSystem } from './PlateSettings'
 
 const LBS_PLATES = [55, 45, 35, 25, 15, 10, 5, 2.5]
-const KG_PLATES = [25, 20, 15, 10, 5, 2.5, 1]
+const KG_PLATES = [25, 20, 15, 10, 5, 2.5, 1.25, 1]
 const BAR_WEIGHT_LBS = 45
 const BAR_WEIGHT_KG = 20
 
@@ -118,7 +118,11 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
 
   if (!weight || isNaN(weight) || !isWeightUnit(unit)) return null
 
-  const plates = getPlates(weight, unit, settings.availablePlates, settings.plateCounts)
+  const isKg = unit.toLowerCase() === 'kg' || unit.toLowerCase() === 'kgs'
+  const system: UnitSystem = isKg ? 'metric' : 'imperial'
+  const inventory = settings[system]
+
+  const plates = getPlates(weight, unit, inventory.availablePlates, inventory.plateCounts)
   if (plates.length === 0) return null
 
   const plateWidth = 8
@@ -204,7 +208,7 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
             const h = plateHeight(plate, unit)
             const x = platesStartX + i * (plateWidth + plateGap)
             const y = centerY - h / 2
-            const color = settings.colorMap[plate] ?? 'rgba(108,99,255,0.35)'
+            const color = inventory.colorMap[plate] ?? 'rgba(108,99,255,0.35)'
             return (
               <rect key={i}
                 x={x} y={y}
@@ -219,6 +223,7 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
 
       {showSettings && createPortal(
         <PlateSettingsModal
+          system={system}
           onClose={() => setShowSettings(false)}
           onChange={(data) => setSettings(data)}
         />,

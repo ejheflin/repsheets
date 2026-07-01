@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { roundWeight } from '../../data/measure'
 import type { ExerciseSettings } from '../../types'
 
 interface ExerciseMaxSettingsProps {
@@ -32,7 +33,7 @@ export function ExerciseMaxSettings({
   const parsedTm = tmInput.trim() ? Number(tmInput.trim()) / 100 : null
   const effectiveOrm = (parsedOrm && parsedOrm > 0) ? parsedOrm : calculatedE1RM
   const effectiveTm = (parsedTm && parsedTm > 0 && parsedTm <= 1.5) ? parsedTm : 1.0
-  const previewBase = effectiveOrm != null ? Math.round(effectiveOrm * effectiveTm / 5) * 5 : null
+  const previewBase = effectiveOrm != null ? roundWeight(effectiveOrm * effectiveTm, unit) : null
   const showPreview = previewBase != null && (ormInput.trim() || tmInput.trim())
 
   const settingsActive = !!(settings.oneRepMax || settings.tm)

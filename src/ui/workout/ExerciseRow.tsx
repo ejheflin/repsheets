@@ -7,6 +7,7 @@ import { ExerciseMaxSettings } from './ExerciseMaxSettings'
 import { SwipeableRow } from '../shared/SwipeableRow'
 import type { SwipeAction } from '../shared/SwipeableRow'
 import { rpeToPct, rirToPct } from '../../workout/rpe'
+import { roundWeight } from '../../data/measure'
 import type { WorkoutExercise, WorkoutSet, ExerciseSettings } from '../../types'
 
 function SwapIcon() {
@@ -86,18 +87,18 @@ interface ExerciseRowProps {
   tourId?: string
 }
 
-/** Compute target weight from pct + 1RM, rounded to nearest 5, or null if either is missing. */
-function targetWeight(pct: number | null | undefined, orm: number | null | undefined): number | null {
+/** Compute target weight from pct + 1RM, rounded to the unit's increment, or null. */
+function targetWeight(pct: number | null | undefined, orm: number | null | undefined, unit: string): number | null {
   if (pct == null || orm == null) return null
-  return Math.round(pct * orm / 100 / 5) * 5
+  return roundWeight(pct * orm / 100, unit)
 }
 
-/** Compute target weight from rpe/rir + raw (pre-TM) e1rm, rounded to nearest 5, or null. */
-function rpeRirTarget(set: WorkoutSet, rawOrm: number | null | undefined): number | null {
+/** Compute target weight from rpe/rir + raw (pre-TM) e1rm, rounded to the unit's increment, or null. */
+function rpeRirTarget(set: WorkoutSet, rawOrm: number | null | undefined, unit: string): number | null {
   if (rawOrm == null) return null
   const reps = set.reps ?? 1
-  if (set.rpe != null) return Math.round(rpeToPct(reps, set.rpe) * rawOrm / 5) * 5
-  if (set.rir != null) return Math.round(rirToPct(reps, set.rir) * rawOrm / 5) * 5
+  if (set.rpe != null) return roundWeight(rpeToPct(reps, set.rpe) * rawOrm, unit)
+  if (set.rir != null) return roundWeight(rirToPct(reps, set.rir) * rawOrm, unit)
   return null
 }
 
@@ -105,11 +106,12 @@ function rpeRirTarget(set: WorkoutSet, rawOrm: number | null | undefined): numbe
 function resolveSetTarget(
   set: WorkoutSet,
   orm: number | null | undefined,
-  rawOrm: number | null | undefined
+  rawOrm: number | null | undefined,
+  unit: string
 ): number | null {
   if (set.value != null) return set.value
-  if (set.pct != null) return targetWeight(set.pct, orm)
-  if (set.rpe != null || set.rir != null) return rpeRirTarget(set, rawOrm)
+  if (set.pct != null) return targetWeight(set.pct, orm, unit)
+  if (set.rpe != null || set.rir != null) return rpeRirTarget(set, rawOrm, unit)
   return null
 }
 
@@ -118,15 +120,16 @@ function buildSlashedTargets(
   sets: WorkoutExercise['sets'],
   orm: number | null | undefined,
   rawOrm: number | null | undefined,
+  unit: string,
   maxLen = 18
 ): string {
   const parts: string[] = []
   let result = ''
   for (const s of sets) {
     const tw = s.pct != null
-      ? targetWeight(s.pct, orm)
+      ? targetWeight(s.pct, orm, unit)
       : (s.rpe != null || s.rir != null) && s.value == null
-        ? rpeRirTarget(s, rawOrm)
+        ? rpeRirTarget(s, rawOrm, unit)
         : s.value
     const part = tw != null ? String(Math.round(tw)) : '?'
     const next = parts.length === 0 ? part : `${result}/${part}`
@@ -229,7 +232,7 @@ export function ExerciseRow({
   // Plate calculator: next unchecked set, or last set once all are done
   const plateSet = exercise.sets.find((s) => !s.completed) ?? exercise.sets[exercise.sets.length - 1]
   const nextPlateWeight = plateSet
-    ? (plateSet.value ?? resolveSetTarget(plateSet, oneRepMax, rawOneRepMax))
+    ? (plateSet.value ?? resolveSetTarget(plateSet, oneRepMax, rawOneRepMax, unit))
     : null
 
   const notesInput = showNotes ? (
@@ -337,7 +340,7 @@ export function ExerciseRow({
                     onClick={() => setShowMaxSettings(true)}
                     className="text-sm font-semibold text-gray-300 px-1 active:opacity-80"
                   >
-                    {buildSlashedTargets(exercise.sets, oneRepMax, rawOneRepMax)}
+                    {buildSlashedTargets(exercise.sets, oneRepMax, rawOneRepMax, unit)}
                   </button>
                 ) : (
                   <input ref={summaryValueRef} type="text" inputMode="decimal" value={summaryValue != null ? Math.round(summaryValue) : ''}

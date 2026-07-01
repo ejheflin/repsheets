@@ -1,5 +1,27 @@
 import { describe, it, expect } from 'vitest'
-import { measureOf, formatDuration, formatValue, MEASURES } from '../measure'
+import { measureOf, formatDuration, formatValue, MEASURES, weightIncrement, roundWeight } from '../measure'
+
+describe('weightIncrement', () => {
+  it('kg → 2.5', () => { expect(weightIncrement('kg')).toBe(2.5); expect(weightIncrement('KG')).toBe(2.5) })
+  it('lb and everything else → 5', () => {
+    expect(weightIncrement('lbs')).toBe(5)
+    expect(weightIncrement('lb')).toBe(5)
+    expect(weightIncrement('')).toBe(5)
+    expect(weightIncrement(null)).toBe(5)
+  })
+})
+
+describe('roundWeight', () => {
+  it('rounds lb to nearest 5', () => {
+    expect(roundWeight(183, 'lbs')).toBe(185)
+    expect(roundWeight(182, 'lbs')).toBe(180)
+  })
+  it('rounds kg to nearest 2.5', () => {
+    expect(roundWeight(83.6, 'kg')).toBe(82.5)
+    expect(roundWeight(84, 'kg')).toBe(85)
+    expect(roundWeight(101.2, 'kg')).toBe(100)
+  })
+})
 
 describe('measureOf', () => {
   it('weight units', () => { expect(measureOf('lbs')).toBe('weight'); expect(measureOf('KG')).toBe('weight') })

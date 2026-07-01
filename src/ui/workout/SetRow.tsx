@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react'
 import { rpeToPct, rirToPct } from '../../workout/rpe'
+import { roundWeight } from '../../data/measure'
 
 interface SetRowProps {
   setNumber: number
@@ -28,7 +29,7 @@ interface SetRowProps {
 }
 
 export function SetRow({
-  setNumber, reps, value, unit: _unit, completed,
+  setNumber, reps, value, unit, completed,
   pct, rpe, rir, achievedRpe, achievedRir, gridCols, showTargetColumn, showAchievedColumn, oneRepMax, rawOneRepMax,
   repsFlag, valueFlag,
   onToggle, onRepsChange, onValueChange, onAchievedRpeChange, onAchievedRirChange, onTargetClick,
@@ -43,16 +44,16 @@ export function SetRow({
   const prescribed = rpeMode ? rpe : rir
   const showPctLabel = pct != null
   const targetWeight = showPctLabel && oneRepMax != null
-    ? Math.round(pct * oneRepMax / 100 / 5) * 5
+    ? roundWeight(pct * oneRepMax / 100, unit)
     : null
 
   const showRpeLabel = !showPctLabel && rpe != null
   const showRirLabel = !showPctLabel && rpe == null && rir != null
   const rpeRirTarget = rawOneRepMax != null
     ? showRpeLabel
-      ? Math.round(rpeToPct(reps ?? 1, rpe!) * rawOneRepMax / 5) * 5
+      ? roundWeight(rpeToPct(reps ?? 1, rpe!) * rawOneRepMax, unit)
       : showRirLabel
-        ? Math.round(rirToPct(reps ?? 1, rir!) * rawOneRepMax / 5) * 5
+        ? roundWeight(rirToPct(reps ?? 1, rir!) * rawOneRepMax, unit)
         : null
     : null
 

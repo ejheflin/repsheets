@@ -5,6 +5,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { roundWeight } from '../../data/measure'
 import { ExerciseRow } from './ExerciseRow'
 import { ExerciseHistorySheet } from './ExerciseHistorySheet'
 import { SupersetGroup } from './SupersetGroup'
@@ -165,7 +166,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
       if (orm == null) return
       ex.sets.forEach((set, setIdx) => {
         if (set.pct != null && !set.completed && (set.value === null || set.fromPct)) {
-          prefillPctValue(exIdx, setIdx, Math.round(set.pct * orm / 100 / 5) * 5)
+          prefillPctValue(exIdx, setIdx, roundWeight(set.pct * orm / 100, set.unit))
         }
       })
     })
