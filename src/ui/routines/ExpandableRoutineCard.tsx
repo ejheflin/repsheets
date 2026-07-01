@@ -1,9 +1,6 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo, useId } from 'react'
 import { createPortal } from 'react-dom'
-import {
-  DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter,
-  type DragEndEvent,
-} from '@dnd-kit/core'
+import { useDroppable } from '@dnd-kit/core'
 import type { DraggableAttributes } from '@dnd-kit/core'
 import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
@@ -18,6 +15,15 @@ import type { Action } from '../../data/routineEditorReducer'
 import type { EditableRoutine, RoutineRow, EditableExercise } from '../../types'
 
 export type GetMax = (name: string) => { e1rm: number | null; tm: number | null }
+
+// Cross-routine drag: each card registers a live handle (keyed by a stable card id)
+// so the single DndContext in RoutinesTab can move an exercise between two cards.
+export interface CardRegistration {
+  getExercises: () => EditableExercise[]
+  act: (a: Action) => void
+}
+export type RegisterCard = (id: string, api: CardRegistration) => void
+export type UnregisterCard = (id: string) => void
 
 // Tracks whether keyboard focus currently lives inside a card. Focus moving
 // between two inputs in the same card briefly fires blur→focus; a short timeout
@@ -959,6 +965,7 @@ function SortableExerciseRow({ ex, idx, focusIdx, setFocusIdx, act, onDeleteExer
 }
 
 interface ExerciseListProps {
+  cardId: string
   exercises: EditableExercise[]
   focusIdx: number | null
   setFocusIdx: (i: number | null) => void
@@ -969,25 +976,16 @@ interface ExerciseListProps {
   getMax?: GetMax
 }
 
-function ExerciseList({ exercises, focusIdx, setFocusIdx, act, onDeleteExercise, chipSource, weightUnit, getMax }: ExerciseListProps) {
+// No private DndContext — a single context in RoutinesTab spans all cards so
+// exercises can be dragged between them. This list is one droppable container
+// (id = the card's stable id); empty cards keep a small drop zone.
+function ExerciseList({ cardId, exercises, focusIdx, setFocusIdx, act, onDeleteExercise, chipSource, weightUnit, getMax }: ExerciseListProps) {
   const runs = groupRuns(exercises)
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 400, tolerance: 5 } }),
-  )
-
-  const handleDragEnd = useCallback(({ active, over }: DragEndEvent) => {
-    if (!over || active.id === over.id) return
-    const from = exercises.findIndex((e) => e.id === active.id)
-    const to = exercises.findIndex((e) => e.id === over.id)
-    if (from >= 0 && to >= 0 && from !== to) {
-      act({ type: 'reorder', from, to })
-    }
-  }, [act, exercises])
+  const { setNodeRef } = useDroppable({ id: cardId })
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={exercises.map((e) => e.id)} strategy={verticalListSortingStrategy}>
+    <div ref={setNodeRef} style={{ minHeight: exercises.length === 0 ? 28 : undefined }}>
+      <SortableContext id={cardId} items={exercises.map((e) => e.id)} strategy={verticalListSortingStrategy}>
         {runs.map((run) => {
           const isSuperset = run.length >= 2
           const rows = run.map((i) => (
@@ -1014,7 +1012,7 @@ function ExerciseList({ exercises, focusIdx, setFocusIdx, act, onDeleteExercise,
           )
         })}
       </SortableContext>
-    </DndContext>
+    </div>
   )
 }
 
@@ -1029,6 +1027,10 @@ interface ExpandableRoutineCardProps {
   tourId?: string
   weightUnit: string
   getMax?: GetMax
+  onRegister?: RegisterCard
+  onUnregister?: UnregisterCard
+  activeOverCardId?: string | null
+  activeSourceCardId?: string | null
 }
 
 export function ExpandableRoutineCard({
@@ -1042,7 +1044,13 @@ export function ExpandableRoutineCard({
   tourId,
   weightUnit,
   getMax,
+  onRegister,
+  onUnregister,
+  activeOverCardId,
+  activeSourceCardId,
 }: ExpandableRoutineCardProps) {
+  const cardId = useId()
+  const isDropTarget = !!activeOverCardId && activeOverCardId === cardId && activeSourceCardId !== cardId
   const [expanded, setExpanded] = useState(initialExpanded)
   const [focusIdx, setFocusIdx] = useState<number | null>(null)
   const undoToast = useUndoToast()
@@ -1063,6 +1071,13 @@ export function ExpandableRoutineCard({
 
   const initial = toEditable(routine.rows)
   const { state, status, act, flush } = useRoutineEditor(spreadsheetId, initial, stableOnSaved, editing)
+
+  const stateRef = useRef(state)
+  stateRef.current = state
+  useEffect(() => {
+    onRegister?.(cardId, { getExercises: () => stateRef.current.exercises, act })
+    return () => onUnregister?.(cardId)
+  }, [cardId, onRegister, onUnregister, act])
 
   const handleStart = useCallback(async () => {
     const rows = toRows(state)
@@ -1100,7 +1115,7 @@ export function ExpandableRoutineCard({
       data-tour={tourId}
       onFocusCapture={onFocusCapture}
       onBlurCapture={onBlurCapture}
-      className="bg-[#2a2a4a] rounded-[10px] overflow-hidden border border-transparent"
+      className={`bg-[#2a2a4a] rounded-[10px] overflow-hidden border transition-colors ${isDropTarget ? 'border-[#6c63ff] ring-1 ring-[#6c63ff]' : 'border-transparent'}`}
     >
       <div className="flex items-center gap-2 p-3.5">
         <button
@@ -1149,6 +1164,7 @@ export function ExpandableRoutineCard({
         <div className="px-3.5 pb-3.5 border-t border-[#3a3a5a]">
           <div className="pt-3 pl-2">
             <ExerciseList
+              cardId={cardId}
               exercises={state.exercises}
               focusIdx={focusIdx}
               setFocusIdx={setFocusIdx}
@@ -1188,6 +1204,10 @@ interface DraftRoutineCardProps {
   onDiscard: () => void
   weightUnit: string
   getMax?: GetMax
+  onRegister?: RegisterCard
+  onUnregister?: UnregisterCard
+  activeOverCardId?: string | null
+  activeSourceCardId?: string | null
 }
 
 export function DraftRoutineCard({
@@ -1201,7 +1221,13 @@ export function DraftRoutineCard({
   onDiscard,
   weightUnit,
   getMax,
+  onRegister,
+  onUnregister,
+  activeOverCardId,
+  activeSourceCardId,
 }: DraftRoutineCardProps) {
+  const cardId = useId()
+  const isDropTarget = !!activeOverCardId && activeOverCardId === cardId && activeSourceCardId !== cardId
   const [focusIdx, setFocusIdx] = useState<number | null>(null)
   const undoToast = useUndoToast()
   const { editing, onFocusCapture, onBlurCapture } = useCardEditing()
@@ -1221,6 +1247,13 @@ export function DraftRoutineCard({
 
   const initial: EditableRoutine = { program, routine: 'New Routine', exercises: [] }
   const { state, status, act } = useRoutineEditor(spreadsheetId, initial, stableOnSaved, editing)
+
+  const stateRef = useRef(state)
+  stateRef.current = state
+  useEffect(() => {
+    onRegister?.(cardId, { getExercises: () => stateRef.current.exercises, act })
+    return () => onUnregister?.(cardId)
+  }, [cardId, onRegister, onUnregister, act])
 
   const handleDeleteExercise = useCallback((index: number, exercise: EditableExercise) => {
     act({ type: 'removeExercise', ex: index })
@@ -1249,7 +1282,7 @@ export function DraftRoutineCard({
     <div
       onFocusCapture={onFocusCapture}
       onBlurCapture={onBlurCapture}
-      className="bg-[#2a2a4a] rounded-[10px] mb-2 overflow-hidden border border-[#6c63ff]/40"
+      className={`bg-[#2a2a4a] rounded-[10px] mb-2 overflow-hidden border transition-colors ${isDropTarget ? 'border-[#6c63ff] ring-1 ring-[#6c63ff]' : 'border-[#6c63ff]/40'}`}
     >
       <div className="flex items-center gap-2 p-3.5">
         <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
@@ -1284,6 +1317,7 @@ export function DraftRoutineCard({
       <div className="px-3.5 pb-3.5 border-t border-[#3a3a5a]">
         <div className="pt-3 pl-2">
           <ExerciseList
+            cardId={cardId}
             exercises={state.exercises}
             focusIdx={focusIdx}
             setFocusIdx={setFocusIdx}

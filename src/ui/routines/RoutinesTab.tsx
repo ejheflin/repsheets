@@ -1,8 +1,12 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import {
+  DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors, closestCorners,
+  type DragStartEvent, type DragOverEvent, type DragEndEvent,
+} from '@dnd-kit/core'
 import { ProgramSelector } from './ProgramSelector'
 import { ProgramActions } from './ProgramActions'
 import { NamePromptModal } from './NamePromptModal'
-import { ExpandableRoutineCard, DraftRoutineCard } from './ExpandableRoutineCard'
+import { ExpandableRoutineCard, DraftRoutineCard, type CardRegistration } from './ExpandableRoutineCard'
 import { SwipeableRow } from '../shared/SwipeableRow'
 import { useUndoToast, UndoToast } from '../shared/UndoToast'
 import { renameProgram, deleteProgram, deleteRoutineRows, appendRoutineRows } from '../../sheets/driveApi'
@@ -17,7 +21,7 @@ import { getPreference, setPreference } from '../../data/db'
 import { useSheetContext } from '../../data/useSheetContext'
 import { SheetSwitcherModal } from '../SheetSwitcherModal'
 import { ShareCopyModal } from '../sharing/ShareModal'
-import type { RoutineRow } from '../../types'
+import type { RoutineRow, EditableExercise } from '../../types'
 
 function ShareIcon() {
   return (
@@ -266,6 +270,87 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     })
   }, [spreadsheetId, selectedProgram, allRows, mutateCache, refresh, routineUndo, login])
 
+  // ─── Cross-routine drag: a single DndContext spans every card so an exercise can
+  // be dragged from one routine into another. Each card registers a live handle. ───
+  const cardRegistry = useRef(new Map<string, CardRegistration>())
+  const registerCard = useCallback((id: string, api: CardRegistration) => {
+    cardRegistry.current.set(id, api)
+  }, [])
+  const unregisterCard = useCallback((id: string) => {
+    cardRegistry.current.delete(id)
+  }, [])
+
+  const dndSensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 400, tolerance: 5 } }),
+  )
+  const [activeDrag, setActiveDrag] = useState<{ exercise: EditableExercise; width: number | null } | null>(null)
+  const [overCardId, setOverCardId] = useState<string | null>(null)
+  const [sourceCardId, setSourceCardId] = useState<string | null>(null)
+
+  const findCardEntry = useCallback((itemId: string): [string, CardRegistration] | undefined => {
+    for (const [id, api] of cardRegistry.current) {
+      if (api.getExercises().some((e) => e.id === itemId)) return [id, api]
+    }
+    return undefined
+  }, [])
+
+  const resolveOverCard = useCallback((overId: string | null): string | null => {
+    if (!overId) return null
+    if (cardRegistry.current.has(overId)) return overId
+    return findCardEntry(overId)?.[0] ?? null
+  }, [findCardEntry])
+
+  const handleDragStart = useCallback((e: DragStartEvent) => {
+    const id = String(e.active.id)
+    const entry = findCardEntry(id)
+    setSourceCardId(entry?.[0] ?? null)
+    const exercise = entry?.[1].getExercises().find((x) => x.id === id) ?? null
+    setActiveDrag(exercise ? { exercise, width: e.active.rect.current.initial?.width ?? null } : null)
+  }, [findCardEntry])
+
+  const handleDragOver = useCallback((e: DragOverEvent) => {
+    setOverCardId(resolveOverCard(e.over ? String(e.over.id) : null))
+  }, [resolveOverCard])
+
+  const resetDrag = useCallback(() => {
+    setActiveDrag(null)
+    setOverCardId(null)
+    setSourceCardId(null)
+  }, [])
+
+  const handleExerciseDragEnd = useCallback((e: DragEndEvent) => {
+    resetDrag()
+    const { active, over } = e
+    if (!over) return
+    const activeId = String(active.id)
+    const overId = String(over.id)
+    const srcEntry = findCardEntry(activeId)
+    if (!srcEntry) return
+    const src = srcEntry[1]
+    const fromIdx = src.getExercises().findIndex((x) => x.id === activeId)
+    if (fromIdx < 0) return
+
+    // over.id is either a card container id (drop into the card) or an exercise id.
+    const destId = cardRegistry.current.has(overId) ? overId : findCardEntry(overId)?.[0]
+    if (!destId) return
+    const dest = cardRegistry.current.get(destId)!
+    let toIdx = overId === destId
+      ? dest.getExercises().length                            // dropped on the card itself
+      : dest.getExercises().findIndex((x) => x.id === overId) // dropped on an exercise
+    if (toIdx < 0) toIdx = dest.getExercises().length
+
+    if (src === dest) {
+      if (fromIdx !== toIdx) src.act({ type: 'reorder', from: fromIdx, to: toIdx })
+      return
+    }
+    // Clear superset grouping on the way over — a stray group letter would otherwise
+    // bracket the moved exercise with an unrelated one in the target card.
+    const exercise: EditableExercise = { ...src.getExercises()[fromIdx], supersetGroup: null }
+    src.act({ type: 'removeExercise', ex: fromIdx })
+    dest.act({ type: 'insertExercise', index: toIdx, exercise })
+  }, [findCardEntry, resetDrag])
+
   if (isLoading) {
     return <div className="text-gray-400 text-center mt-10">Loading routines...</div>
   }
@@ -313,42 +398,72 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
           ))}
         </div>
       </div>
-      {routineList
-        .filter((r) => !hasDraft || r.name.trim().toLowerCase() !== draftName.trim().toLowerCase())
-        .map((r, i) => (
-          <SwipeableRow
-            key={r.name}
-            className="mb-2 rounded-[10px]"
-            actions={[{ label: 'Delete', icon: <RoutineTrashIcon />, color: '#c0392b', onClick: () => handleDeleteRoutine(r.name, r.rows) }]}
-          >
-            <ExpandableRoutineCard
-              routine={r}
-              spreadsheetId={spreadsheetId ?? ''}
-              allRows={allRows}
-              loggedExercises={loggedExercises}
-              mutateCache={mutateCache}
-              onStartWorkout={handleStartWorkout}
-              initialExpanded={!!justCreatedName && r.name.trim().toLowerCase() === justCreatedName.trim().toLowerCase()}
-              tourId={i === 0 ? 'routine-card' : undefined}
-              weightUnit={weightUnit}
-              getMax={getMax}
-            />
-          </SwipeableRow>
-        ))}
-      {hasDraft && spreadsheetId && (
-        <DraftRoutineCard
-          program={selectedProgram || programs[0] || ''}
-          spreadsheetId={spreadsheetId}
-          allRows={allRows}
-          loggedExercises={loggedExercises}
-          mutateCache={mutateCache}
-          onSavedToList={handleDraftSaved}
-          onNameChange={setDraftName}
-          onDiscard={() => setHasDraft(false)}
-          weightUnit={weightUnit}
-          getMax={getMax}
-        />
-      )}
+      <DndContext
+        sensors={dndSensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleExerciseDragEnd}
+        onDragCancel={resetDrag}
+      >
+        {routineList
+          .filter((r) => !hasDraft || r.name.trim().toLowerCase() !== draftName.trim().toLowerCase())
+          .map((r, i) => (
+            <SwipeableRow
+              key={r.name}
+              className="mb-2 rounded-[10px]"
+              actions={[{ label: 'Delete', icon: <RoutineTrashIcon />, color: '#c0392b', onClick: () => handleDeleteRoutine(r.name, r.rows) }]}
+            >
+              <ExpandableRoutineCard
+                routine={r}
+                spreadsheetId={spreadsheetId ?? ''}
+                allRows={allRows}
+                loggedExercises={loggedExercises}
+                mutateCache={mutateCache}
+                onStartWorkout={handleStartWorkout}
+                initialExpanded={!!justCreatedName && r.name.trim().toLowerCase() === justCreatedName.trim().toLowerCase()}
+                tourId={i === 0 ? 'routine-card' : undefined}
+                weightUnit={weightUnit}
+                getMax={getMax}
+                onRegister={registerCard}
+                onUnregister={unregisterCard}
+                activeOverCardId={overCardId}
+                activeSourceCardId={sourceCardId}
+              />
+            </SwipeableRow>
+          ))}
+        {hasDraft && spreadsheetId && (
+          <DraftRoutineCard
+            program={selectedProgram || programs[0] || ''}
+            spreadsheetId={spreadsheetId}
+            allRows={allRows}
+            loggedExercises={loggedExercises}
+            mutateCache={mutateCache}
+            onSavedToList={handleDraftSaved}
+            onNameChange={setDraftName}
+            onDiscard={() => setHasDraft(false)}
+            weightUnit={weightUnit}
+            getMax={getMax}
+            onRegister={registerCard}
+            onUnregister={unregisterCard}
+            activeOverCardId={overCardId}
+            activeSourceCardId={sourceCardId}
+          />
+        )}
+        <DragOverlay>
+          {activeDrag && (
+            <div
+              style={{ width: activeDrag.width ?? undefined }}
+              className="bg-[#2a2a4a] border border-[#6c63ff] rounded-[10px] px-3 py-2.5 shadow-xl shadow-black/50"
+            >
+              <div className="text-sm font-semibold text-white truncate">{activeDrag.exercise.exercise || 'Exercise'}</div>
+              <div className="text-[11px] text-gray-400 mt-0.5">
+                {activeDrag.exercise.sets.length} set{activeDrag.exercise.sets.length === 1 ? '' : 's'}
+              </div>
+            </div>
+          )}
+        </DragOverlay>
+      </DndContext>
       {displayPrograms.length === 0 && !hasDraft ? (
         <div className="text-center mt-12 px-6">
           <h2 className="text-[20px] font-bold mb-2">Build your first program</h2>
