@@ -31,15 +31,15 @@ export function ShareSheetModal({ sheet, onClose }: ShareSheetModalProps) {
           className="w-full bg-[#2a2a4a] rounded-[10px] p-4 mb-2 text-left active:opacity-80">
           <div className="font-semibold text-sm">Share a Copy</div>
           <div className="text-[11px] text-gray-400 mt-1">
-            Creates a read-only template of all programs. Safe for strangers — your logs are not included.
+            Creates a read-only template of all programs. Safe to share — your logs aren't included.
           </div>
         </button>
 
         <button onClick={() => setMode('invite')}
           className="w-full bg-[#2a2a4a] rounded-[10px] p-4 mb-2 text-left active:opacity-80">
-          <div className="font-semibold text-sm">Invite to Sheet</div>
+          <div className="font-semibold text-sm">Invite to repsheet</div>
           <div className="text-[11px] text-gray-400 mt-1">
-            Share your actual sheet. Both of you log workouts and can see each other's progress.
+            Train with a friend or coach in the same repsheet. Anyone you add can see and edit everything in it — every program, routine, and workout logged.
           </div>
         </button>
 

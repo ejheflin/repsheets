@@ -7,6 +7,7 @@ import { getStoredUser } from '../auth/googleAuth'
 import { shareOrCopy } from './sharing/shareLink'
 import { flushSync } from '../data/syncEngine'
 import { ShareSheetModal } from './sharing/ShareSheetModal'
+import { getPreference, setPreference } from '../data/db'
 import type { RepSheet } from '../types'
 
 interface SheetSwitcherModalProps {
@@ -54,6 +55,13 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
   const [newSheetName, setNewSheetName] = useState('repsheets')
   const [isCreating, setIsCreating] = useState(false)
   const [createdSheetId, setCreatedSheetId] = useState<string | null>(null)
+  // First-ever repsheet gets the full teaching; later ones get a quiet line.
+  const [hasCreatedBefore, setHasCreatedBefore] = useState(true)
+  const [whatIsExpanded, setWhatIsExpanded] = useState(false)
+
+  useEffect(() => {
+    getPreference('hasCreatedRepsheet').then((v) => setHasCreatedBefore(v === 'true'))
+  }, [])
 
   const [importLink, setImportLink] = useState('')
   const [isImporting, setIsImporting] = useState(false)
@@ -249,6 +257,7 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
       setCreatedSheetId(id)
       setSpreadsheetId(id)
       setView('created')
+      setPreference('hasCreatedRepsheet', 'true') // this create's view still uses the pre-create value
     } catch (e) { console.error('Create failed:', e) }
     setIsCreating(false)
   }
@@ -285,7 +294,7 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
           <>
             <div className="flex justify-between items-center mb-1">
               <span />
-              <h2 className="text-base font-bold">Sheets</h2>
+              <h2 className="text-base font-bold">Repsheets</h2>
               {getFolderUrl() ? (
                 <a href={getFolderUrl()!} target="_blank" rel="noopener noreferrer"
                   className="text-gray-500 p-1 active:text-[#6c63ff]">
@@ -295,7 +304,7 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
                 </a>
               ) : <span />}
             </div>
-            <p className="text-xs text-gray-400 text-center mb-4">Select a repsheets spreadsheet</p>
+            <p className="text-xs text-gray-400 text-center mb-4">Switch repsheet · most people only need one</p>
 
             {authFailed && (
               <div className="bg-[#2a2a4a] rounded-[10px] p-4 mb-3 text-center">
@@ -314,7 +323,7 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
                   <polyline points="1 20 1 14 7 14" />
                   <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
                 </svg>
-                Loading sheets...
+                Loading repsheets...
               </div>
             ) : (
               <>
@@ -369,7 +378,7 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
 
             <button onClick={() => setView('create')}
               className="w-full border-2 border-dashed border-[#6c63ff] rounded-[10px] p-3 mt-2 text-center text-[#6c63ff] font-semibold text-sm">
-              + Create New Sheet
+              + New repsheet
             </button>
 
             <button onClick={() => { setImportLink(''); setImportError(''); setView('import') }}
@@ -394,11 +403,11 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
 
         {view === 'create' && (
           <>
-            <h2 className="text-base font-bold text-center mb-4">Create New Sheet</h2>
+            <h2 className="text-base font-bold text-center mb-4">New repsheet</h2>
             <input type="text" value={newSheetName}
               onChange={(e) => setNewSheetName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-              placeholder="Sheet name"
+              placeholder="Repsheet name"
               className="w-full bg-[#2a2a4a] border border-[#3a3a5a] rounded-[10px] px-4 py-3 text-base outline-none focus:border-[#6c63ff] mb-4"
               autoFocus />
             <button onClick={handleCreate} disabled={isCreating || !newSheetName.trim()}
@@ -448,8 +457,27 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
 
         {view === 'created' && createdSheetId && (
           <>
-            <h2 className="text-base font-bold text-center mb-2">Sheet Created!</h2>
-            <p className="text-xs text-gray-400 text-center mb-4">"{newSheetName}" is ready to use</p>
+            <h2 className="text-base font-bold text-center mb-2">Repsheet created</h2>
+            {!hasCreatedBefore ? (
+              <p className="text-[13px] text-gray-300 text-center mb-4 leading-relaxed">
+                Every repsheet is its own Google Sheet in your Google Drive — yours to keep, export, or
+                open anytime. It's also how you invite a friend or coach to train together.
+              </p>
+            ) : (
+              <div className="mb-4">
+                <p className="text-xs text-gray-400 text-center">"{newSheetName}" saved to your Google Drive</p>
+                <button onClick={() => setWhatIsExpanded((v) => !v)}
+                  className="w-full text-center text-[11px] text-[#6c63ff] mt-1 active:opacity-80">
+                  What's a repsheet?
+                </button>
+                {whatIsExpanded && (
+                  <p className="text-[12px] text-gray-400 text-center mt-2 leading-relaxed">
+                    Every repsheet is its own Google Sheet in your Google Drive — yours to keep, export, or
+                    open anytime. It's also how you invite a friend or coach to train together.
+                  </p>
+                )}
+              </div>
+            )}
 
             <a href={`https://docs.google.com/spreadsheets/d/${createdSheetId}/edit`}
               target="_blank" rel="noopener noreferrer"
