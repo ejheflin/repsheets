@@ -6,6 +6,7 @@ import { fetchLogEntries } from '../sheets/sheetsApi'
 import { saveLogs, getLogs } from './db'
 import { AuthExpiredError } from '../auth/authFetch'
 import { localDateString } from '../utils'
+import { roundWeight } from './measure'
 import type { LogEntry } from '../types'
 
 export interface ExerciseHistoryPoint {
@@ -13,6 +14,7 @@ export interface ExerciseHistoryPoint {
   maxWeight: number
   estimatedOrm?: number | null
   athlete?: string
+  unit?: string
 }
 
 export interface PersonalRecord {
@@ -135,8 +137,10 @@ export function useLogs() {
 
   const exerciseHistory = useCallback((exerciseName: string, limit: number = 10): ExerciseHistoryPoint[] => {
     const byDate = new Map<string, { maxWeight: number; maxOrm: number | null }>()
+    let unit = ''
     for (const log of logs) {
       if (log.exercise !== exerciseName || log.value === null || log.value <= 0) continue
+      if (log.unit) unit = log.unit
       const orm = (log.pct != null && log.pct > 0) ? log.value / (log.pct / 100) : null
       const current = byDate.get(log.date) ?? { maxWeight: 0, maxOrm: null }
       byDate.set(log.date, {
@@ -152,7 +156,8 @@ export function useLogs() {
       .map(([date, { maxWeight, maxOrm }]) => ({
         date,
         maxWeight,
-        estimatedOrm: maxOrm != null ? Math.round(maxOrm / 5) * 5 : null,
+        estimatedOrm: maxOrm != null ? roundWeight(maxOrm, unit) : null,
+        unit,
       }))
   }, [logs])
 

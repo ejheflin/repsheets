@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { ComposedChart, Bar, LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import { ExerciseChipFilter } from './ExerciseChipFilter'
+import { measureOf, formatValue, formatDuration } from '../../data/measure'
 import type { ExerciseHistoryPoint } from '../../data/useLogs'
 
 const CHART_COLORS = ['#6c63ff', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899']
@@ -79,15 +80,15 @@ export function ExerciseProgressChart({
   }, [selectedExercise])
 
   // Build chart data
-  const { data, series, hasOrm } = useMemo(() => {
-    if (!selectedExercise) return { data: [], series: [] as string[], hasOrm: false }
+  const { data, series, hasOrm, unit } = useMemo(() => {
+    if (!selectedExercise) return { data: [], series: [] as string[], hasOrm: false, unit: '' }
 
     const effectiveLimit = limit === 0 ? 9999 : limit
 
     if (isShared && showAllAthletes) {
       // Multi-athlete mode — no 1RM line
       const result = exerciseHistoryByAthlete(selectedExercise, effectiveLimit)
-      return { data: result.data, series: result.athletes, hasOrm: false }
+      return { data: result.data, series: result.athletes, hasOrm: false, unit: '' }
     }
 
     // Single athlete mode
@@ -98,8 +99,19 @@ export function ExerciseProgressChart({
       weight: p.maxWeight,
       ...(anyOrm ? { orm: p.estimatedOrm ?? undefined } : {}),
     }))
-    return { data: chartData, series: ['weight'], hasOrm: anyOrm }
+    return { data: chartData, series: ['weight'], hasOrm: anyOrm, unit: points[0]?.unit ?? '' }
   }, [selectedExercise, exerciseHistory, exerciseHistoryByAthlete, isShared, showAllAthletes, limit])
+
+  const measure = measureOf(unit)
+  // Y-axis ticks: m:ss for time, plain number otherwise (unit lives in the tooltip).
+  const axisTick = (v: number) => (measure === 'time' ? formatDuration(v) : String(v))
+  // Tooltip: the E1RM line stays in the weight unit; the main series uses its measure.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tooltipFormatter = (value: any, name: any): [string, string] => {
+    const n = Number(value)
+    if (String(name) === 'orm') return [formatValue(n, unit), 'E1RM']
+    return [formatValue(n, unit), String(name)]
+  }
 
   const progressDelta = useMemo(() => {
     if (showAllAthletes || data.length < 2) return null
@@ -164,11 +176,11 @@ export function ExerciseProgressChart({
 
       {progressDelta && (
         <div className="flex items-center gap-2 px-0.5 pb-2 text-[12px]">
-          <span className="text-gray-500">{progressDelta.first}</span>
+          <span className="text-gray-500">{formatValue(progressDelta.first, unit)}</span>
           <span className="text-gray-600">→</span>
-          <span className="text-white font-medium">{progressDelta.last}</span>
+          <span className="text-white font-medium">{formatValue(progressDelta.last, unit)}</span>
           <span className={`ml-auto font-semibold tabular-nums ${progressDelta.delta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            {progressDelta.delta >= 0 ? '+' : ''}{progressDelta.delta}
+            {progressDelta.delta >= 0 ? '+' : '-'}{formatValue(Math.abs(progressDelta.delta), unit)}
             <span className="font-normal text-[11px] ml-1 opacity-70">
               ({progressDelta.pct >= 0 ? '+' : ''}{progressDelta.pct}%)
             </span>
@@ -182,10 +194,11 @@ export function ExerciseProgressChart({
             {chartType === 'bar' ? (
               <ComposedChart data={data} margin={{ top: 10, right: 5, bottom: 0, left: -15 }}>
                 <XAxis dataKey="date" tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={axisTick} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #3a3a5a', borderRadius: 8, fontSize: 12 }}
                   labelStyle={{ color: '#888' }}
+                  formatter={tooltipFormatter}
                   cursor={{ fill: 'transparent', stroke: '#6c63ff', strokeDasharray: '4 2', strokeWidth: 1 }}
                 />
                 {(series.length > 1 || hasOrm) && <Legend wrapperStyle={{ fontSize: 10, color: '#888' }} />}
@@ -202,10 +215,12 @@ export function ExerciseProgressChart({
               <LineChart data={data} margin={{ top: 10, right: 5, bottom: 0, left: -15 }}>
                 <XAxis dataKey="date" tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: '#888', fontSize: 10 }} axisLine={false} tickLine={false}
+                  tickFormatter={axisTick}
                   domain={[(min: number) => Math.floor(min * 0.9), (max: number) => Math.ceil(max * 1.05)]} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #3a3a5a', borderRadius: 8, fontSize: 12 }}
                   labelStyle={{ color: '#888' }}
+                  formatter={tooltipFormatter}
                 />
                 {(series.length > 1 || hasOrm) && <Legend wrapperStyle={{ fontSize: 10, color: '#888' }} />}
                 {series.map((s, i) => (
