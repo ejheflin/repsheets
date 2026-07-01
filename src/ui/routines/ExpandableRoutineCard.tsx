@@ -1074,6 +1074,20 @@ export function ExpandableRoutineCard({
     return () => onUnregister?.(cardId)
   }, [cardId, onRegister, onUnregister, act])
 
+  // Flipping the global lb/kg toggle relabels weight-measure exercises to match
+  // (same effect as picking "Weight" in the load menu). Guarded so opening a
+  // routine never rewrites units — only an actual toggle change does.
+  const prevWeightUnit = useRef(weightUnit)
+  useEffect(() => {
+    if (prevWeightUnit.current === weightUnit) return
+    prevWeightUnit.current = weightUnit
+    stateRef.current.exercises.forEach((ex, idx) => {
+      if (measureOf(ex.unit) === 'weight' && ex.unit !== weightUnit) {
+        act({ type: 'setUnit', ex: idx, unit: weightUnit })
+      }
+    })
+  }, [weightUnit, act])
+
   const handleStart = useCallback(async () => {
     const rows = toRows(state)
     try { await flush() } catch { /* offline — start from in-memory state anyway */ }
@@ -1249,6 +1263,17 @@ export function DraftRoutineCard({
     onRegister?.(cardId, { getExercises: () => stateRef.current.exercises, act })
     return () => onUnregister?.(cardId)
   }, [cardId, onRegister, onUnregister, act])
+
+  const prevWeightUnit = useRef(weightUnit)
+  useEffect(() => {
+    if (prevWeightUnit.current === weightUnit) return
+    prevWeightUnit.current = weightUnit
+    stateRef.current.exercises.forEach((ex, idx) => {
+      if (measureOf(ex.unit) === 'weight' && ex.unit !== weightUnit) {
+        act({ type: 'setUnit', ex: idx, unit: weightUnit })
+      }
+    })
+  }, [weightUnit, act])
 
   const handleDeleteExercise = useCallback((index: number, exercise: EditableExercise) => {
     act({ type: 'removeExercise', ex: index })
