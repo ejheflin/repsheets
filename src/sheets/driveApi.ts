@@ -588,7 +588,9 @@ export async function appendRoutineRows(spreadsheetId: string, rows: RoutineRow[
   for (const r of rows) routineTombstones.delete(tombstoneKey(r.program, r.routine))
   const values = rows.map((r) => [
     r.program, r.routine, r.exercise, r.sets,
-    serializeReps({ reps: r.reps, repsMax: r.repsMax, repsOpen: r.repsOpen }), serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis, rpe: r.rpe, rir: r.rir }), r.unit, r.notes,
+    sheetSafe(serializeReps({ reps: r.reps, repsMax: r.repsMax, repsOpen: r.repsOpen })),
+    sheetSafe(serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis, rpe: r.rpe, rir: r.rir })),
+    r.unit, r.notes,
   ])
   await enqueueRoutineWrite(async () => {
     const url = `${SHEETS_BASE}/${spreadsheetId}/values/Routines!A:H:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`
@@ -632,10 +634,19 @@ export function deleteProgramInRows(all: RoutineRow[], program: string): Routine
   return all.filter((row) => row.program !== program)
 }
 
+// USER_ENTERED coerces cell text: "5-8" becomes a date (May 8 → serial ~46150),
+// "80%" becomes 0.8, etc. Force non-numeric encodings to plain text with a leading
+// apostrophe (Sheets strips it), so tokens like 5-8 / 8+ / 80% / @8 round-trip intact.
+// Pure numbers are left as-is so the weight column stays numeric for Sheet math.
+function sheetSafe(s: string): string {
+  return s === '' || /^-?\d+(\.\d+)?$/.test(s) ? s : `'${s}`
+}
+
 function rowsToValues(rows: RoutineRow[]): (string | number)[][] {
   return rows.map((r) => [
-    r.program, r.routine, r.exercise, r.sets, serializeReps({ reps: r.reps, repsMax: r.repsMax, repsOpen: r.repsOpen }),
-    serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis, rpe: r.rpe, rir: r.rir }),
+    r.program, r.routine, r.exercise, r.sets,
+    sheetSafe(serializeReps({ reps: r.reps, repsMax: r.repsMax, repsOpen: r.repsOpen })),
+    sheetSafe(serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis, rpe: r.rpe, rir: r.rir })),
     r.unit, r.notes,
   ])
 }

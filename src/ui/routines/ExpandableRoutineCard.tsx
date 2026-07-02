@@ -390,19 +390,6 @@ function RepsControl({ ex, idx, act, mismatch = false }: { ex: EditableExercise;
 
   const label = mode === 'single' ? 'Reps' : mode === 'range' ? 'Range' : 'AMRAP'
 
-  // Range: single masked text input "m – n"
-  const [rangeText, setRangeText] = useState(`${reps ?? ''} – ${repsMax ?? ''}`)
-  useEffect(() => {
-    if (mode === 'range') setRangeText(`${reps ?? ''} – ${repsMax ?? ''}`)
-  }, [mode, reps, repsMax])
-
-  const commitRange = (text: string) => {
-    const nums = text.match(/\d+/g)
-    const min = nums?.[0] != null ? Number(nums[0]) : null
-    const max = nums?.[1] != null ? Number(nums[1]) : min
-    act({ type: 'setReps', ex: idx, reps: min, repsMax: max })
-  }
-
   // AMRAP: single box, min then "+"
   const amrapDisplay = reps != null ? `${reps}+` : 'AMRAP'
 
@@ -410,17 +397,27 @@ function RepsControl({ ex, idx, act, mismatch = false }: { ex: EditableExercise;
   if (mode === 'single') {
     control = <Stepper value={reps ?? 0} min={0} mismatch={mismatch} onChange={(v) => act({ type: 'setReps', ex: idx, reps: v })} />
   } else if (mode === 'range') {
+    // Two independent fields around a fixed hyphen — type on the min or the max side.
     control = (
-      <input
-        type="text"
-        inputMode="numeric"
-        value={rangeText}
-        onChange={(e) => { setRangeText(e.target.value); commitRange(e.target.value) }}
-        onFocus={(e) => e.target.select()}
-        className={`w-[72px] ${boxBase}${mismatch ? ` ${mismatchRing}` : ''}`}
-        style={{ fontSize: 16 }}
-        placeholder="8 – 12"
-      />
+      <div className={`w-[72px] inline-flex items-center justify-center ${boxBase} focus-within:ring-1 focus-within:ring-[#6c63ff]${mismatch ? ` ${mismatchRing}` : ''}`} style={{ fontSize: 16 }}>
+        <input
+          type="text" inputMode="numeric"
+          value={reps ?? ''}
+          onChange={(e) => act({ type: 'setReps', ex: idx, reps: e.target.value ? Number(e.target.value) : null, repsMax })}
+          onFocus={(e) => e.target.select()}
+          className="w-6 bg-transparent text-center outline-none [appearance:textfield]"
+          placeholder="8"
+        />
+        <span className="text-gray-500">–</span>
+        <input
+          type="text" inputMode="numeric"
+          value={repsMax ?? ''}
+          onChange={(e) => act({ type: 'setReps', ex: idx, reps, repsMax: e.target.value ? Number(e.target.value) : null })}
+          onFocus={(e) => e.target.select()}
+          className="w-6 bg-transparent text-center outline-none [appearance:textfield]"
+          placeholder="12"
+        />
+      </div>
     )
   } else {
     control = (
