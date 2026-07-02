@@ -30,6 +30,21 @@ export function formatDuration(totalSeconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+/** Parse a duration the user typed into total seconds. Accepts `m:ss` / `m:s` / `m:`
+ * (colon → minutes:seconds) or a plain number (treated as seconds). Empty → null. */
+export function parseDuration(raw: string): number | null {
+  const s = (raw ?? '').trim()
+  if (!s) return null
+  if (s.includes(':')) {
+    const [mStr, sStr] = s.split(':')
+    const mins = parseInt(mStr, 10) || 0
+    const secs = parseInt(sStr, 10) || 0
+    return mins * 60 + secs
+  }
+  const n = parseInt(s, 10)
+  return isNaN(n) ? null : n
+}
+
 export function formatValue(value: number | null, unit: string | null | undefined): string {
   if (value === null) return ''
   const measure = measureOf(unit)

@@ -124,19 +124,21 @@ export function reduce(state: EditableRoutine, a: Action): EditableRoutine {
           e.sets.forEach((s) => { s.pct = null; s.rpe = undefined; s.rir = undefined })
           break
         case 'pct':
+          // Seed a default so the mode is expressible in the value cell; without a
+          // number there's no token to serialize and the mode silently reverts.
           e.unit = a.unit ?? (isWeightUnit(e.unit) ? e.unit : 'lbs')
           e.loadMode = 'pct'
-          e.sets.forEach((s) => { s.value = null; s.rpe = undefined; s.rir = undefined })
+          e.sets.forEach((s) => { s.value = null; s.rpe = undefined; s.rir = undefined; s.pct = s.pct ?? 80 })
           break
         case 'rpe':
           e.unit = a.unit ?? (isWeightUnit(e.unit) ? e.unit : 'lbs')
           e.loadMode = 'rpe'
-          e.sets.forEach((s) => { s.value = null; s.pct = null; s.rir = undefined })
+          e.sets.forEach((s) => { s.value = null; s.pct = null; s.rir = undefined; s.rpe = s.rpe ?? 8 })
           break
         case 'rir':
           e.unit = a.unit ?? (isWeightUnit(e.unit) ? e.unit : 'lbs')
           e.loadMode = 'rir'
-          e.sets.forEach((s) => { s.value = null; s.pct = null; s.rpe = undefined })
+          e.sets.forEach((s) => { s.value = null; s.pct = null; s.rpe = undefined; s.rir = s.rir ?? 2 })
           break
         case 'bodyweight':
           e.unit = ''

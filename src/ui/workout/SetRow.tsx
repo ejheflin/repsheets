@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react'
 import { rpeToPct, rirToPct } from '../../workout/rpe'
-import { roundWeight } from '../../data/measure'
+import { roundWeight, measureOf } from '../../data/measure'
+import { TimeInput } from './TimeInput'
 
 interface SetRowProps {
   setNumber: number
@@ -15,7 +16,6 @@ interface SetRowProps {
   achievedRir?: number | null
   gridCols?: string
   showTargetColumn?: boolean
-  showAchievedColumn?: boolean
   oneRepMax?: number | null
   rawOneRepMax?: number | null
   repsFlag?: boolean
@@ -30,7 +30,7 @@ interface SetRowProps {
 
 export function SetRow({
   setNumber, reps, value, unit, completed,
-  pct, rpe, rir, achievedRpe, achievedRir, gridCols, showTargetColumn, showAchievedColumn, oneRepMax, rawOneRepMax,
+  pct, rpe, rir, achievedRpe, achievedRir, gridCols, showTargetColumn, oneRepMax, rawOneRepMax,
   repsFlag, valueFlag,
   onToggle, onRepsChange, onValueChange, onAchievedRpeChange, onAchievedRirChange, onTargetClick,
 }: SetRowProps) {
@@ -98,21 +98,13 @@ export function SetRow({
         >+</button>
       </div>
       {showTargetColumn && (
-        <button onClick={onTargetClick}
-          className="text-right pr-1 text-[11px] text-gray-500 leading-tight active:opacity-80 truncate">
-          {pctLabel}
-        </button>
-      )}
-      <div className="px-1 min-w-0">
-        <input ref={valueRef} type="text" inputMode="decimal" value={value != null ? Math.round(value) : ''}
-          onChange={(e) => { userEditing.current = true; onValueChange(e.target.value ? Number(e.target.value) : null) }}
-          onFocus={(e) => { userEditing.current = false; e.target.select() }}
-          className={`w-full min-w-0 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
-          placeholder="—" />
-      </div>
-      {showAchievedColumn && (
-        <div className="px-0.5 min-w-0">
-          {showAchieved && (
+        showPctLabel ? (
+          <button onClick={onTargetClick}
+            className="text-right pr-1 text-[11px] text-gray-500 leading-tight active:opacity-80 truncate">
+            {pctLabel}
+          </button>
+        ) : showAchieved ? (
+          <div className="px-0.5 min-w-0">
             <input type="text" inputMode="decimal"
               value={achievedValue != null ? achievedValue : ''}
               placeholder={prescribed != null ? String(prescribed) : ''}
@@ -122,10 +114,24 @@ export function SetRow({
                 else onAchievedRirChange?.(v)
               }}
               onFocus={(e) => e.target.select()}
-              className="w-full min-w-0 bg-[#1a1a2e] rounded text-center text-sm font-semibold py-1 outline-none [appearance:textfield] focus:ring-1 focus:ring-[#6c63ff]" />
-          )}
-        </div>
+              className="w-full min-w-0 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] focus:ring-1 focus:ring-[#6c63ff]" />
+          </div>
+        ) : (
+          <div />
+        )
       )}
+      <div className="px-1 min-w-0">
+        {measureOf(unit) === 'time' ? (
+          <TimeInput value={value} onChange={onValueChange}
+            className={`w-full min-w-0 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`} />
+        ) : (
+          <input ref={valueRef} type="text" inputMode="decimal" value={value != null ? Math.round(value) : ''}
+            onChange={(e) => { userEditing.current = true; onValueChange(e.target.value ? Number(e.target.value) : null) }}
+            onFocus={(e) => { userEditing.current = false; e.target.select() }}
+            className={`w-full min-w-0 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
+            placeholder="—" />
+        )}
+      </div>
       <div className="flex justify-center">
         <button onClick={onToggle}>
           {completed ? (

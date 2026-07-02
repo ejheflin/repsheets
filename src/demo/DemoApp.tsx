@@ -95,7 +95,7 @@ export function DemoApp() {
       return next
     })
   }
-  const updateAllSets = (ei: number, field: 'reps' | 'value', val: number | null) => {
+  const updateAllSets = (ei: number, field: 'reps' | 'value' | 'achievedRpe' | 'achievedRir', val: number | null) => {
     setWorkout((prev) => {
       if (!prev) return prev
       const next = structuredClone(prev)

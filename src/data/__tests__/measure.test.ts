@@ -1,5 +1,28 @@
 import { describe, it, expect } from 'vitest'
-import { measureOf, formatDuration, formatValue, MEASURES, weightIncrement, roundWeight } from '../measure'
+import { measureOf, formatDuration, parseDuration, formatValue, MEASURES, weightIncrement, roundWeight } from '../measure'
+
+describe('parseDuration', () => {
+  it('parses m:ss to total seconds', () => {
+    expect(parseDuration('2:30')).toBe(150)
+    expect(parseDuration('0:45')).toBe(45)
+    expect(parseDuration('10:05')).toBe(605)
+  })
+  it('handles partial colon input', () => {
+    expect(parseDuration('2:')).toBe(120)
+    expect(parseDuration(':30')).toBe(30)
+    expect(parseDuration('2:3')).toBe(123)
+  })
+  it('treats a plain number as seconds', () => {
+    expect(parseDuration('45')).toBe(45)
+  })
+  it('empty → null', () => {
+    expect(parseDuration('')).toBeNull()
+    expect(parseDuration('   ')).toBeNull()
+  })
+  it('round-trips with formatDuration', () => {
+    expect(parseDuration(formatDuration(150))).toBe(150)
+  })
+})
 
 describe('weightIncrement', () => {
   it('kg → 2.5', () => { expect(weightIncrement('kg')).toBe(2.5); expect(weightIncrement('KG')).toBe(2.5) })

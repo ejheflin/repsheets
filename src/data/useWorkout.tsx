@@ -41,7 +41,7 @@ interface WorkoutContextValue {
   toggleSet: (exerciseIdx: number, setIdx: number) => void
   toggleExercise: (exerciseIdx: number) => void
   updateSet: (exerciseIdx: number, setIdx: number, field: 'reps' | 'value' | 'achievedRpe' | 'achievedRir', val: number | null) => void
-  updateAllSets: (exerciseIdx: number, field: 'reps' | 'value', val: number | null) => void
+  updateAllSets: (exerciseIdx: number, field: 'reps' | 'value' | 'achievedRpe' | 'achievedRir', val: number | null) => void
   updateNotes: (exerciseIdx: number, notes: string) => void
   toggleExpanded: (exerciseIdx: number) => void
   addSet: (exerciseIdx: number) => void
@@ -307,7 +307,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
 
   const updateAllSets = useCallback((
     exerciseIdx: number,
-    field: 'reps' | 'value',
+    field: 'reps' | 'value' | 'achievedRpe' | 'achievedRir',
     val: number | null
   ) => {
     setWorkout((prev) => {

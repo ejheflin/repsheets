@@ -34,6 +34,17 @@ describe('reduce', () => {
     expect(s.exercises[1].sets).toEqual(s.exercises[0].sets)
     expect(s.exercises[1].sets).not.toBe(s.exercises[0].sets) // deep-copied, not shared
   })
+  it('switching to RPE/RIR/% seeds a default so the mode persists (has a token to serialize)', () => {
+    const rpe = reduce(seed(), { type: 'setLoadType', ex: 0, loadType: 'rpe' })
+    expect(rpe.exercises[0].loadMode).toBe('rpe')
+    expect(rpe.exercises[0].sets.every((s) => s.rpe === 8 && s.value === null && s.pct === null)).toBe(true)
+
+    const rir = reduce(seed(), { type: 'setLoadType', ex: 0, loadType: 'rir' })
+    expect(rir.exercises[0].sets.every((s) => s.rir === 2)).toBe(true)
+
+    const pct = reduce(seed(), { type: 'setLoadType', ex: 0, loadType: 'pct' })
+    expect(pct.exercises[0].sets.every((s) => s.pct === 80)).toBe(true)
+  })
   it('does not mutate input state', () => {
     const input = seed()
     reduce(input, { type: 'setUniformReps', ex: 0, reps: 99 })
