@@ -100,7 +100,7 @@ export function SetRow({
       {showTargetColumn && (
         showPctLabel ? (
           <button onClick={onTargetClick}
-            className="text-right pr-1 text-[11px] text-gray-500 leading-tight active:opacity-80 truncate">
+            className="text-center text-[11px] text-gray-500 leading-tight active:opacity-80 truncate">
             {pctLabel}
           </button>
         ) : showAchieved ? (

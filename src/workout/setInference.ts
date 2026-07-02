@@ -36,6 +36,8 @@ export function expandRoutine(rows: RoutineRow[]): ExpandedSet[] {
           exercise: row.exercise,
           setNumber: s,
           reps: row.reps,
+          repsMax: row.repsMax,
+          repsOpen: row.repsOpen,
           value: row.value,
           pct: row.pct,
           basis: row.basis,

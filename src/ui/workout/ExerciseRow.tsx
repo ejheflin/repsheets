@@ -226,6 +226,10 @@ export function ExerciseRow({
     hasAnyPct ? 'pct' : rpeMode ? (achievedIsRir ? 'rir' : 'rpe') : null
   // Collapsed-card summaries (edit all sets at once), defaulting to the prescription.
   const firstSet = exercise.sets[0]
+  // Reps prescription designation (uniform across sets in practice): AMRAP / a range.
+  const repsPrescription = firstSet?.repsOpen
+    ? 'AMRAP'
+    : firstSet?.repsMax != null ? `${firstSet.reps ?? ''}–${firstSet.repsMax}` : null
   const summaryAchievedRpe = firstSet?.achievedRpe ?? firstSet?.rpe ?? null
   const summaryAchievedRir = firstSet?.achievedRir ?? firstSet?.rir ?? null
   const rpeHasMismatch = exercise.sets.some((s) => (s.achievedRpe ?? s.rpe ?? null) !== summaryAchievedRpe)
@@ -325,7 +329,7 @@ export function ExerciseRow({
                 )}
               </button>
 
-              {/* Row 2: N×, reps, history, weight, notes — each in its own column */}
+              {/* Row 2: N×, reps, intensity, weight, icons — each in its own column */}
               <button onClick={onToggleExpand} className="text-xs text-gray-500 w-7 text-left flex items-center">{exercise.sets.length}×</button>
               <div className="flex items-center gap-1">
                 <button
@@ -511,11 +515,11 @@ export function ExerciseRow({
         <div className="grid items-center pb-1 text-[10px] text-gray-600 uppercase tracking-wider"
           style={{ gridTemplateColumns: gridCols }}>
           <div className="text-center">Set</div>
-          <div className="text-center">Reps</div>
+          <div className="text-center">{repsPrescription ?? 'Reps'}</div>
           {showTargetColumn && (
             hasAnyPct ? (
               <button onClick={() => setShowMaxSettings(true)}
-                className="text-right pr-1 active:opacity-80">
+                className="text-center active:opacity-80">
                 {intensityLabel}
               </button>
             ) : (

@@ -170,6 +170,8 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
                 set.pct = matchingSet.pct
                 set.rpe = matchingSet.rpe ?? null
                 set.rir = matchingSet.rir ?? null
+                set.repsMax = matchingSet.repsMax ?? null
+                set.repsOpen = matchingSet.repsOpen ?? false
               }
             }
           }
@@ -233,6 +235,8 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
           return {
             setNumber: s.setNumber,
             reps: resolved.reps,
+            repsMax: s.repsMax ?? null,
+            repsOpen: s.repsOpen ?? false,
             value: resolved.value,
             pct: s.pct,
             basis: s.basis,
@@ -348,6 +352,8 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       ex.sets.push({
         setNumber: lastSet.setNumber + 1,
         reps: lastSet.reps,
+        repsMax: lastSet.repsMax ?? null,
+        repsOpen: lastSet.repsOpen ?? false,
         value: lastSet.value,
         pct: lastSet.pct,
         basis: lastSet.basis,

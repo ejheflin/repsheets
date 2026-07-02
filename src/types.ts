@@ -63,6 +63,8 @@ export interface ExpandedSet {
   exercise: string
   setNumber: number
   reps: number | null
+  repsMax?: number | null  // upper bound of a rep range (8-12)
+  repsOpen?: boolean        // AMRAP / open-ended (8+)
   value: number | null
   pct?: number | null
   basis?: '1rm' | 'tm'  // basis for pct; absent = 1rm
@@ -87,6 +89,8 @@ export interface WorkoutExercise {
 export interface WorkoutSet {
   setNumber: number
   reps: number | null
+  repsMax?: number | null  // upper bound of a prescribed rep range (8-12)
+  repsOpen?: boolean        // AMRAP / open-ended prescription (8+)
   value: number | null
   pct?: number | null   // target percentage of 1RM, null if absolute weight
   basis?: '1rm' | 'tm'  // basis for pct; absent = 1rm (drives TM-prefill in max settings)
