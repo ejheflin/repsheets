@@ -26,6 +26,29 @@ export class NotRepSheetError extends Error {
   constructor() { super('Not a repsheet') }
 }
 
+// Concurrent first-run callers (or two devices) can each create the file —
+// merge every duplicate's entries into the oldest and delete the extras.
+// Best-effort: a failed read aborts without deleting anything.
+async function mergeRegistryDuplicates(primaryId: string, dupeIds: string[]): Promise<void> {
+  try {
+    const primary = await readRegistryContent(primaryId)
+    const byId = new Map(primary.map((e) => [e.id, e]))
+    for (const dupId of dupeIds) {
+      const entries = await readRegistryContent(dupId)
+      for (const e of entries) {
+        const existing = byId.get(e.id)
+        byId.set(e.id, existing
+          ? { ...e, ...existing, exerciseSettings: { ...(e.exerciseSettings ?? {}), ...(existing.exerciseSettings ?? {}) } }
+          : e)
+      }
+    }
+    await writeRegistryContent(primaryId, [...byId.values()])
+    for (const dupId of dupeIds) {
+      await authFetch(`${DRIVE_BASE}/files/${dupId}`, { method: 'DELETE' })
+    }
+  } catch {}
+}
+
 async function getOrCreateRegistry(): Promise<string> {
   const cached = localStorage.getItem(REGISTRY_KEY)
   if (cached) {
@@ -40,14 +63,17 @@ async function getOrCreateRegistry(): Promise<string> {
   }
 
   const q = encodeURIComponent("name='repsheets.registry'")
+  // Oldest first so every device converges on the same file
   const searchRes = await authFetch(
-    `${DRIVE_BASE}/files?spaces=appDataFolder&q=${q}&fields=files(id)&pageSize=1`
+    `${DRIVE_BASE}/files?spaces=appDataFolder&q=${q}&fields=files(id)&orderBy=createdTime&pageSize=10`
   )
   if (searchRes.ok) {
     const data = await searchRes.json()
     if (data.files?.length > 0) {
-      localStorage.setItem(REGISTRY_KEY, data.files[0].id)
-      return data.files[0].id
+      const [primary, ...dupes] = data.files as Array<{ id: string }>
+      if (dupes.length > 0) await mergeRegistryDuplicates(primary.id, dupes.map((d) => d.id))
+      localStorage.setItem(REGISTRY_KEY, primary.id)
+      return primary.id
     }
   }
 
@@ -64,7 +90,9 @@ async function getOrCreateRegistry(): Promise<string> {
 
 async function readRegistryContent(fileId: string): Promise<RegistryEntry[]> {
   const res = await authFetch(`${DRIVE_BASE}/files/${fileId}?alt=media`)
-  if (!res.ok) return []
+  // Must throw, not return [] — writers do read-modify-write, and treating a
+  // transient failure as an empty registry would wipe every entry on write
+  if (!res.ok) throw new Error('Failed to read registry')
   try {
     const text = await res.text()
     if (!text.trim()) return []
@@ -167,6 +195,38 @@ async function migrateOldJoinedSheets(): Promise<void> {
 
 // ─── Athlete alias ─────────────────────────────────────────────────────────
 
+// If the primary alias file is empty but a duplicate has a value, keep it;
+// then delete the duplicates. Best-effort — abort without deleting on error.
+async function mergeAliasDuplicates(primaryId: string, dupeIds: string[]): Promise<void> {
+  try {
+    const readAliasFile = async (fileId: string): Promise<string | null> => {
+      const res = await authFetch(`${DRIVE_BASE}/files/${fileId}?alt=media`)
+      if (!res.ok) throw new Error('Failed to read alias file')
+      const text = await res.text()
+      if (!text.trim()) return null
+      try { return JSON.parse(text).alias ?? null } catch { return null }
+    }
+    const primaryAlias = await readAliasFile(primaryId)
+    if (primaryAlias === null) {
+      for (const dupId of dupeIds) {
+        const alias = await readAliasFile(dupId)
+        if (alias !== null) {
+          const res = await authFetch(`${UPLOAD_BASE}/${primaryId}?uploadType=media`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ alias }),
+          })
+          if (!res.ok) throw new Error('Failed to write alias')
+          break
+        }
+      }
+    }
+    for (const dupId of dupeIds) {
+      await authFetch(`${DRIVE_BASE}/files/${dupId}`, { method: 'DELETE' })
+    }
+  } catch {}
+}
+
 async function getAliasFileId(): Promise<string> {
   const cached = localStorage.getItem(ALIAS_KEY)
   if (cached) {
@@ -181,14 +241,17 @@ async function getAliasFileId(): Promise<string> {
   }
 
   const q = encodeURIComponent("name='repsheets.alias'")
+  // Oldest first so every device converges on the same file
   const searchRes = await authFetch(
-    `${DRIVE_BASE}/files?spaces=appDataFolder&q=${q}&fields=files(id)&pageSize=1`
+    `${DRIVE_BASE}/files?spaces=appDataFolder&q=${q}&fields=files(id)&orderBy=createdTime&pageSize=10`
   )
   if (searchRes.ok) {
     const data = await searchRes.json()
     if (data.files?.length > 0) {
-      localStorage.setItem(ALIAS_KEY, data.files[0].id)
-      return data.files[0].id
+      const [primary, ...dupes] = data.files as Array<{ id: string }>
+      if (dupes.length > 0) await mergeAliasDuplicates(primary.id, dupes.map((d) => d.id))
+      localStorage.setItem(ALIAS_KEY, primary.id)
+      return primary.id
     }
   }
 
@@ -258,13 +321,17 @@ export async function listRepSheets(): Promise<RepSheet[]> {
   if (!res.ok) throw new Error('Failed to list sheets')
   const data = await res.json()
 
+  const files: Array<{ id: string; name: string; owners?: Array<{ displayName?: string; emailAddress?: string }> }> =
+    data.files ?? []
+  const fileChecks = await Promise.all(files.map((f) => checkRepSheetsSchema(f.id)))
+
   const sheets: RepSheet[] = []
-  for (const file of data.files ?? []) {
-    const info = await checkRepSheetsSchema(file.id)
+  files.forEach((file, i) => {
+    const info = fileChecks[i]
     if (info.hasSchema) {
       const ownerEmail = file.owners?.[0]?.emailAddress ?? ''
       const isOwner = currentUser?.email === ownerEmail
-      if (isOwner && info.isTemplate) continue
+      if (isOwner && info.isTemplate) return
       sheets.push({
         spreadsheetId: file.id,
         name: file.name,
@@ -274,28 +341,27 @@ export async function listRepSheets(): Promise<RepSheet[]> {
         isTemplate: info.isTemplate,
       })
     }
-  }
+  })
 
   // Supplement with registry entries (joined/loaded sheets not visible via drive.file)
   const registry = await readRegistry()
   const foundIds = new Set(sheets.map((s) => s.spreadsheetId))
-  for (const entry of registry) {
-    if (foundIds.has(entry.id)) continue
-    try {
-      const info = await checkRepSheetsSchema(entry.id)
-      if (!info.hasSchema) continue
-      const isOwner = currentUser?.email === entry.ownerEmail
-      if (isOwner && info.isTemplate) continue
-      sheets.push({
-        spreadsheetId: entry.id,
-        name: entry.name,
-        owner: entry.owner,
-        ownerEmail: entry.ownerEmail,
-        isOwner,
-        isTemplate: info.isTemplate,
-      })
-    } catch {}
-  }
+  const pending = registry.filter((entry) => !foundIds.has(entry.id))
+  const registryChecks = await Promise.all(pending.map((entry) => checkRepSheetsSchema(entry.id)))
+  pending.forEach((entry, i) => {
+    const info = registryChecks[i]
+    if (!info.hasSchema) return
+    const isOwner = currentUser?.email === entry.ownerEmail
+    if (isOwner && info.isTemplate) return
+    sheets.push({
+      spreadsheetId: entry.id,
+      name: entry.name,
+      owner: entry.owner,
+      ownerEmail: entry.ownerEmail,
+      isOwner,
+      isTemplate: info.isTemplate,
+    })
+  })
 
   return sheets
 }

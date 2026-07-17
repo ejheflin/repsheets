@@ -13,12 +13,12 @@ import { ExerciseHistorySheet } from './ExerciseHistorySheet'
 import { SupersetGroup } from './SupersetGroup'
 import { FinishWorkoutSheet } from './FinishWorkoutSheet'
 import { RoutineUpdatePrompt } from './RoutineUpdatePrompt'
-import { useWorkout } from '../../data/useWorkout'
+import { useWorkout, StaleEditError } from '../../data/useWorkout'
 import { useLogs } from '../../data/useLogs'
 import { useSheetContext } from '../../data/useSheetContext'
 import { useAuth } from '../../auth/useAuth'
 import { listRepSheets } from '../../sheets/driveApi'
-import { fetchLogEntriesWithRows, type IndexedLogEntry } from '../../sheets/sheetsApi'
+import { fetchLogEntriesWithRows, updateRoutineSetCounts, type IndexedLogEntry } from '../../sheets/sheetsApi'
 import { estimateOneRepMax } from '../../workout/oneRepMax'
 import { useExerciseSettings } from '../../data/useExerciseSettings'
 import type { WorkoutExercise } from '../../types'
@@ -42,6 +42,12 @@ interface WorkoutTabProps {
   onGoToRoutines: () => void
 }
 
+interface RoutineUpdateState {
+  program: string
+  routine: string
+  exercises: WorkoutExercise[]
+}
+
 export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const {
     workout, toggleSet, toggleExercise, updateSet, updateAllSets, updateNotes,
@@ -54,8 +60,8 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const [showFinish, setShowFinish] = useState(false)
   const [showDiscard, setShowDiscard] = useState(false)
   const [scrolled, setScrolled] = useState(false)
-  const [routineUpdateExercises, setRoutineUpdateExercises] = useState<WorkoutExercise[] | null>(null)
-  const [showSavedToast, setShowSavedToast] = useState(false)
+  const [routineUpdatePrompt, setRoutineUpdatePrompt] = useState<RoutineUpdateState | null>(null)
+  const [toast, setToast] = useState<{ text: string; isError?: boolean } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([])
   const [confirmEditSession, setConfirmEditSession] = useState<RecentSession | null>(null)
@@ -217,19 +223,59 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
     setConfirmEditSession(null)
   }, [loadPastWorkout])
 
-  const savedToast = showSavedToast && (
-    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-[#22c55e] text-white px-5 py-2.5 rounded-full text-sm font-semibold shadow-lg pointer-events-none">
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const showToast = useCallback((text: string, isError = false) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current)
+    setToast({ text, isError })
+    toastTimer.current = setTimeout(() => setToast(null), 2500)
+  }, [])
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current) }, [])
+
+  const savedToast = toast && (
+    <div className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 ${toast.isError ? 'bg-[#ef4444]' : 'bg-[#22c55e]'} text-white px-5 py-2.5 rounded-full text-sm font-semibold shadow-lg pointer-events-none`}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="20 6 9 17 4 12" />
+        {toast.isError ? (
+          <>
+            <line x1="6" y1="6" x2="18" y2="18" />
+            <line x1="18" y1="6" x2="6" y2="18" />
+          </>
+        ) : (
+          <polyline points="20 6 9 17 4 12" />
+        )}
       </svg>
-      Workout saved
+      {toast.text}
     </div>
+  )
+
+  const handleRoutineUpdate = async () => {
+    if (!routineUpdatePrompt || !spreadsheetId) return
+    const { program, routine, exercises } = routineUpdatePrompt
+    setRoutineUpdatePrompt(null)
+    try {
+      const updated = await updateRoutineSetCounts(
+        spreadsheetId,
+        exercises.map((ex) => ({ program, routine, exercise: ex.exercise, sets: ex.sets.length }))
+      )
+      showToast(updated > 0 ? 'Routine updated' : 'Routine unchanged')
+    } catch {
+      showToast('Routine update failed', true)
+    }
+  }
+
+  // The prompt appears after finishing, when no workout is active anymore —
+  // it must render in both branches
+  const routineUpdateSheet = routineUpdatePrompt && (
+    <RoutineUpdatePrompt
+      exercises={routineUpdatePrompt.exercises}
+      onUpdate={handleRoutineUpdate}
+      onDismiss={() => setRoutineUpdatePrompt(null)} />
   )
 
   if (!workout) {
     return (
       <>
         {savedToast}
+        {routineUpdateSheet}
         {showPRCelebration && <PRCelebrationImage onDismiss={() => setShowPRCelebration(false)} />}
         <div className="text-center mt-20">
           <p className="text-gray-400">No workout in progress.</p>
@@ -249,7 +295,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
               <tbody>
                 {recentSessions.map((s) => (
                   <tr
-                    key={`${s.date}||${s.routine}`}
+                    key={`${s.date}||${s.program}||${s.routine}`}
                     onClick={() => setConfirmEditSession(s)}
                     className="border-b border-white/5 cursor-pointer active:bg-white/5"
                   >
@@ -291,14 +337,15 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
   const allChecked = workout.exercises.every((ex) => ex.sets.every((s) => s.completed))
 
   const doFinish = async (logOnlyCompleted: boolean) => {
+    if (!workout) return
+    const { program, routine } = workout
     const hasPR = prExerciseNames.size > 0
     const result = await finishWorkout(logOnlyCompleted)
     setShowFinish(false)
     if (result) {
       setSessionsFetchKey((k) => k + 1)
       if (hasPR && [...prExerciseNames].some((n) => top3HeaviestExercises.has(n))) setShowPRCelebration(true)
-      setShowSavedToast(true)
-      setTimeout(() => setShowSavedToast(false), 2500)
+      showToast('Workout saved')
     }
     if (result && result.exercisesWithAddedSets.length > 0 && spreadsheetId) {
       // Only prompt to update routine if the user owns the sheet
@@ -306,7 +353,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
         const sheets = await listRepSheets()
         const activeSheet = sheets.find((s) => s.spreadsheetId === spreadsheetId)
         if (activeSheet?.isOwner) {
-          setRoutineUpdateExercises(result.exercisesWithAddedSets)
+          setRoutineUpdatePrompt({ program, routine, exercises: result.exercisesWithAddedSets })
         }
       } catch {
         // If we can't check, skip the prompt
@@ -329,11 +376,19 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
 
   const handleSave = async () => {
     setIsSaving(true)
-    await saveEditedWorkout()
-    setIsSaving(false)
-    setSessionsFetchKey((k) => k + 1)
-    setShowSavedToast(true)
-    setTimeout(() => setShowSavedToast(false), 2500)
+    try {
+      await saveEditedWorkout()
+      setSessionsFetchKey((k) => k + 1)
+      showToast('Workout saved')
+    } catch (e) {
+      if (e instanceof StaleEditError) {
+        showToast('Sheet changed — reopen this workout to edit', true)
+      } else {
+        showToast('Save failed — check your connection', true)
+      }
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   // Group consecutive exercises with the same supersetGroup
@@ -447,12 +502,7 @@ export function WorkoutTab({ onGoToRoutines }: WorkoutTabProps) {
           onCancel={() => setShowFinish(false)} />
       )}
 
-      {routineUpdateExercises && (
-        <RoutineUpdatePrompt
-          exercises={routineUpdateExercises}
-          onUpdate={() => setRoutineUpdateExercises(null)}
-          onDismiss={() => setRoutineUpdateExercises(null)} />
-      )}
+      {routineUpdateSheet}
 
       {historyExercise && workout && (
         <ExerciseHistorySheet

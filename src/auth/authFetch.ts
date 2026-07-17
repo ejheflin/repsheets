@@ -13,6 +13,17 @@ export class AuthExpiredError extends Error {
  * If worker is configured, auto-refreshes on 401 using the refresh token.
  * Otherwise throws AuthExpiredError for the UI to handle.
  */
+// Single-flight: many requests can 401 at once on app load; they must share
+// one refresh instead of each hitting the worker (or GIS) independently.
+let refreshInFlight: ReturnType<typeof silentRefresh> | null = null
+
+function sharedSilentRefresh() {
+  if (!refreshInFlight) {
+    refreshInFlight = silentRefresh().finally(() => { refreshInFlight = null })
+  }
+  return refreshInFlight
+}
+
 export async function authFetch(url: string, init?: RequestInit): Promise<Response> {
   const user = getStoredUser()
   if (!user) throw new AuthExpiredError()
@@ -24,10 +35,12 @@ export async function authFetch(url: string, init?: RequestInit): Promise<Respon
 
   if (res.status === 401 && AUTH_WORKER_URL) {
     // Try silent refresh with the worker
-    const refreshed = await silentRefresh()
+    const refreshed = await sharedSilentRefresh()
     if (refreshed) {
       headers.set('Authorization', `Bearer ${refreshed.accessToken}`)
-      return fetch(url, { ...init, headers })
+      const retry = await fetch(url, { ...init, headers })
+      if (retry.status === 401) throw new AuthExpiredError()
+      return retry
     }
   }
 

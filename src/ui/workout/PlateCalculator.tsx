@@ -42,12 +42,16 @@ function getPlates(weight: number, unit: string, available: number[], plateCount
   let remaining = (weight - barWeight) / 2
   if (remaining <= 0) return []
 
+  // Hard cap so a fat-fingered weight (1325 instead of 132.5) can't render
+  // hundreds of plate rects and freeze the row
+  const MAX_PLATES_PER_SIDE = 12
+
   const plates: number[] = []
   for (const plate of usablePlates) {
     const total = plateCounts[plate] ?? null
     const maxPerSide = total !== null ? Math.floor(total / 2) : Infinity
     let used = 0
-    while (remaining >= plate && used < maxPerSide) {
+    while (remaining >= plate && used < maxPerSide && plates.length < MAX_PLATES_PER_SIDE) {
       plates.push(plate)
       remaining -= plate
       used++
@@ -80,7 +84,10 @@ export function PlateCalculator({ weight, unit, exercise }: PlateCalculatorProps
   useEffect(() => {
     const handler = (e: Event) => setSettings((e as CustomEvent<PlateSettingsData>).detail)
     window.addEventListener('plateSettingsChanged', handler)
-    return () => window.removeEventListener('plateSettingsChanged', handler)
+    return () => {
+      window.removeEventListener('plateSettingsChanged', handler)
+      if (longPressTimer.current) clearTimeout(longPressTimer.current)
+    }
   }, [])
 
   const handlePointerDown = useCallback(() => {

@@ -14,9 +14,11 @@ function normalizeDate(raw: string): string {
   if (!raw) return raw
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw
 
+  // Accept datetime serials too (e.g. 45123.75 from NOW()) — the fraction
+  // is the time of day; the whole part is the date
   const serial = Number(raw)
-  if (Number.isInteger(serial) && serial > 1) {
-    const date = new Date(Math.round((serial - 25569) * 86400000))
+  if (Number.isFinite(serial) && serial > 1) {
+    const date = new Date(Math.round((Math.floor(serial) - 25569) * 86400000))
     return date.toISOString().split('T')[0]
   }
 
@@ -48,55 +50,43 @@ async function fetchPublicRange(spreadsheetId: string, range: string): Promise<s
   return data.values ?? []
 }
 
+/**
+ * Percentages must be explicit ("75%", "TM", "1RM") — bare decimals are real
+ * weights/distances, and values keep their decimals so 62.5 survives.
+ * Load parsing (pct/RPE/RIR/basis) and rep ranges live in routineSerialization.
+ */
+export function mapRoutineRow(row: string[]): RoutineRow {
+  const parsed = parseRoutineValue(row[5])
+  const pr = parseReps(row[4])
+  return {
+    program: row[0] ?? '',
+    routine: row[1] ?? '',
+    exercise: row[2] ?? '',
+    sets: String(row[3] ?? '1'),
+    reps: pr.reps,
+    ...(pr.repsMax !== undefined ? { repsMax: pr.repsMax } : {}),
+    ...(pr.repsOpen ? { repsOpen: true } : {}),
+    value: parsed.value,
+    pct: parsed.pct,
+    basis: parsed.basis ?? undefined,
+    ...(parsed.rpe !== undefined ? { rpe: parsed.rpe } : {}),
+    ...(parsed.rir !== undefined ? { rir: parsed.rir } : {}),
+    unit: row[6] ?? '',
+    notes: row[7] ?? '',
+  }
+}
+
 /** Fetch routines from a publicly shared sheet (for import flow) */
 export async function fetchPublicRoutineRows(spreadsheetId: string): Promise<RoutineRow[]> {
   const rows = await fetchPublicRange(spreadsheetId, 'Routines!A:H')
   if (rows.length < 2) return []
-  return rows.slice(1).map((row) => {
-    const parsed = parseRoutineValue(row[5])
-    const pr = parseReps(row[4])
-    return {
-      program: row[0] ?? '',
-      routine: row[1] ?? '',
-      exercise: row[2] ?? '',
-      sets: String(row[3] ?? '1'),
-      reps: pr.reps,
-      ...(pr.repsMax !== undefined ? { repsMax: pr.repsMax } : {}),
-      ...(pr.repsOpen ? { repsOpen: true } : {}),
-      value: parsed.value,
-      pct: parsed.pct,
-      basis: parsed.basis ?? undefined,
-      ...(parsed.rpe !== undefined ? { rpe: parsed.rpe } : {}),
-      ...(parsed.rir !== undefined ? { rir: parsed.rir } : {}),
-      unit: row[6] ?? '',
-      notes: row[7] ?? '',
-    }
-  })
+  return rows.slice(1).map(mapRoutineRow)
 }
 
 export async function fetchRoutineRows(spreadsheetId: string): Promise<RoutineRow[]> {
   const rows = await fetchRange(spreadsheetId, 'Routines!A:H')
   if (rows.length < 2) return []
-  return rows.slice(1).map((row) => {
-    const parsed = parseRoutineValue(row[5])
-    const pr = parseReps(row[4])
-    return {
-      program: row[0] ?? '',
-      routine: row[1] ?? '',
-      exercise: row[2] ?? '',
-      sets: String(row[3] ?? '1'),
-      reps: pr.reps,
-      ...(pr.repsMax !== undefined ? { repsMax: pr.repsMax } : {}),
-      ...(pr.repsOpen ? { repsOpen: true } : {}),
-      value: parsed.value,
-      pct: parsed.pct,
-      basis: parsed.basis ?? undefined,
-      ...(parsed.rpe !== undefined ? { rpe: parsed.rpe } : {}),
-      ...(parsed.rir !== undefined ? { rir: parsed.rir } : {}),
-      unit: row[6] ?? '',
-      notes: row[7] ?? '',
-    }
-  })
+  return rows.slice(1).map(mapRoutineRow)
 }
 
 export async function fetchLogEntries(spreadsheetId: string): Promise<LogEntry[]> {
@@ -155,6 +145,84 @@ export async function updateLogRows(
     }),
   })
   if (!res.ok) throw new Error('Failed to batch update log rows')
+}
+
+/**
+ * Physically deletes Log rows (1-based sheet indexes). Deletes bottom-up so
+ * earlier deletions don't shift the indexes of later ones.
+ */
+export async function deleteLogRows(spreadsheetId: string, rowIndexes: number[]): Promise<void> {
+  if (rowIndexes.length === 0) return
+
+  const metaRes = await authFetch(`${SHEETS_BASE}/${spreadsheetId}?fields=sheets.properties`)
+  if (!metaRes.ok) throw new Error('Failed to load spreadsheet metadata')
+  const meta = await metaRes.json()
+  const logSheet = (meta.sheets ?? []).find(
+    (s: { properties?: { title?: string; sheetId?: number } }) => s.properties?.title === 'Log'
+  )
+  if (logSheet?.properties?.sheetId == null) throw new Error('Log tab not found')
+  const gid = logSheet.properties.sheetId
+
+  const requests = [...new Set(rowIndexes)].sort((a, b) => b - a).map((rowIndex) => ({
+    deleteDimension: {
+      range: { sheetId: gid, dimension: 'ROWS', startIndex: rowIndex - 1, endIndex: rowIndex },
+    },
+  }))
+  const res = await authFetch(`${SHEETS_BASE}/${spreadsheetId}:batchUpdate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requests }),
+  })
+  if (!res.ok) throw new Error('Failed to delete log rows')
+}
+
+export interface RoutineSetCountUpdate {
+  program: string
+  routine: string
+  exercise: string
+  sets: number
+}
+
+/**
+ * Writes new set counts to the Routines tab for exercises the user added sets to.
+ * Only updates exercises that map to exactly one Routines row — multi-row
+ * exercises (per-set percentage schemes) have no single "sets" cell to change.
+ * Returns how many rows were updated.
+ */
+export async function updateRoutineSetCounts(
+  spreadsheetId: string,
+  updates: RoutineSetCountUpdate[]
+): Promise<number> {
+  if (updates.length === 0) return 0
+  const rows = await fetchRange(spreadsheetId, 'Routines!A:H')
+
+  const data: Array<{ range: string; values: string[][] }> = []
+  for (const u of updates) {
+    const matches: number[] = []
+    rows.forEach((row, i) => {
+      if (i === 0) return
+      if (
+        String(row[0] ?? '') === u.program &&
+        String(row[1] ?? '') === u.routine &&
+        String(row[2] ?? '') === u.exercise
+      ) matches.push(i)
+    })
+    if (matches.length !== 1) continue
+    const current = String(rows[matches[0]][3] ?? '').trim()
+    // Preserve a superset suffix letter, e.g. "3a" -> "5a"
+    const suffix = current.match(/^\d+([a-zA-Z])$/)?.[1] ?? ''
+    data.push({ range: `Routines!D${matches[0] + 1}`, values: [[`${u.sets}${suffix}`]] })
+  }
+  if (data.length === 0) return 0
+
+  const url = `${SHEETS_BASE}/${spreadsheetId}/values:batchUpdate`
+  const res = await authFetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data }),
+  })
+  if (!res.ok) throw new Error('Failed to update routine set counts')
+  return data.length
 }
 
 export async function appendLogEntries(spreadsheetId: string, entries: LogEntry[]): Promise<void> {

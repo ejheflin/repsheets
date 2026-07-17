@@ -2,6 +2,8 @@ import { useRef, useEffect } from 'react'
 import { rpeToPct, rirToPct } from '../../workout/rpe'
 import { roundWeight, measureOf } from '../../data/measure'
 import { TimeInput } from './TimeInput'
+import { parseNumericInput } from '../../utils'
+import { useDecimalInput } from '../shared/useDecimalInput'
 
 interface SetRowProps {
   setNumber: number
@@ -71,6 +73,7 @@ export function SetRow({
   // re-enter (onFocus resets it). Prevents the autofill select-on-appear effect from
   // re-selecting and clobbering keystrokes as the user types successive digits.
   const userEditing = useRef(false)
+  const valueInput = useDecimalInput(value, onValueChange)
   useEffect(() => {
     const prev = prevValue.current
     prevValue.current = value
@@ -88,7 +91,7 @@ export function SetRow({
           className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center flex-shrink-0 active:bg-[#2a2a4a]"
         >−</button>
         <input type="text" inputMode="numeric" value={reps ?? ''}
-          onChange={(e) => onRepsChange(e.target.value ? Number(e.target.value) : null)}
+          onChange={(e) => { const n = parseNumericInput(e.target.value); if (n !== undefined) onRepsChange(n) }}
           onFocus={(e) => e.target.select()}
           className={`w-full min-w-0 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${repsFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
           placeholder="—" />
@@ -109,7 +112,8 @@ export function SetRow({
               value={achievedValue != null ? achievedValue : ''}
               placeholder={prescribed != null ? String(prescribed) : ''}
               onChange={(e) => {
-                const v = e.target.value ? Number(e.target.value) : null
+                const v = parseNumericInput(e.target.value)
+                if (v === undefined) return
                 if (rpeMode) onAchievedRpeChange?.(v)
                 else onAchievedRirChange?.(v)
               }}
@@ -125,8 +129,9 @@ export function SetRow({
           <TimeInput value={value} onChange={onValueChange}
             className={`w-full min-w-0 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`} />
         ) : (
-          <input ref={valueRef} type="text" inputMode="decimal" value={value != null ? Math.round(value) : ''}
-            onChange={(e) => { userEditing.current = true; onValueChange(e.target.value ? Number(e.target.value) : null) }}
+          <input ref={valueRef} type="text" inputMode="decimal" value={valueInput.text}
+            onChange={(e) => { userEditing.current = true; valueInput.handleChange(e.target.value) }}
+            onBlur={valueInput.handleBlur}
             onFocus={(e) => { userEditing.current = false; e.target.select() }}
             className={`w-full min-w-0 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
             placeholder="—" />

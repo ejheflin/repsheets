@@ -24,7 +24,7 @@ export function SheetProvider({ children }: { children: ReactNode }) {
     getPreference('activeSheet').then((id) => {
       if (id) setId(id)
       setLoaded(true)
-    })
+    }).catch(() => setLoaded(true))
   }, [])
 
   const setSpreadsheetId = (id: string) => {

@@ -68,6 +68,21 @@ export function OnboardingTour() {
     return el as HTMLElement | null
   }, [step])
 
+  const dismiss = useCallback(() => {
+    localStorage.setItem(TOUR_KEY, '1')
+    setStep(-1)
+  }, [])
+
+  const next = useCallback(() => {
+    setStep((s) => {
+      if (s === STEPS.length - 1) {
+        localStorage.setItem(TOUR_KEY, '1')
+        return -1
+      }
+      return s + 1
+    })
+  }, [])
+
   useEffect(() => {
     if (step < 0) return
     const update = () => {
@@ -116,25 +131,14 @@ export function OnboardingTour() {
       el.addEventListener('click', handler, { once: true })
       return () => el.removeEventListener('click', handler)
     }
-  }, [step, findTarget])
+    // targetRect in deps: when the poll finds a late-mounting target, this
+    // effect re-runs and attaches the listener it missed the first time
+  }, [step, findTarget, next, targetRect])
 
   if (step < 0 || step >= STEPS.length) return null
 
   const current = STEPS[step]
   const padding = 6
-
-  const dismiss = () => {
-    localStorage.setItem(TOUR_KEY, '1')
-    setStep(-1)
-  }
-
-  const next = () => {
-    if (step === STEPS.length - 1) {
-      dismiss()
-    } else {
-      setStep(step + 1)
-    }
-  }
 
   // Tooltip position — clamped within viewport
   const tooltipWidth = Math.min(260, window.innerWidth - 32)
@@ -160,8 +164,8 @@ export function OnboardingTour() {
 
   return (
     <>
-      {/* Overlay with cutout */}
-      <div ref={overlayRef} className="fixed inset-0 z-50" onClick={dismiss}
+      {/* Overlay with cutout — non-interactive; dismissal is the Skip button */}
+      <div ref={overlayRef} className="fixed inset-0 z-50"
         style={{ pointerEvents: 'none' }}>
         <svg width="100%" height="100%" className="absolute inset-0">
           <defs>

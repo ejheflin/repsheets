@@ -4,7 +4,16 @@ import { useSheetContext } from './useSheetContext'
 import { useAlias } from './AliasProvider'
 import { expandRoutine } from '../workout/setInference'
 import { resolveSetValues } from '../workout/autofill'
-import { fetchRoutineRows, fetchLogEntries, appendLogEntries, updateLogRows, type IndexedLogEntry } from '../sheets/sheetsApi'
+import { fetchRoutineRows, fetchLogEntries, fetchLogEntriesWithRows, appendLogEntries, updateLogRows, deleteLogRows, type IndexedLogEntry } from '../sheets/sheetsApi'
+
+// Thrown when an edit-save can't safely locate its rows anymore (the sheet
+// was modified since the session was loaded)
+export class StaleEditError extends Error {
+  constructor() {
+    super('Sheet rows changed since this session was loaded')
+    this.name = 'StaleEditError'
+  }
+}
 import { localDateString } from '../utils'
 import { saveWorkout, getWorkout, clearWorkout, saveLogs, getLogs, getRoutines, queueLogEntries, saveRoutines } from './db'
 import { checkPendingSync } from './syncEngine'
@@ -67,6 +76,11 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       const w = await getWorkout()
       if (!w) { setIsLoading(false); return }
 
+      // Workouts persisted before sheet-scoping existed belong to the sheet
+      // that was active when they were started — the best guess is the
+      // currently active one (identical to the old behavior)
+      if (!w.spreadsheetId && spreadsheetId) w.spreadsheetId = spreadsheetId
+
       // Backfill pct from cached routines so the target column is present before
       // the async refresh effect runs (fixes saves predating pct support).
       if (spreadsheetId) {
@@ -99,7 +113,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       setWorkout(w)
       setIsLoading(false)
     }
-    load()
+    load().catch(() => setIsLoading(false))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -112,6 +126,8 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   const hasRefreshed = useRef(false)
   useEffect(() => {
     if (hasRefreshed.current || !workout || workout.editMode || !spreadsheetId || !user || isLoading || isLoadingAlias) return
+    // Never refresh a workout from a different sheet's routines/logs
+    if (workout.spreadsheetId && workout.spreadsheetId !== spreadsheetId) return
     hasRefreshed.current = true
 
     const refreshWorkout = async () => {
@@ -147,9 +163,10 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
               ex.notes = matchingExpanded.notes
             }
 
-            // Update autofill values and pct for untouched sets
+            // Update autofill values and pct for untouched sets — "touched"
+            // includes typed-but-unchecked values, not just completed sets
             for (const set of ex.sets) {
-              if (set.completed || set.isAdded) continue
+              if (set.completed || set.isAdded || set.userEdited) continue
               const resolved = resolveSetValues(
                 { exercise: ex.exercise, setNumber: set.setNumber, reps: null, value: null, pct: null, unit: set.unit, notes: '', supersetGroup: null },
                 logs,
@@ -193,15 +210,25 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   ) => {
     if (!spreadsheetId || !user) return
 
+    // Timeout so a stalled connection can't hang "start workout" forever —
+    // rejected fetches fall back to the cached rows below
+    const withTimeout = <T,>(p: Promise<T>): Promise<T> =>
+      Promise.race([
+        p,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), REFRESH_TIMEOUT_MS)
+        ),
+      ])
+
     const [routineResult, logResult] = await Promise.allSettled([
-      fetchRoutineRows(spreadsheetId).then(async (rows) => {
+      withTimeout(fetchRoutineRows(spreadsheetId).then(async (rows) => {
         await saveRoutines(spreadsheetId, rows)
         return rows
-      }),
-      fetchLogEntries(spreadsheetId).then(async (entries) => {
+      })),
+      withTimeout(fetchLogEntries(spreadsheetId).then(async (entries) => {
         await saveLogs(spreadsheetId, entries)
         return entries
-      }),
+      })),
     ])
 
     const filtered = routineResult.status === 'fulfilled'
@@ -256,6 +283,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       routine: routineName,
       exercises,
       startedAt: new Date().toISOString(),
+      spreadsheetId,
     }
 
     setWorkout(state)
@@ -289,6 +317,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       const set = next.exercises[exerciseIdx].sets[setIdx]
       set.value = value
       set.fromPct = true
+      set.userEdited = true
       return next
     })
   }, [])
@@ -304,6 +333,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       const next = structuredClone(prev)
       const set = next.exercises[exerciseIdx].sets[setIdx]
       set[field] = val
+      set.userEdited = true
       if (field === 'value') set.fromPct = false
       return next
     })
@@ -319,6 +349,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       const next = structuredClone(prev)
       next.exercises[exerciseIdx].sets.forEach((s) => {
         s[field] = val
+        s.userEdited = true
         if (field === 'value') s.fromPct = false
       })
       return next
@@ -372,7 +403,10 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       if (!prev) return prev
       const next = structuredClone(prev)
       const ex = next.exercises[exerciseIdx]
-      ex.sets.splice(setIdx, 1)
+      const [removed] = ex.sets.splice(setIdx, 1)
+      if (next.editMode && removed?.origIdentity) {
+        next.editMode.deletedSets = [...(next.editMode.deletedSets ?? []), removed.origIdentity]
+      }
       ex.sets.forEach((s, i) => { s.setNumber = i + 1 })
       return next
     })
@@ -392,7 +426,15 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     setWorkout((prev) => {
       if (!prev) return prev
       const next = structuredClone(prev)
-      next.exercises.splice(exerciseIdx, 1)
+      const [removed] = next.exercises.splice(exerciseIdx, 1)
+      if (next.editMode && removed) {
+        const idents = removed.sets
+          .map((s) => s.origIdentity)
+          .filter((i): i is { exercise: string; set: number } => i != null)
+        if (idents.length > 0) {
+          next.editMode.deletedSets = [...(next.editMode.deletedSets ?? []), ...idents]
+        }
+      }
       return next
     })
   }, [])
@@ -402,6 +444,9 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     if (!trimmed) return
     setWorkout((prev) => {
       if (!prev) return prev
+      // Names are the React keys and dnd-kit ids — a duplicate would break
+      // reordering and collapse both rows onto one key
+      if (prev.exercises.some((ex, i) => i !== exerciseIdx && ex.exercise === trimmed)) return prev
       const next = structuredClone(prev)
       next.exercises[exerciseIdx].exercise = trimmed
       return next
@@ -439,13 +484,14 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
           completed: true,
           isAdded: false,
           rowIndex: e.rowIndex,
+          origIdentity: { exercise: e.exercise, set: e.set },
         })),
       }
     })
 
     const editMode: EditModeState = { originalDate: date, editDate: date, athlete }
-    setWorkout({ program, routine, exercises, startedAt: new Date().toISOString(), editMode })
-  }, [])
+    setWorkout({ program, routine, exercises, startedAt: new Date().toISOString(), spreadsheetId: spreadsheetId ?? undefined, editMode })
+  }, [spreadsheetId])
 
   const updateEditDate = useCallback((date: string) => {
     setWorkout((prev) => {
@@ -457,15 +503,36 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const saveEditedWorkout = useCallback(async () => {
-    if (!workout?.editMode || !spreadsheetId) return
-    const { editDate, athlete } = workout.editMode
+    const targetSheet = workout?.spreadsheetId ?? spreadsheetId
+    if (!workout?.editMode || !targetSheet) return
+    const { originalDate, editDate, athlete } = workout.editMode
+
+    // Re-resolve every target row by its original identity right before
+    // writing — a collaborator may have appended or deleted rows since this
+    // session was loaded, shifting the captured row indexes
+    const currentRows = await fetchLogEntriesWithRows(targetSheet)
+    const sessionRows = currentRows.filter(
+      (r) => r.date === originalDate && r.athlete === athlete &&
+        r.program === workout.program && r.routine === workout.routine
+    )
+    const resolveRow = (ident: { exercise: string; set: number }, loadedIndex?: number): number => {
+      const matches = sessionRows.filter((r) => r.exercise === ident.exercise && r.set === ident.set)
+      if (matches.length === 1) return matches[0].rowIndex
+      const byLoadedIndex = matches.find((r) => r.rowIndex === loadedIndex)
+      if (byLoadedIndex) return byLoadedIndex.rowIndex
+      throw new StaleEditError()
+    }
+
     const updates: Array<{ rowIndex: number; entry: LogEntry }> = []
     for (const ex of workout.exercises) {
       for (const set of ex.sets) {
-        if (set.rowIndex == null) continue
+        if (set.origIdentity == null && set.rowIndex == null) continue
+        const rowIndex = set.origIdentity
+          ? resolveRow(set.origIdentity, set.rowIndex)
+          : set.rowIndex!
         const achieved = loggedAchieved(set)
         updates.push({
-          rowIndex: set.rowIndex,
+          rowIndex,
           entry: {
             date: editDate,
             athlete,
@@ -482,13 +549,20 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         })
       }
     }
-    await updateLogRows(spreadsheetId, updates)
+    const deletedRowIndexes = (workout.editMode.deletedSets ?? []).map((ident) => resolveRow(ident))
+
+    await updateLogRows(targetSheet, updates)
+    // Delete after updating: updates address rows by their pre-delete indexes
+    await deleteLogRows(targetSheet, deletedRowIndexes)
     await clearWorkout()
     setWorkout(null)
   }, [workout, spreadsheetId])
 
   const finishWorkout = useCallback(async (logOnlyCompleted: boolean) => {
-    if (!workout || !spreadsheetId || !user) return
+    // Log to the sheet the workout was started on, not whatever sheet the
+    // user happens to have active now
+    const targetSheet = workout?.spreadsheetId ?? spreadsheetId
+    if (!workout || !targetSheet || !user) return
     if (workout.editMode) return
 
     const today = localDateString()
@@ -515,11 +589,11 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      await appendLogEntries(spreadsheetId, entries)
+      await appendLogEntries(targetSheet, entries)
     } catch {
-      await queueLogEntries(spreadsheetId, entries)
+      await queueLogEntries(targetSheet, entries)
     }
-    await checkPendingSync(spreadsheetId)
+    await checkPendingSync(targetSheet)
 
     const exercisesWithAddedSets = workout.exercises.filter((ex) =>
       ex.sets.some((s) => s.isAdded)
@@ -529,7 +603,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     setWorkout(null)
 
     return { entries, exercisesWithAddedSets }
-  }, [workout, spreadsheetId, user])
+  }, [workout, spreadsheetId, user, alias])
 
   const discardWorkout = useCallback(async () => {
     await clearWorkout()

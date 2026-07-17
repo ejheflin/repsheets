@@ -20,12 +20,14 @@ describe('serializeReps', () => {
 })
 
 describe('parseRoutineValue', () => {
-  it('absolute weight', () => {
+  it('absolute weight, decimals preserved', () => {
     expect(parseRoutineValue('225')).toEqual({ value: 225, pct: null, basis: null })
-    expect(parseRoutineValue('135.5')).toEqual({ value: 136, pct: null, basis: null })
+    expect(parseRoutineValue('135.5')).toEqual({ value: 135.5, pct: null, basis: null })
+    expect(parseRoutineValue('62.5')).toEqual({ value: 62.5, pct: null, basis: null })
   })
-  it('decimal percentage heuristic → 1RM', () => {
-    expect(parseRoutineValue('0.8')).toEqual({ value: null, pct: 80, basis: '1rm' })
+  it('bare 0-1 decimals are literal values, not percentages', () => {
+    expect(parseRoutineValue('0.8')).toEqual({ value: 0.8, pct: null, basis: null })
+    expect(parseRoutineValue('0.5')).toEqual({ value: 0.5, pct: null, basis: null })
   })
   it('percent of 1RM, spacing tolerated', () => {
     expect(parseRoutineValue('80%')).toEqual({ value: null, pct: 80, basis: '1rm' })

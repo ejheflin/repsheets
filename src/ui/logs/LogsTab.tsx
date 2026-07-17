@@ -45,6 +45,7 @@ export function LogsTab() {
   const [showStrongImport, setShowStrongImport] = useState(false)
   const [panes, setPanes] = useState<LogsPaneConfig[]>(loadPaneConfig)
   const [showRenameModal, setShowRenameModal] = useState(false)
+  const [aliasError, setAliasError] = useState('')
   const [renameValue, setRenameValue] = useState('')
   const [isSavingAlias, setIsSavingAlias] = useState(false)
   const renameInputRef = useRef<HTMLInputElement>(null)
@@ -90,12 +91,16 @@ export function LogsTab() {
     const trimmed = renameValue.trim()
     if (!trimmed || !athleteName) return
     setIsSavingAlias(true)
+    setAliasError('')
     try {
       await saveAlias(trimmed, athleteName)
       await refresh()
+      setShowRenameModal(false)
+    } catch {
+      // Keep the modal open — retrying is safe and converges
+      setAliasError('Rename failed — check your connection and try again')
     } finally {
       setIsSavingAlias(false)
-      setShowRenameModal(false)
     }
   }
 
@@ -198,8 +203,9 @@ export function LogsTab() {
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSaveAlias()}
               placeholder="Display name"
-              className="w-full bg-[#1a1a2e] rounded-[10px] px-3 py-2.5 text-base text-white placeholder-gray-500 outline-none mb-3"
+              className={`w-full bg-[#1a1a2e] rounded-[10px] px-3 py-2.5 text-base text-white placeholder-gray-500 outline-none mb-3 ${aliasError ? 'ring-1 ring-red-500' : ''}`}
             />
+            {aliasError && <p className="text-red-400 text-xs mb-3">{aliasError}</p>}
             <div className="flex gap-2">
               <button onClick={() => setShowRenameModal(false)}
                 className="flex-1 py-2.5 rounded-[10px] bg-[#1a1a2e] text-gray-400 text-sm">

@@ -1,61 +1,11 @@
 import { useState, useMemo } from 'react'
 import { useAuth } from '../../auth/useAuth'
 import { useSheetContext } from '../../data/useSheetContext'
-import { appendLogEntries } from '../../sheets/sheetsApi'
+import { appendLogEntries, fetchLogEntries, fetchRoutineRows } from '../../sheets/sheetsApi'
 import { appendRoutineRows } from '../../sheets/driveApi'
+import { parseHevyCsv, type HevyRow, type WeightUnit } from './importCsv'
+import { UnitToggle } from './UnitToggle'
 import type { LogEntry, RoutineRow } from '../../types'
-
-interface HevyRow {
-  title: string
-  startTime: string
-  exerciseTitle: string
-  setIndex: number
-  weightLbs: number | null
-  reps: number
-  distanceMiles: number | null
-  durationSeconds: number | null
-}
-
-function parseHevyCsv(text: string): HevyRow[] {
-  const lines = text.split('\n')
-  if (lines.length < 2) return []
-
-  const rows: HevyRow[] = []
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim()
-    if (!line) continue
-
-    // Parse CSV with quoted fields
-    const fields: string[] = []
-    let current = ''
-    let inQuotes = false
-    for (let j = 0; j < line.length; j++) {
-      if (line[j] === '"') {
-        inQuotes = !inQuotes
-      } else if (line[j] === ',' && !inQuotes) {
-        fields.push(current)
-        current = ''
-      } else {
-        current += line[j]
-      }
-    }
-    fields.push(current)
-
-    if (fields.length < 11) continue
-
-    rows.push({
-      title: fields[0],
-      startTime: fields[1],
-      exerciseTitle: fields[4],
-      setIndex: parseInt(fields[7]) || 0,
-      weightLbs: fields[9] ? parseFloat(fields[9]) : null,
-      reps: parseInt(fields[10]) || 0,
-      distanceMiles: fields[11] ? parseFloat(fields[11]) : null,
-      durationSeconds: fields[12] ? parseFloat(fields[12]) : null,
-    })
-  }
-  return rows
-}
 
 function parseHevyDate(dateStr: string): string {
   // "7 Apr 2026, 05:12" → "2026-04-07"
@@ -77,7 +27,7 @@ function formatAthleteName(name: string): string {
   return `${parts[0]} ${parts[parts.length - 1][0]}`
 }
 
-function reverseEngineerRoutines(rows: HevyRow[], programName: string): RoutineRow[] {
+function reverseEngineerRoutines(rows: HevyRow[], programName: string, unit: WeightUnit): RoutineRow[] {
   // Group by routine title, take the most recent instance of each
   const routineLatest = new Map<string, HevyRow[]>()
   const routineDates = new Map<string, string>()
@@ -104,7 +54,7 @@ function reverseEngineerRoutines(rows: HevyRow[], programName: string): RoutineR
         exercises.set(row.exerciseTitle, {
           sets: row.setIndex + 1,
           reps: row.reps,
-          value: row.weightLbs,
+          value: row.weight,
         })
       }
     }
@@ -117,7 +67,7 @@ function reverseEngineerRoutines(rows: HevyRow[], programName: string): RoutineR
         sets: String(info.sets),
         reps: info.reps || null,
         value: info.value,
-        unit: 'lbs',
+        unit,
         notes: '',
       })
     }
@@ -125,6 +75,9 @@ function reverseEngineerRoutines(rows: HevyRow[], programName: string): RoutineR
 
   return routineRows
 }
+
+const logKey = (e: { date: string; routine: string; exercise: string; set: number }) =>
+  `${e.date}|${e.routine}|${e.exercise}|${e.set}`
 
 interface ImportHevyModalProps {
   onClose: () => void
@@ -136,9 +89,11 @@ export function ImportHevyModal({ onClose, onDone }: ImportHevyModalProps) {
   const { spreadsheetId } = useSheetContext()
   const [csvData, setCsvData] = useState<HevyRow[] | null>(null)
   const [programName, setProgramName] = useState('HEVY Import')
+  const [unit, setUnit] = useState<WeightUnit>('lbs')
   const [isImporting, setIsImporting] = useState(false)
   const [error, setError] = useState('')
   const [step, setStep] = useState<'upload' | 'preview' | 'done'>('upload')
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null)
 
   const stats = useMemo(() => {
     if (!csvData) return null
@@ -155,13 +110,18 @@ export function ImportHevyModal({ onClose, onDone }: ImportHevyModalProps) {
     const reader = new FileReader()
     reader.onload = (ev) => {
       const text = ev.target?.result as string
-      const rows = parseHevyCsv(text)
-      if (rows.length === 0) {
-        setError('No data found in CSV')
-        return
+      try {
+        const result = parseHevyCsv(text)
+        if (result.rows.length === 0) {
+          setError('No data found in CSV')
+          return
+        }
+        setCsvData(result.rows)
+        setUnit(result.unit)
+        setStep('preview')
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e))
       }
-      setCsvData(rows)
-      setStep('preview')
     }
     reader.readAsText(file)
   }
@@ -183,18 +143,35 @@ export function ImportHevyModal({ onClose, onDone }: ImportHevyModalProps) {
         exercise: row.exerciseTitle,
         set: row.setIndex + 1,
         reps: row.reps,
-        value: row.weightLbs,
-        unit: 'lbs',
+        value: row.weight,
+        unit,
         notes: '',
       }))
 
       // Reverse engineer routines
-      const routineRows = reverseEngineerRoutines(csvData, programName)
+      const routineRows = reverseEngineerRoutines(csvData, programName, unit)
 
-      // Write to sheet
-      await appendRoutineRows(spreadsheetId, routineRows)
-      await appendLogEntries(spreadsheetId, logEntries)
+      // Skip anything already in the sheet so re-importing the same export
+      // can't duplicate history (also makes a half-failed import retryable)
+      const [existingLogs, existingRoutines] = await Promise.all([
+        fetchLogEntries(spreadsheetId),
+        fetchRoutineRows(spreadsheetId),
+      ])
+      const existingLogKeys = new Set(existingLogs.map(logKey))
+      const newEntries = logEntries.filter((e) => !existingLogKeys.has(logKey(e)))
+      const existingRoutineKeys = new Set(
+        existingRoutines.map((r) => `${r.program}|${r.routine}|${r.exercise}`)
+      )
+      const newRoutineRows = routineRows.filter(
+        (r) => !existingRoutineKeys.has(`${r.program}|${r.routine}|${r.exercise}`)
+      )
 
+      // Logs first: history is the irreplaceable part, and a failure after
+      // this point heals on retry thanks to the dedupe above
+      if (newEntries.length > 0) await appendLogEntries(spreadsheetId, newEntries)
+      if (newRoutineRows.length > 0) await appendRoutineRows(spreadsheetId, newRoutineRows)
+
+      setImportResult({ imported: newEntries.length, skipped: logEntries.length - newEntries.length })
       setStep('done')
     } catch (e) {
       console.error('Import failed:', e)
@@ -252,6 +229,11 @@ export function ImportHevyModal({ onClose, onDone }: ImportHevyModalProps) {
               onChange={(e) => setProgramName(e.target.value)}
               className="w-full bg-[#2a2a4a] border border-[#3a3a5a] rounded-[10px] px-4 py-3 text-base outline-none focus:border-[#6c63ff] mb-4" />
 
+            <p className="text-xs text-gray-400 mb-2">Weight unit (detected from export)</p>
+            <div className="mb-4">
+              <UnitToggle unit={unit} onChange={setUnit} />
+            </div>
+
             {error && <p className="text-red-400 text-xs text-center mb-3">{error}</p>}
 
             <button onClick={handleImport} disabled={isImporting || !programName.trim()}
@@ -269,7 +251,9 @@ export function ImportHevyModal({ onClose, onDone }: ImportHevyModalProps) {
           <>
             <h2 className="text-base font-bold text-center mb-2">Import Complete!</h2>
             <p className="text-xs text-gray-400 text-center mb-4">
-              {stats?.sets} sets imported across {stats?.routines} routines. Routines have been reverse-engineered from your workout history.
+              {importResult?.imported ?? 0} sets imported across {stats?.routines} routines.
+              {importResult && importResult.skipped > 0 && ` ${importResult.skipped} sets were already in this sheet and were skipped.`}
+              {' '}Routines have been reverse-engineered from your workout history.
             </p>
             <button onClick={() => { onDone(); onClose() }}
               className="w-full bg-[#6c63ff] rounded-[10px] p-3 text-center font-semibold text-sm">

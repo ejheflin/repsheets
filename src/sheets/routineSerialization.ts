@@ -42,15 +42,16 @@ export function parseRoutineValue(raw: string | number | null | undefined): Pars
     if (!Number.isFinite(num)) return { value: null, pct: null, basis: null }
     if (num < 0) return { value: null, pct: null, basis: null }
 
-    // A bare value between 0 and 1 (e.g. 0.8) is read as a fraction of 1RM, matching how routines have historically encoded percentages.
-    const decimalPct = num > 0 && num < 1 && !hasPercentSign
-    const isPercent = hasPercentSign || hasTM || has1RM || decimalPct
+    // Percentages must be explicit ("%", "TM", "1RM") — bare decimals are
+    // real weights/distances (0.75 kg, 0.5 mi), and values keep their
+    // decimals so fractional weights like 62.5 survive
+    const isPercent = hasPercentSign || hasTM || has1RM
 
     if (isPercent) {
-      const pct = Math.round(decimalPct ? num * 100 : num)
+      const pct = Math.round(num)
       return { value: null, pct, basis: hasTM ? 'tm' : '1rm' }
     }
-    return { value: Math.round(num), pct: null, basis: null }
+    return { value: num, pct: null, basis: null }
   })()
 
   return {
