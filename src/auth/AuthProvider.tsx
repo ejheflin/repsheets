@@ -1,7 +1,9 @@
 import { createContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import type { AuthUser } from '../types'
 import { getStoredUser, initLogin, logout as doLogout, upgradeStoredToken, handleRedirectCode } from './googleAuth'
-import { GOOGLE_CLIENT_ID, SCOPES, SCOPE_VERSION } from '../config'
+import { GOOGLE_CLIENT_ID, SCOPES, SCOPE_VERSION, AUTH_WORKER_URL } from '../config'
+
+const UPGRADE_ATTEMPT_KEY = 'repsheets_scope_upgrade_attempted'
 
 interface AuthContextValue {
   user: AuthUser | null
@@ -34,13 +36,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     init()
   }, [])
 
-  // Silently request a fresh token when the stored one predates a scope change
+  // Request fresh credentials when the stored ones predate a scope change
   useEffect(() => {
     if (!user || (user.scopeVersion ?? 0) >= SCOPE_VERSION || upgradeAttempted.current) return
     upgradeAttempted.current = true
 
+    // Code flow: only a fresh code exchange re-mints the refresh token with
+    // the new scopes — an implicit access-token upgrade would silently revert
+    // to the old scopes on the next hourly refresh
+    if (AUTH_WORKER_URL) {
+      // Once per session: if the user cancels the consent redirect, don't
+      // bounce them to Google again on every reload
+      if (sessionStorage.getItem(UPGRADE_ATTEMPT_KEY) === String(SCOPE_VERSION)) return
+      sessionStorage.setItem(UPGRADE_ATTEMPT_KEY, String(SCOPE_VERSION))
+      let redirectPolls = 0
+      const tryRedirect = () => {
+        if (!window.google?.accounts?.oauth2) {
+          if (++redirectPolls < 20) setTimeout(tryRedirect, 500)
+          return
+        }
+        initLogin(() => {}, (err) => console.error('Scope upgrade failed:', err))
+      }
+      tryRedirect()
+      return
+    }
+
+    // Implicit fallback (no worker): mint a broader access token in place
+    let upgradePolls = 0
     const tryUpgrade = () => {
-      if (!window.google?.accounts?.oauth2) { setTimeout(tryUpgrade, 500); return }
+      if (!window.google?.accounts?.oauth2) {
+        if (++upgradePolls < 20) setTimeout(tryUpgrade, 500)
+        return
+      }
       window.google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: SCOPES,
@@ -64,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const logout = useCallback(() => {
-    if (user) { doLogout(user.accessToken).then(() => setUser(null)) }
+    if (user) { doLogout(user.accessToken).finally(() => setUser(null)) }
   }, [user])
 
   return (

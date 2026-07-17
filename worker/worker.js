@@ -4,14 +4,34 @@
 
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+// Only the app itself may call this worker from a browser. A leaked refresh
+// token in localStorage must not be redeemable from arbitrary origins.
+const ALLOWED_ORIGINS = new Set([
+  'https://repsheets.app',
+  'https://www.repsheets.app',
+  'http://localhost:5173',
+])
+
+function corsHeaders(origin) {
+  const headers = {
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Vary': 'Origin',
+  }
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin
+  }
+  return headers
 }
 
 export default {
   async fetch(request, env) {
+    const origin = request.headers.get('Origin')
+    if (origin && !ALLOWED_ORIGINS.has(origin)) {
+      return new Response('Forbidden', { status: 403 })
+    }
+    const CORS_HEADERS = corsHeaders(origin)
+
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: CORS_HEADERS })

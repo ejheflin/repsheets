@@ -1,4 +1,5 @@
 import { useAuth } from './useAuth'
+import { AUTH_ERROR_KEY } from './googleAuth'
 import { useGhostToggle } from '../demo/useGhostToggle'
 import { useState, useEffect } from 'react'
 
@@ -71,11 +72,18 @@ export function LoginScreen() {
   const handleGhostToggle = useGhostToggle()
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showIOSHint, setShowIOSHint] = useState(false)
+  const [authError, setAuthError] = useState(() => sessionStorage.getItem(AUTH_ERROR_KEY) === '1')
+
+  const handleLogin = () => {
+    sessionStorage.removeItem(AUTH_ERROR_KEY)
+    setAuthError(false)
+    login()
+  }
 
   useEffect(() => {
     const isInstalled =
       window.matchMedia('(display-mode: standalone)').matches ||
-      (navigator as any).standalone === true
+      (navigator as Navigator & { standalone?: boolean }).standalone === true
 
     if (isInstalled) return
 
@@ -106,7 +114,12 @@ export function LoginScreen() {
         <h1 className="text-4xl font-bold text-white mb-6">repsheets</h1>
         <StaggeredBullets />
         <div className="mt-10 flex flex-col items-center gap-3">
-          <button onClick={login}
+          {authError && (
+            <p className="text-red-400 text-xs text-center">
+              Sign-in didn't complete — please try again
+            </p>
+          )}
+          <button onClick={handleLogin}
             className="bg-white text-gray-800 font-semibold px-6 py-3 rounded-lg flex items-center gap-3 hover:bg-gray-100 transition">
             <svg width="20" height="20" viewBox="0 0 48 48">
               <path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>

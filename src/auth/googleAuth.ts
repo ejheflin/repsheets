@@ -5,6 +5,15 @@ const TOKEN_KEY = 'repsheets_token'
 const USER_KEY = 'repsheets_user'
 const REFRESH_TOKEN_KEY = 'repsheets_refresh_token'
 const TOKEN_TIME_KEY = 'repsheets_token_time'
+const OAUTH_STATE_KEY = 'repsheets_oauth_state'
+
+// CSRF protection: the redirect must echo back a nonce we generated, so an
+// attacker can't log the user into an attacker-controlled account via ?code=
+function generateOAuthState(): string {
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+}
 
 function isIOSPWA(): boolean {
   return !!(window.navigator as unknown as { standalone?: boolean }).standalone
@@ -32,6 +41,7 @@ declare global {
             scope: string
             ux_mode: string
             redirect_uri?: string
+            state?: string
             callback: (response: { code: string; error?: string }) => void
             error_callback?: (error: { type: string }) => void
           }) => {
@@ -72,12 +82,19 @@ function storeUser(user: AuthUser) {
   localStorage.setItem(TOKEN_TIME_KEY, String(Date.now()))
 }
 
-function storeRefreshToken(token: string) {
-  localStorage.setItem(REFRESH_TOKEN_KEY, token)
+function storeRefreshToken(token: string | undefined) {
+  // Google omits refresh_token on re-consent; never clobber a valid one
+  if (token) localStorage.setItem(REFRESH_TOKEN_KEY, token)
 }
 
 function getRefreshToken(): string | null {
-  return localStorage.getItem(REFRESH_TOKEN_KEY)
+  const token = localStorage.getItem(REFRESH_TOKEN_KEY)
+  // Older builds could store the literal string "undefined"
+  if (!token || token === 'undefined' || token === 'null') {
+    if (token) localStorage.removeItem(REFRESH_TOKEN_KEY)
+    return null
+  }
+  return token
 }
 
 function clearStored() {
@@ -97,7 +114,7 @@ async function fetchUserInfo(accessToken: string): Promise<Omit<AuthUser, 'acces
 }
 
 // Check if we should use the authorization code flow (worker available)
-function useCodeFlow(): boolean {
+function isCodeFlowEnabled(): boolean {
   return !!AUTH_WORKER_URL
 }
 
@@ -114,11 +131,18 @@ async function exchangeCode(code: string): Promise<{ access_token: string; refre
     }),
   })
   if (!res.ok) {
-    const err = await res.json()
-    throw new Error(err.error || 'Token exchange failed')
+    // Worker/proxy failures can return HTML — don't assume a JSON body
+    let message = `Token exchange failed (${res.status})`
+    try {
+      const err = await res.json()
+      if (err.error) message = err.error
+    } catch {}
+    throw new Error(message)
   }
   return res.json()
 }
+
+export const AUTH_ERROR_KEY = 'repsheets_auth_error'
 
 export async function silentRefresh(): Promise<AuthUser | null> {
   const storedRefreshToken = getRefreshToken()
@@ -139,6 +163,10 @@ export async function silentRefresh(): Promise<AuthUser | null> {
         const user: AuthUser = { ...info, accessToken: data.access_token, scopeVersion: existing?.scopeVersion }
         storeUser(user)
         return user
+      }
+      if (res.status === 400 || res.status === 401) {
+        // invalid_grant — token revoked or expired; stop retrying it forever
+        localStorage.removeItem(REFRESH_TOKEN_KEY)
       }
     } catch {
       // fall through to GIS silent refresh
@@ -177,10 +205,20 @@ export async function handleRedirectCode(): Promise<AuthUser | null> {
 
   // Clean OAuth params from URL before any async work
   const clean = new URL(window.location.href)
-  ;['code', 'scope', 'authuser', 'prompt', 'error'].forEach((k) => clean.searchParams.delete(k))
+  ;['code', 'scope', 'authuser', 'prompt', 'error', 'state'].forEach((k) => clean.searchParams.delete(k))
   window.history.replaceState({}, '', clean.pathname + clean.search)
 
-  if (params.get('error')) return null
+  const expectedState = sessionStorage.getItem(OAUTH_STATE_KEY)
+  sessionStorage.removeItem(OAUTH_STATE_KEY)
+  if (!expectedState || params.get('state') !== expectedState) {
+    sessionStorage.setItem(AUTH_ERROR_KEY, '1')
+    return null
+  }
+
+  if (params.get('error')) {
+    sessionStorage.setItem(AUTH_ERROR_KEY, '1')
+    return null
+  }
 
   try {
     const tokens = await exchangeCode(code)
@@ -188,8 +226,11 @@ export async function handleRedirectCode(): Promise<AuthUser | null> {
     const info = await fetchUserInfo(tokens.access_token)
     const user: AuthUser = { ...info, accessToken: tokens.access_token, scopeVersion: SCOPE_VERSION }
     storeUser(user)
+    sessionStorage.removeItem(AUTH_ERROR_KEY)
     return user
-  } catch {
+  } catch (e) {
+    console.error('Code exchange failed:', e)
+    sessionStorage.setItem(AUTH_ERROR_KEY, '1')
     return null
   }
 }
@@ -197,7 +238,7 @@ export async function handleRedirectCode(): Promise<AuthUser | null> {
 // === Implicit Grant Flow (fallback, no worker) ===
 
 export function initLogin(onSuccess: (user: AuthUser) => void, onError: (err: string) => void) {
-  if (useCodeFlow()) {
+  if (isCodeFlowEnabled()) {
     if (isIOSPWA() && window.location.protocol !== 'https:') {
       // Local dev iOS PWA: redirect requires https, fall back to token client
       window.google.accounts.oauth2.initTokenClient({
@@ -218,11 +259,14 @@ export function initLogin(onSuccess: (user: AuthUser) => void, onError: (err: st
       return
     }
     // Redirect flow for all other cases (iOS PWA on HTTPS + all regular browsers)
+    const state = generateOAuthState()
+    sessionStorage.setItem(OAUTH_STATE_KEY, state)
     window.google.accounts.oauth2.initCodeClient({
       client_id: GOOGLE_CLIENT_ID,
       scope: SCOPES,
       ux_mode: 'redirect',
       redirect_uri: window.location.origin,
+      state,
       callback: () => {},
       error_callback: (error) => { onError(error.type) },
     }).requestCode()
@@ -246,40 +290,6 @@ export function initLogin(onSuccess: (user: AuthUser) => void, onError: (err: st
   client.requestAccessToken()
 }
 
-export function refreshToken(): Promise<AuthUser | null> {
-  // Try worker-based refresh first
-  if (useCodeFlow()) {
-    return silentRefresh()
-  }
-
-  // Fallback: GIS implicit refresh
-  return new Promise((resolve) => {
-    const tryRefresh = (silent: boolean) => {
-      const client = window.google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope: SCOPES,
-        callback: async (response) => {
-          if (response.error) {
-            if (silent) { tryRefresh(false) } else { resolve(null) }
-            return
-          }
-          try {
-            const info = await fetchUserInfo(response.access_token)
-            const user: AuthUser = { ...info, accessToken: response.access_token }
-            storeUser(user)
-            resolve(user)
-          } catch { resolve(null) }
-        },
-        error_callback: () => {
-          if (silent) { tryRefresh(false) } else { resolve(null) }
-        },
-      })
-      client.requestAccessToken(silent ? { prompt: '' } : {})
-    }
-    tryRefresh(true)
-  })
-}
-
 export function upgradeStoredToken(accessToken: string): AuthUser | null {
   const user = getStoredUser()
   if (!user) return null
@@ -288,16 +298,16 @@ export function upgradeStoredToken(accessToken: string): AuthUser | null {
   return updated
 }
 
-export function isTokenExpiringSoon(): boolean {
-  const timeStr = localStorage.getItem(TOKEN_TIME_KEY)
-  if (!timeStr) return true
-  const elapsed = Date.now() - Number(timeStr)
-  return elapsed > 45 * 60 * 1000 // 45 minutes
-}
-
 export function logout(accessToken: string): Promise<void> {
   return new Promise((resolve) => {
     clearStored()
-    window.google.accounts.oauth2.revoke(accessToken, () => { resolve() })
+    // Revocation is best-effort — never leave the UI logged in because GIS
+    // wasn't loaded (offline PWA launch) or its callback never fired
+    try {
+      window.google.accounts.oauth2.revoke(accessToken, () => resolve())
+      setTimeout(resolve, 2000)
+    } catch {
+      resolve()
+    }
   })
 }

@@ -30,7 +30,7 @@ function getUrlParam(name: string): string | null {
 function clearUrlParam(name: string) {
   const url = new URL(window.location.href)
   url.searchParams.delete(name)
-  window.history.replaceState({}, '', url.pathname)
+  window.history.replaceState({}, '', url.pathname + url.search + url.hash)
 }
 
 function useImportParam() {
@@ -149,7 +149,7 @@ function AppContent() {
   const { joinSheetId, clearJoin } = useJoinParam()
   const { showReAuth, clearReAuth } = useAuthExpiredHandler()
 
-  const [loginStatus] = useState<'pending' | 'failed'>(() => {
+  const [loginStatus, setLoginStatus] = useState<'pending' | 'failed'>(() => {
     if (sessionStorage.getItem(LOGIN_REDIRECT_FLAG)) {
       sessionStorage.removeItem(LOGIN_REDIRECT_FLAG)
       return 'failed'
@@ -162,17 +162,24 @@ function AppContent() {
 
   useEffect(() => {
     if (user || isLoading || isDemo || loginStatus !== 'pending' || wasLoggedIn.current) return
-    if (getUrlParam('test')) return
+    if (import.meta.env.DEV && getUrlParam('test')) return
+    let polls = 0
     const tryLogin = () => {
-      if (!window.google?.accounts?.oauth2) { setTimeout(tryLogin, 200); return }
+      if (!window.google?.accounts?.oauth2) {
+        // GIS never loading (offline, blocked) must not strand the user on
+        // the spinner — fall through to the login screen
+        if (++polls < 50) setTimeout(tryLogin, 200)
+        else setLoginStatus('failed')
+        return
+      }
       sessionStorage.setItem(LOGIN_REDIRECT_FLAG, '1')
       login()
     }
     tryLogin()
   }, [user, isLoading, isDemo, loginStatus, login])
 
-  // Auth test page — accessible at ?test=auth
-  if (getUrlParam('test') === 'auth') return <AuthTest />
+  // Auth test page — dev builds only, accessible at ?test=auth
+  if (import.meta.env.DEV && getUrlParam('test') === 'auth') return <AuthTest />
 
   if (isLoading) {
     return (
