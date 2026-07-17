@@ -1,59 +1,11 @@
 import { useState, useMemo } from 'react'
 import { useAuth } from '../../auth/useAuth'
 import { useSheetContext } from '../../data/useSheetContext'
-import { appendLogEntries } from '../../sheets/sheetsApi'
+import { appendLogEntries, fetchLogEntries, fetchRoutineRows } from '../../sheets/sheetsApi'
 import { appendRoutineRows } from '../../sheets/driveApi'
+import { parseStrongCsv, type StrongRow, type WeightUnit } from './importCsv'
+import { UnitToggle } from './UnitToggle'
 import type { LogEntry, RoutineRow } from '../../types'
-
-interface StrongRow {
-  date: string
-  workoutName: string
-  exerciseName: string
-  setOrder: number
-  weight: number | null
-  reps: number
-}
-
-function parseStrongCsv(text: string): StrongRow[] {
-  const lines = text.split('\n')
-  if (lines.length < 2) return []
-
-  const rows: StrongRow[] = []
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim()
-    if (!line) continue
-
-    const fields: string[] = []
-    let current = ''
-    let inQuotes = false
-    for (let j = 0; j < line.length; j++) {
-      if (line[j] === '"') {
-        inQuotes = !inQuotes
-      } else if (line[j] === ',' && !inQuotes) {
-        fields.push(current)
-        current = ''
-      } else {
-        current += line[j]
-      }
-    }
-    fields.push(current)
-
-    if (fields.length < 7) continue
-
-    // Date is "2020-04-07 22:38:33" → "2020-04-07"
-    const datePart = fields[0].split(' ')[0]
-
-    rows.push({
-      date: datePart,
-      workoutName: fields[1],
-      exerciseName: fields[3],
-      setOrder: parseInt(fields[4]) || 1,
-      weight: fields[5] ? parseFloat(fields[5]) : null,
-      reps: Math.round(parseFloat(fields[6]) || 0),
-    })
-  }
-  return rows
-}
 
 function formatAthleteName(name: string): string {
   const parts = name.trim().split(/\s+/)
@@ -61,7 +13,7 @@ function formatAthleteName(name: string): string {
   return `${parts[0]} ${parts[parts.length - 1][0]}`
 }
 
-function reverseEngineerRoutines(rows: StrongRow[], programName: string): RoutineRow[] {
+function reverseEngineerRoutines(rows: StrongRow[], programName: string, unit: WeightUnit): RoutineRow[] {
   const routineLatest = new Map<string, StrongRow[]>()
   const routineDates = new Map<string, string>()
 
@@ -98,7 +50,7 @@ function reverseEngineerRoutines(rows: StrongRow[], programName: string): Routin
         sets: String(info.sets),
         reps: info.reps || null,
         value: info.value,
-        unit: 'lbs',
+        unit,
         notes: '',
       })
     }
@@ -106,6 +58,9 @@ function reverseEngineerRoutines(rows: StrongRow[], programName: string): Routin
 
   return routineRows
 }
+
+const logKey = (e: { date: string; routine: string; exercise: string; set: number }) =>
+  `${e.date}|${e.routine}|${e.exercise}|${e.set}`
 
 interface ImportStrongModalProps {
   onClose: () => void
@@ -117,9 +72,12 @@ export function ImportStrongModal({ onClose, onDone }: ImportStrongModalProps) {
   const { spreadsheetId } = useSheetContext()
   const [csvData, setCsvData] = useState<StrongRow[] | null>(null)
   const [programName, setProgramName] = useState('Strong Import')
+  const [unit, setUnit] = useState<WeightUnit>('lbs')
+  const [unitDetected, setUnitDetected] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
   const [error, setError] = useState('')
   const [step, setStep] = useState<'upload' | 'preview' | 'done'>('upload')
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null)
 
   const stats = useMemo(() => {
     if (!csvData) return null
@@ -136,13 +94,19 @@ export function ImportStrongModal({ onClose, onDone }: ImportStrongModalProps) {
     const reader = new FileReader()
     reader.onload = (ev) => {
       const text = ev.target?.result as string
-      const rows = parseStrongCsv(text)
-      if (rows.length === 0) {
-        setError('No data found in CSV')
-        return
+      try {
+        const result = parseStrongCsv(text)
+        if (result.rows.length === 0) {
+          setError('No data found in CSV')
+          return
+        }
+        setCsvData(result.rows)
+        setUnit(result.unit ?? 'lbs')
+        setUnitDetected(result.unit !== null)
+        setStep('preview')
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e))
       }
-      setCsvData(rows)
-      setStep('preview')
     }
     reader.readAsText(file)
   }
@@ -164,15 +128,33 @@ export function ImportStrongModal({ onClose, onDone }: ImportStrongModalProps) {
         set: row.setOrder,
         reps: row.reps,
         value: row.weight,
-        unit: 'lbs',
+        unit,
         notes: '',
       }))
 
-      const routineRows = reverseEngineerRoutines(csvData, programName)
+      const routineRows = reverseEngineerRoutines(csvData, programName, unit)
 
-      await appendRoutineRows(spreadsheetId, routineRows)
-      await appendLogEntries(spreadsheetId, logEntries)
+      // Skip anything already in the sheet so re-importing the same export
+      // can't duplicate history (also makes a half-failed import retryable)
+      const [existingLogs, existingRoutines] = await Promise.all([
+        fetchLogEntries(spreadsheetId),
+        fetchRoutineRows(spreadsheetId),
+      ])
+      const existingLogKeys = new Set(existingLogs.map(logKey))
+      const newEntries = logEntries.filter((e) => !existingLogKeys.has(logKey(e)))
+      const existingRoutineKeys = new Set(
+        existingRoutines.map((r) => `${r.program}|${r.routine}|${r.exercise}`)
+      )
+      const newRoutineRows = routineRows.filter(
+        (r) => !existingRoutineKeys.has(`${r.program}|${r.routine}|${r.exercise}`)
+      )
 
+      // Logs first: history is the irreplaceable part, and a failure after
+      // this point heals on retry thanks to the dedupe above
+      if (newEntries.length > 0) await appendLogEntries(spreadsheetId, newEntries)
+      if (newRoutineRows.length > 0) await appendRoutineRows(spreadsheetId, newRoutineRows)
+
+      setImportResult({ imported: newEntries.length, skipped: logEntries.length - newEntries.length })
       setStep('done')
     } catch (e) {
       console.error('Import failed:', e)
@@ -230,6 +212,13 @@ export function ImportStrongModal({ onClose, onDone }: ImportStrongModalProps) {
               onChange={(e) => setProgramName(e.target.value)}
               className="w-full bg-[#2a2a4a] border border-[#3a3a5a] rounded-[10px] px-4 py-3 text-base outline-none focus:border-[#6c63ff] mb-4" />
 
+            <p className="text-xs text-gray-400 mb-2">
+              {unitDetected ? 'Weight unit (detected from export)' : 'Weight unit — Strong exports use the unit set in the app'}
+            </p>
+            <div className="mb-4">
+              <UnitToggle unit={unit} onChange={setUnit} />
+            </div>
+
             {error && <p className="text-red-400 text-xs text-center mb-3">{error}</p>}
 
             <button onClick={handleImport} disabled={isImporting || !programName.trim()}
@@ -247,7 +236,9 @@ export function ImportStrongModal({ onClose, onDone }: ImportStrongModalProps) {
           <>
             <h2 className="text-base font-bold text-center mb-2">Import Complete!</h2>
             <p className="text-xs text-gray-400 text-center mb-4">
-              {stats?.sets} sets imported across {stats?.routines} routines. Routines have been reverse-engineered from your workout history.
+              {importResult?.imported ?? 0} sets imported across {stats?.routines} routines.
+              {importResult && importResult.skipped > 0 && ` ${importResult.skipped} sets were already in this sheet and were skipped.`}
+              {' '}Routines have been reverse-engineered from your workout history.
             </p>
             <button onClick={() => { onDone(); onClose() }}
               className="w-full bg-[#6c63ff] rounded-[10px] p-3 text-center font-semibold text-sm">
