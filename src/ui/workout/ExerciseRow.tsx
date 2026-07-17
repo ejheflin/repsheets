@@ -7,6 +7,8 @@ import { ExerciseMaxSettings } from './ExerciseMaxSettings'
 import { SwipeableRow } from '../shared/SwipeableRow'
 import type { SwipeAction } from '../shared/SwipeableRow'
 import type { WorkoutExercise, ExerciseSettings } from '../../types'
+import { parseNumericInput } from '../../utils'
+import { useDecimalInput } from '../shared/useDecimalInput'
 
 function SwapIcon() {
   return (
@@ -139,6 +141,7 @@ export function ExerciseRow({
 
   const summaryReps = exercise.sets[0]?.reps ?? null
   const summaryValue = exercise.sets[0]?.value ?? null
+  const summaryValueInput = useDecimalInput(summaryValue, (n) => onUpdateAllSets('value', n))
 
   const repsHasMismatch = exercise.sets.some((s) => s.reps !== summaryReps)
   const valueHasMismatch = exercise.sets.some((s) => s.value !== summaryValue)
@@ -239,7 +242,7 @@ export function ExerciseRow({
                   className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#3a3a5a]"
                 >−</button>
                 <input type="text" inputMode="numeric" value={summaryReps ?? ''}
-                  onChange={(e) => onUpdateAllSets('reps', e.target.value ? Number(e.target.value) : null)}
+                  onChange={(e) => { const n = parseNumericInput(e.target.value); if (n !== undefined) onUpdateAllSets('reps', n) }}
                   onFocus={(e) => e.target.select()}
                   className={`w-12 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${repsHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
                   placeholder="—" />
@@ -267,8 +270,9 @@ export function ExerciseRow({
                     {buildSlashedTargets(exercise.sets, oneRepMax)}
                   </button>
                 ) : (
-                  <input ref={summaryValueRef} type="text" inputMode="decimal" value={summaryValue != null ? Math.round(summaryValue) : ''}
-                    onChange={(e) => { summaryValueUserTyped.current = true; onUpdateAllSets('value', e.target.value ? Number(e.target.value) : null) }}
+                  <input ref={summaryValueRef} type="text" inputMode="decimal" value={summaryValueInput.text}
+                    onChange={(e) => { summaryValueUserTyped.current = true; summaryValueInput.handleChange(e.target.value) }}
+                    onBlur={summaryValueInput.handleBlur}
                     onFocus={(e) => e.target.select()}
                     className={`w-16 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
                     placeholder="—" />
