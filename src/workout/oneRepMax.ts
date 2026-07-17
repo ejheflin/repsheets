@@ -1,4 +1,5 @@
 import type { LogEntry } from '../types'
+import { e1rmFromRpe, rirToRpe } from './rpe'
 
 function epley(weight: number, reps: number): number {
   if (reps === 1) return weight
@@ -11,7 +12,9 @@ function epley(weight: number, reps: number): number {
  * setToPct maps set number → programmed percentage for the current routine.
  * When a log entry matches a percentage-programmed set, 1RM is derived directly
  * as weight / (pct/100) — far more accurate than Epley for submaximal work.
- * Falls back to Epley for absolute-weight sets (reps 1–12 only).
+ * When the athlete logged an achieved RPE/RIR, 1RM is derived from the RPE chart
+ * (weight / %1RM-at-that-RPE), which closes the autoregulation loop. Falls back to
+ * Epley for absolute-weight sets with no RPE recorded (reps 1–12 only).
  */
 export function estimateOneRepMax(
   logs: LogEntry[],
@@ -30,6 +33,13 @@ export function estimateOneRepMax(
     let est: number
     if (pct != null && pct > 0) {
       est = log.value / (pct / 100)
+    } else if (log.achievedRpe != null) {
+      // Same reps window as Epley — the RPE chart is meaningless past ~12 reps
+      if (log.reps < 1 || log.reps > 12) continue
+      est = e1rmFromRpe(log.value, log.reps, log.achievedRpe)
+    } else if (log.achievedRir != null) {
+      if (log.reps < 1 || log.reps > 12) continue
+      est = e1rmFromRpe(log.value, log.reps, rirToRpe(log.achievedRir))
     } else {
       if (log.reps < 1 || log.reps > 12) continue
       est = epley(log.value, log.reps)

@@ -1,4 +1,32 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
+
+// Tapping a routine card opens the routine editor; workouts start from its
+// Start button
+async function startWorkout(page: Page, routine: string) {
+  await page.getByText(routine, { exact: true }).click()
+  await page.getByRole('button', { name: 'Start' }).first().click()
+}
+
+// SwipeableRow listens to raw touch events; synthesize a leftward swipe
+async function swipeLeft(locator: ReturnType<Page['locator']>) {
+  await locator.evaluate((el) => {
+    const rect = el.getBoundingClientRect()
+    const startX = rect.left + rect.width * 0.8
+    const y = rect.top + rect.height / 2
+    const fire = (type: string, x: number) => {
+      const t = new Touch({ identifier: 1, target: el, clientX: x, clientY: y })
+      el.dispatchEvent(new TouchEvent(type, {
+        touches: type === 'touchend' ? [] : [t],
+        changedTouches: [t],
+        bubbles: true,
+        cancelable: true,
+      }))
+    }
+    fire('touchstart', startX)
+    for (let i = 1; i <= 6; i++) fire('touchmove', startX - i * 20)
+    fire('touchend', startX - 120)
+  })
+}
 import {
   seedAuth,
   stubThirdPartyScripts,
@@ -78,6 +106,84 @@ test.describe('scope upgrade', () => {
   })
 })
 
+test.describe('routine editor (mocked Google APIs)', () => {
+  let state: GoogleMockState
+
+  test.beforeEach(async ({ context }) => {
+    await stubThirdPartyScripts(context)
+    state = await mockGoogleApis(context)
+    await seedAuth(context)
+  })
+
+  test('bumping a set count autosaves and preserves every other row', async ({ page }) => {
+    await enterApp(page)
+    await page.getByText('Day A', { exact: true }).click()
+
+    // first stepper "+" in the expanded card is Squat's set count
+    await page.getByRole('button', { name: '+', exact: true }).first().click()
+
+    await expect.poll(() => state.routineWrites.length, { timeout: 10_000 }).toBeGreaterThan(0)
+    const written = state.routineWrites[state.routineWrites.length - 1]
+    const rows = written.slice(1).map((r) => r.map(String))
+
+    const squat = rows.find((r) => r[1] === 'Day A' && r[2] === 'Squat')
+    expect(squat?.[3]).toBe('4')
+
+    // the whole-tab rewrite must not drop unrelated routines or programs
+    expect(rows.some((r) => r[1] === 'Day B' && r[2] === 'Deadlift')).toBe(true)
+    expect(rows.some((r) => r[0] === 'Hypertrophy' && r[2] === 'Curl')).toBe(true)
+    expect(rows.some((r) => r[1] === 'Day A' && r[2] === 'Bench Press')).toBe(true)
+  })
+
+  test('renaming a routine replaces its rows instead of duplicating', async ({ page }) => {
+    await enterApp(page)
+    await page.getByText('Day A', { exact: true }).click()
+
+    const nameInput = page.getByRole('textbox', { name: 'Routine name' }).first()
+    await nameInput.fill('Day A Prime')
+    // leave the card so the deferred save flushes
+    await page.getByRole('heading', { name: 'Routines' }).click()
+
+    await expect.poll(() => state.routineWrites.length, { timeout: 10_000 }).toBeGreaterThan(0)
+    const rows = state.routineWrites[state.routineWrites.length - 1].slice(1).map((r) => r.map(String))
+    expect(rows.some((r) => r[1] === 'Day A Prime' && r[2] === 'Squat')).toBe(true)
+    // the old name is gone — no duplicate routine
+    expect(rows.some((r) => r[1] === 'Day A')).toBe(false)
+    expect(rows.some((r) => r[1] === 'Day B' && r[2] === 'Deadlift')).toBe(true)
+  })
+
+  test('an empty draft named like an existing routine never persists (no data wipe)', async ({ page }) => {
+    await enterApp(page)
+
+    await page.getByRole('button', { name: '+ Add routine' }).click()
+    const nameInput = page.getByRole('textbox', { name: 'Routine name' }).first()
+    await nameInput.fill('Day B')
+    await page.getByRole('heading', { name: 'Routines' }).click()
+    await expect(page.getByText('A routine with this name already exists')).toBeVisible()
+
+    // no write may have occurred — persisting an empty draft under an
+    // existing name used to erase that routine's rows
+    await page.waitForTimeout(1500)
+    expect(state.routineWrites.length).toBe(0)
+  })
+
+  test('deleting a routine removes only its rows', async ({ page }) => {
+    await enterApp(page)
+
+    // swipe the collapsed Day A card to reveal its actions, then delete
+    await swipeLeft(page.getByText('Day A', { exact: true }))
+    await page.locator('button:visible', { hasText: 'Delete' }).first().click()
+
+    await expect.poll(() => state.routineWrites.length, { timeout: 10_000 }).toBeGreaterThan(0)
+    const written = state.routineWrites[state.routineWrites.length - 1]
+    const rows = written.slice(1).map((r) => r.map(String))
+
+    expect(rows.some((r) => r[1] === 'Day A')).toBe(false)
+    expect(rows.some((r) => r[1] === 'Day B' && r[2] === 'Deadlift')).toBe(true)
+    expect(rows.some((r) => r[0] === 'Hypertrophy' && r[2] === 'Curl')).toBe(true)
+  })
+})
+
 test.describe('authenticated app (mocked Google APIs)', () => {
   let state: GoogleMockState
 
@@ -110,7 +216,7 @@ test.describe('authenticated app (mocked Google APIs)', () => {
   test('full workout: start, finish, rows appended to sheet', async ({ page }) => {
     await enterApp(page)
 
-    await page.getByText('Day A', { exact: true }).click()
+    await startWorkout(page, 'Day A')
     await expect(page.getByText('Squat')).toBeVisible()
     await expect(page.getByText('Bench Press')).toBeVisible()
 
@@ -145,7 +251,7 @@ test.describe('authenticated app (mocked Google APIs)', () => {
     await enterApp(page)
 
     // start a workout on My Workouts (test-sheet-1)
-    await page.getByText('Day A', { exact: true }).click()
+    await startWorkout(page, 'Day A')
     await expect(page.getByText('Squat')).toBeVisible()
 
     // switch to the friend's sheet mid-workout
@@ -171,7 +277,7 @@ test.describe('authenticated app (mocked Google APIs)', () => {
   test('decimal weights can be typed and land in the sheet unrounded', async ({ page }) => {
     await enterApp(page)
 
-    await page.getByText('Day A', { exact: true }).click()
+    await startWorkout(page, 'Day A')
     await expect(page.getByText('Squat')).toBeVisible()
 
     // type a fractional weight into Squat's summary weight input
@@ -196,7 +302,7 @@ test.describe('authenticated app (mocked Google APIs)', () => {
   test('typed-but-unchecked values survive an app reload', async ({ page }) => {
     await enterApp(page)
 
-    await page.getByText('Day A', { exact: true }).click()
+    await startWorkout(page, 'Day A')
     await expect(page.getByText('Squat')).toBeVisible()
 
     // type a weight without checking the set off
@@ -216,7 +322,7 @@ test.describe('authenticated app (mocked Google APIs)', () => {
   test('adding a set then confirming Update Routine writes the new set count', async ({ page }) => {
     await enterApp(page)
 
-    await page.getByText('Day A', { exact: true }).click()
+    await startWorkout(page, 'Day A')
     await expect(page.getByText('Squat')).toBeVisible()
 
     // expand the first exercise (Squat) and add a 4th set
@@ -249,7 +355,7 @@ test.describe('authenticated app (mocked Google APIs)', () => {
     await enterApp(page)
 
     state.failAppends = true
-    await page.getByText('Day A', { exact: true }).click()
+    await startWorkout(page, 'Day A')
     await expect(page.getByText('Squat')).toBeVisible()
 
     await page.getByRole('button', { name: 'Finish' }).click()
@@ -278,7 +384,7 @@ test.describe('authenticated app (mocked Google APIs)', () => {
     await enterApp(page)
 
     state.failAppends = true
-    await page.getByText('Day A', { exact: true }).click()
+    await startWorkout(page, 'Day A')
     await expect(page.getByText('Squat')).toBeVisible()
     await page.getByRole('button', { name: 'Finish' }).click()
     const completeAll = page.getByRole('button', { name: /complete all|log all/i })

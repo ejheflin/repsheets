@@ -6,7 +6,10 @@ import { PlateCalculator } from './PlateCalculator'
 import { ExerciseMaxSettings } from './ExerciseMaxSettings'
 import { SwipeableRow } from '../shared/SwipeableRow'
 import type { SwipeAction } from '../shared/SwipeableRow'
-import type { WorkoutExercise, ExerciseSettings } from '../../types'
+import { rpeToPct, rirToPct } from '../../workout/rpe'
+import { roundWeight, measureOf } from '../../data/measure'
+import { TimeInput } from './TimeInput'
+import type { WorkoutExercise, WorkoutSet, ExerciseSettings } from '../../types'
 import { parseNumericInput } from '../../utils'
 import { useDecimalInput } from '../shared/useDecimalInput'
 
@@ -62,15 +65,17 @@ function NotesIcon({ hasNotes }: { hasNotes: boolean }) {
 
 interface ExerciseRowProps {
   exercise: WorkoutExercise
+  programName?: string
   oneRepMax?: number | null
+  rawOneRepMax?: number | null
   calculatedE1RM?: number | null
   exerciseSettings?: ExerciseSettings
   onSaveSettings?: (s: ExerciseSettings) => void
   onToggleExpand: () => void
   onToggleExercise: () => void
   onToggleSet: (setIdx: number) => void
-  onUpdateSet: (setIdx: number, field: 'reps' | 'value', val: number | null) => void
-  onUpdateAllSets: (field: 'reps' | 'value', val: number | null) => void
+  onUpdateSet: (setIdx: number, field: 'reps' | 'value' | 'achievedRpe' | 'achievedRir', val: number | null) => void
+  onUpdateAllSets: (field: 'reps' | 'value' | 'achievedRpe' | 'achievedRir', val: number | null) => void
   onUpdateNotes: (notes: string) => void
   onAddSet?: () => void
   onShowHistory?: () => void
@@ -85,18 +90,50 @@ interface ExerciseRowProps {
   tourId?: string
 }
 
-/** Compute target weight from pct + 1RM, rounded to nearest 5, or null if either is missing. */
-function targetWeight(pct: number | null | undefined, orm: number | null | undefined): number | null {
+/** Compute target weight from pct + 1RM, rounded to the unit's increment, or null. */
+function targetWeight(pct: number | null | undefined, orm: number | null | undefined, unit: string): number | null {
   if (pct == null || orm == null) return null
-  return Math.round(pct * orm / 100 / 5) * 5
+  return roundWeight(pct * orm / 100, unit)
+}
+
+/** Compute target weight from rpe/rir + raw (pre-TM) e1rm, rounded to the unit's increment, or null. */
+function rpeRirTarget(set: WorkoutSet, rawOrm: number | null | undefined, unit: string): number | null {
+  if (rawOrm == null) return null
+  const reps = set.reps ?? 1
+  if (set.rpe != null) return roundWeight(rpeToPct(reps, set.rpe) * rawOrm, unit)
+  if (set.rir != null) return roundWeight(rirToPct(reps, set.rir) * rawOrm, unit)
+  return null
+}
+
+/** Resolved per-set target: absolute value, else pct×orm, else rpe/rir×rawOrm. */
+function resolveSetTarget(
+  set: WorkoutSet,
+  orm: number | null | undefined,
+  rawOrm: number | null | undefined,
+  unit: string
+): number | null {
+  if (set.value != null) return set.value
+  if (set.pct != null) return targetWeight(set.pct, orm, unit)
+  if (set.rpe != null || set.rir != null) return rpeRirTarget(set, rawOrm, unit)
+  return null
 }
 
 /** Build slashed target string for collapsed view, truncated to maxLen chars. */
-function buildSlashedTargets(sets: WorkoutExercise['sets'], orm: number | null | undefined, maxLen = 18): string {
+function buildSlashedTargets(
+  sets: WorkoutExercise['sets'],
+  orm: number | null | undefined,
+  rawOrm: number | null | undefined,
+  unit: string,
+  maxLen = 18
+): string {
   const parts: string[] = []
   let result = ''
   for (const s of sets) {
-    const tw = s.pct != null ? targetWeight(s.pct, orm) : s.value
+    const tw = s.pct != null
+      ? targetWeight(s.pct, orm, unit)
+      : (s.rpe != null || s.rir != null) && s.value == null
+        ? rpeRirTarget(s, rawOrm, unit)
+        : s.value
     const part = tw != null ? String(Math.round(tw)) : '?'
     const next = parts.length === 0 ? part : `${result}/${part}`
     if (next.length > maxLen) {
@@ -111,7 +148,9 @@ function buildSlashedTargets(sets: WorkoutExercise['sets'], orm: number | null |
 
 export function ExerciseRow({
   exercise,
+  programName,
   oneRepMax,
+  rawOneRepMax,
   calculatedE1RM,
   exerciseSettings,
   onSaveSettings,
@@ -126,6 +165,9 @@ export function ExerciseRow({
 
   const summaryValueRef = useRef<HTMLInputElement>(null)
   const prevSummaryValue = useRef(exercise.sets[0]?.value ?? null)
+  // Sticky: true once the user types, reset only on (re)focus — never per-render.
+  // The old per-render reset let the select-on-appear effect re-select a digit the
+  // user had just typed, clobbering the next keystrokes.
   const summaryValueUserTyped = useRef(false)
   useEffect(() => {
     const current = exercise.sets[0]?.value ?? null
@@ -134,10 +176,15 @@ export function ExerciseRow({
     if (current != null && prev == null && !summaryValueUserTyped.current && document.activeElement === summaryValueRef.current) {
       summaryValueRef.current?.select()
     }
-    summaryValueUserTyped.current = false
   }, [exercise.sets])
   const allCompleted = exercise.sets.every((s) => s.completed)
   const unit = exercise.sets[0]?.unit ?? ''
+  // Collapsed cards have no column header, so label the value box for non-weight
+  // measures (time/distance) where the raw number needs a unit for context.
+  const unitMeasure = measureOf(unit)
+  const isTime = unitMeasure === 'time'
+  const showUnitLabel = isTime || unitMeasure === 'distance'
+  const unitLabel = isTime ? 'mm:ss' : unit
 
   const summaryReps = exercise.sets[0]?.reps ?? null
   const summaryValue = exercise.sets[0]?.value ?? null
@@ -149,17 +196,71 @@ export function ExerciseRow({
   const userNotes = exercise.userNotes ?? ''
   const hasUserNotes = userNotes.length > 0
 
-  // Percentage set detection
+  // Percentage set detection (unchanged for pct routines)
   const firstPct = exercise.sets[0]?.pct ?? null
   const allSamePct = exercise.sets.every((s) => (s.pct ?? null) === firstPct)
   // Show slashed targets when pcts differ across sets (or mix of pct + absolute)
-  const showSlashedTargets = exercise.sets.some((s) => s.pct != null) && !allSamePct
+  const showPctSlashedTargets = exercise.sets.some((s) => s.pct != null) && !allSamePct
   const hasAnyPct = exercise.sets.some((s) => s.pct != null)
+
+  // RPE/RIR detection — additive, only when no pct is present on the exercise
+  const hasAnyRpeRir = !hasAnyPct && exercise.sets.some((s) => s.rpe != null || s.rir != null)
+  const firstRpe = exercise.sets[0]?.rpe ?? null
+  const firstRir = exercise.sets[0]?.rir ?? null
+  const allSameRpeRir = exercise.sets.every(
+    (s) => (s.rpe ?? null) === firstRpe && (s.rir ?? null) === firstRir
+  )
+  const showRpeRirSlashedTargets = hasAnyRpeRir && !allSameRpeRir
+
+  const showSlashedTargets = showPctSlashedTargets || showRpeRirSlashedTargets
+
+  // Single middle "intensity" column: a % target display for pct exercises, or an
+  // editable achieved-RPE/RIR box for effort-based ones (also shown in edit mode
+  // when a set carries a logged achieved value). There is no separate RPE column.
+  const rpeMode = !hasAnyPct && exercise.sets.some(
+    (s) => s.rpe != null || s.rir != null || s.achievedRpe != null || s.achievedRir != null
+  )
+  const showTargetColumn = hasAnyPct || rpeMode
+  const achievedIsRir =
+    !exercise.sets.some((s) => s.rpe != null || s.achievedRpe != null) &&
+    exercise.sets.some((s) => s.rir != null || s.achievedRir != null)
+  const intensityLabel = hasAnyPct ? 'Target' : achievedIsRir ? 'RIR' : 'RPE'
+  const intensityMode: 'pct' | 'rpe' | 'rir' | null =
+    hasAnyPct ? 'pct' : rpeMode ? (achievedIsRir ? 'rir' : 'rpe') : null
+  // Collapsed-card summaries (edit all sets at once), defaulting to the prescription.
+  const firstSet = exercise.sets[0]
+  // Reps prescription designation (uniform across sets in practice): AMRAP / a range.
+  const repsPrescription = firstSet?.repsOpen
+    ? 'AMRAP'
+    : firstSet?.repsMax != null ? `${firstSet.reps ?? ''}–${firstSet.repsMax}` : null
+  const summaryAchievedRpe = firstSet?.achievedRpe ?? firstSet?.rpe ?? null
+  const summaryAchievedRir = firstSet?.achievedRir ?? firstSet?.rir ?? null
+  // Draft buffers so half-steps (8.5) are typable and NaN can never be stored
+  const summaryRpeInput = useDecimalInput(summaryAchievedRpe, (v) =>
+    onUpdateAllSets('achievedRpe', v == null ? null : Math.min(10, Math.max(1, v))))
+  const summaryRirInput = useDecimalInput(summaryAchievedRir, (v) =>
+    onUpdateAllSets('achievedRir', v == null ? null : Math.min(10, Math.max(0, v))))
+  const rpeHasMismatch = exercise.sets.some((s) => (s.achievedRpe ?? s.rpe ?? null) !== summaryAchievedRpe)
+  const rirHasMismatch = exercise.sets.some((s) => (s.achievedRir ?? s.rir ?? null) !== summaryAchievedRir)
+
+  // One grid template shared by the header and every set row, so columns line up.
+  const gridCols = [
+    '1.75rem',                                                      // Set
+    'minmax(5rem,1.25fr)',                                          // Reps (wider — the +/− buttons eat into it)
+    showTargetColumn ? (hasAnyPct ? '4rem' : '3.25rem') : null,     // Target(%) display or RPE/RIR input
+    'minmax(min-content,1fr)',                                      // Value
+    '1.75rem',                                                      // ✓
+  ].filter(Boolean).join(' ')
+
+  const routineBasis: '1rm' | 'tm' | undefined =
+    exercise.sets.some((s) => s.basis === 'tm') ? 'tm'
+    : exercise.sets.some((s) => s.pct != null) ? '1rm'
+    : undefined
 
   // Plate calculator: next unchecked set, or last set once all are done
   const plateSet = exercise.sets.find((s) => !s.completed) ?? exercise.sets[exercise.sets.length - 1]
   const nextPlateWeight = plateSet
-    ? (plateSet.value ?? (plateSet.pct != null ? targetWeight(plateSet.pct, oneRepMax) : null))
+    ? (plateSet.value ?? resolveSetTarget(plateSet, oneRepMax, rawOneRepMax, unit))
     : null
 
   const notesInput = showNotes ? (
@@ -222,7 +323,9 @@ export function ExerciseRow({
                 </button>
               </div>
               <div className="flex items-center justify-center">
-                {nextPlateWeight ? (
+                {showUnitLabel ? (
+                  <span className="text-[9px] text-gray-500 leading-none uppercase tracking-wide">{unitLabel}</span>
+                ) : nextPlateWeight ? (
                   <PlateCalculator weight={nextPlateWeight} unit={unit} exercise={exercise.exercise} />
                 ) : null}
               </div>
@@ -234,7 +337,7 @@ export function ExerciseRow({
                 )}
               </button>
 
-              {/* Row 2: N×, reps, history, weight, notes — each in its own column */}
+              {/* Row 2: N×, reps, intensity, weight, icons — each in its own column */}
               <button onClick={onToggleExpand} className="text-xs text-gray-500 w-7 text-left flex items-center">{exercise.sets.length}×</button>
               <div className="flex items-center gap-1">
                 <button
@@ -251,36 +354,65 @@ export function ExerciseRow({
                   className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#3a3a5a]"
                 >+</button>
               </div>
-              {onShowHistory ? (
-                <button onClick={onShowHistory} className="flex items-center justify-center w-8 active:opacity-60">
-                  <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M 2.5 8 A 5.5 5.5 0 1 0 4.1 4.1" />
-                    <polyline points="6.3 3.2 4.1 4.1 4.4 1.8" />
-                    <line x1="8" y1="5" x2="8" y2="8" />
-                    <line x1="8" y1="8" x2="10" y2="10" />
-                  </svg>
-                </button>
-              ) : <div className="w-8" />}
+              <div className="flex items-center justify-center">
+                {intensityMode === 'pct' ? (
+                  <button onClick={() => setShowMaxSettings(true)}
+                    className="text-[13px] font-semibold text-gray-400 px-0.5 active:opacity-80 truncate">
+                    {firstPct != null ? `${Math.round(firstPct)}%` : ''}
+                  </button>
+                ) : intensityMode === 'rpe' ? (
+                  <input type="text" inputMode="decimal"
+                    value={summaryRpeInput.text}
+                    placeholder={firstSet?.rpe != null ? String(firstSet.rpe) : ''}
+                    onChange={(e) => summaryRpeInput.handleChange(e.target.value)}
+                    onBlur={summaryRpeInput.handleBlur}
+                    onFocus={(e) => e.target.select()}
+                    className={`w-11 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${rpeHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`} />
+                ) : intensityMode === 'rir' ? (
+                  <input type="text" inputMode="decimal"
+                    value={summaryRirInput.text}
+                    placeholder={firstSet?.rir != null ? String(firstSet.rir) : ''}
+                    onChange={(e) => summaryRirInput.handleChange(e.target.value)}
+                    onBlur={summaryRirInput.handleBlur}
+                    onFocus={(e) => e.target.select()}
+                    className={`w-11 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${rirHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`} />
+                ) : null}
+              </div>
               <div className="flex items-center justify-center">
                 {showSlashedTargets ? (
                   <button
                     onClick={() => setShowMaxSettings(true)}
                     className="text-sm font-semibold text-gray-300 px-1 active:opacity-80"
                   >
-                    {buildSlashedTargets(exercise.sets, oneRepMax)}
+                    {buildSlashedTargets(exercise.sets, oneRepMax, rawOneRepMax, unit)}
                   </button>
+                ) : isTime ? (
+                  <TimeInput value={summaryValue} onChange={(v) => onUpdateAllSets('value', v)}
+                    className={`w-16 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`} />
                 ) : (
                   <input ref={summaryValueRef} type="text" inputMode="decimal" value={summaryValueInput.text}
                     onChange={(e) => { summaryValueUserTyped.current = true; summaryValueInput.handleChange(e.target.value) }}
                     onBlur={summaryValueInput.handleBlur}
-                    onFocus={(e) => e.target.select()}
+                    onFocus={(e) => { summaryValueUserTyped.current = false; e.target.select() }}
                     className={`w-16 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
                     placeholder="—" />
                 )}
               </div>
-              <button onClick={() => setShowNotes(!showNotes)} className="flex items-center justify-end w-7">
-                <NotesIcon hasNotes={hasUserNotes} />
-              </button>
+              <div className="flex items-center justify-end gap-2">
+                {onShowHistory && (
+                  <button onClick={onShowHistory} className="flex items-center active:opacity-60">
+                    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M 2.5 8 A 5.5 5.5 0 1 0 4.1 4.1" />
+                      <polyline points="6.3 3.2 4.1 4.1 4.4 1.8" />
+                      <line x1="8" y1="5" x2="8" y2="8" />
+                      <line x1="8" y1="8" x2="10" y2="10" />
+                    </svg>
+                  </button>
+                )}
+                <button onClick={() => setShowNotes(!showNotes)} className="flex items-center">
+                  <NotesIcon hasNotes={hasUserNotes} />
+                </button>
+              </div>
             </div>
             {notesInput}
             {isPR && (
@@ -368,8 +500,8 @@ export function ExerciseRow({
       className="relative bg-[#2a2a4a] rounded-[10px] mb-1.5 px-3 py-2.5"
       style={isPR ? { border: '1.5px solid #6c63ff', boxShadow: '0 0 12px rgba(108,99,255,0.25)' } : undefined}
     >
-      {/* cols 1-3 fixed to match collapsed row-2 widths (w-7, reps group, w-8) so space-between places col 4 identically */}
-      <div className="grid mb-2" style={{ gridTemplateColumns: '28px 104px 32px auto auto', justifyContent: 'space-between' }}>
+      {/* Row 1 (name/plate/check) and row 2 (N×/reps/target/weight/icons) share one 5-col grid */}
+      <div className="grid mb-2" style={{ gridTemplateColumns: '28px 104px auto auto auto', justifyContent: 'space-between' }}>
         <div className="flex items-center min-w-0" style={{ gridColumn: '1 / 4' }}>
           <button onClick={onToggleExpand} className="mr-1.5 flex items-center"><ChevronDown /></button>
           <button onClick={onToggleExpand} className="text-left min-w-0 overflow-hidden font-bold text-[15px] truncate">{exercise.exercise}</button>
@@ -391,17 +523,22 @@ export function ExerciseRow({
         <div className="text-[10px] text-[#6c63ff] mb-2 ml-5">▸ {exercise.notes}</div>
       )}
       <div className="ml-5">
-        <div className="flex pb-1 text-[10px] text-gray-600 uppercase tracking-wider">
-          <div className="w-7">Set</div>
-          <div className="flex-1 text-center">Reps</div>
-          {hasAnyPct && (
-            <button onClick={() => setShowMaxSettings(true)}
-              className="w-16 text-right pr-1 active:opacity-80">
-              Target
-            </button>
+        <div className="grid items-center pb-1 text-[10px] text-gray-600 uppercase tracking-wider"
+          style={{ gridTemplateColumns: gridCols }}>
+          <div className="text-center">Set</div>
+          <div className="text-center">{repsPrescription ?? 'Reps'}</div>
+          {showTargetColumn && (
+            hasAnyPct ? (
+              <button onClick={() => setShowMaxSettings(true)}
+                className="text-center active:opacity-80">
+                {intensityLabel}
+              </button>
+            ) : (
+              <div className="text-center">{intensityLabel}</div>
+            )
           )}
-          <div className="flex-1 text-center">{unit || 'Value'}</div>
-          <div className="w-7" />
+          <div className="text-center">{isTime ? 'mm:ss' : unit || 'Value'}</div>
+          <div />
         </div>
         {exercise.sets.map((set, setIdx) => {
           const isDeleting = deletingSetIdx === setIdx
@@ -428,13 +565,22 @@ export function ExerciseRow({
                 <SetRow setNumber={set.setNumber} reps={set.reps}
                   value={set.value} unit={unit} completed={set.completed}
                   pct={set.pct}
+                  rpe={set.rpe}
+                  rir={set.rir}
+                  achievedRpe={set.achievedRpe}
+                  achievedRir={set.achievedRir}
+                  gridCols={gridCols}
+                  showTargetColumn={showTargetColumn}
                   oneRepMax={oneRepMax}
+                  rawOneRepMax={rawOneRepMax}
                   repsFlag={set.reps !== summaryReps}
                   valueFlag={!showSlashedTargets && set.value !== summaryValue}
                   onToggle={() => onToggleSet(setIdx)}
                   onRepsChange={(v) => onUpdateSet(setIdx, 'reps', v)}
                   onValueChange={(v) => onUpdateSet(setIdx, 'value', v)}
-                  onTargetClick={set.pct != null ? () => setShowMaxSettings(true) : undefined} />
+                  onAchievedRpeChange={(v) => onUpdateSet(setIdx, 'achievedRpe', v)}
+                  onAchievedRirChange={(v) => onUpdateSet(setIdx, 'achievedRir', v)}
+                  onTargetClick={(set.pct != null || set.rpe != null || set.rir != null) ? () => setShowMaxSettings(true) : undefined} />
               </SwipeableRow>
             </div>
           )
@@ -444,6 +590,16 @@ export function ExerciseRow({
             <button onClick={onAddSet}
               className="flex-1 text-center text-xs text-[#6c63ff] py-2 font-semibold">
               + Add Set
+            </button>
+          )}
+          {onShowHistory && (
+            <button onClick={onShowHistory} className="flex items-center justify-center py-2 px-1.5 active:opacity-60">
+              <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M 2.5 8 A 5.5 5.5 0 1 0 4.1 4.1" />
+                <polyline points="6.3 3.2 4.1 4.1 4.4 1.8" />
+                <line x1="8" y1="5" x2="8" y2="8" />
+                <line x1="8" y1="8" x2="10" y2="10" />
+              </svg>
             </button>
           )}
           <button onClick={() => setShowNotes(!showNotes)} className="w-7 flex items-center justify-center py-2">
@@ -458,6 +614,8 @@ export function ExerciseRow({
           unit={unit}
           calculatedE1RM={calculatedE1RM ?? null}
           settings={exerciseSettings ?? {}}
+          routineBasis={routineBasis}
+          programName={programName}
           onSave={(s) => { onSaveSettings?.(s); setShowMaxSettings(false) }}
           onClose={() => setShowMaxSettings(false)}
         />

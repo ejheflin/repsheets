@@ -22,6 +22,8 @@ export interface GoogleMockState {
   appendedRows: Row[]
   appendsBySheet: Record<string, Row[]>
   failedAppendRows: Row[]
+  routineWrites: Row[][]
+  routineClears: string[]
   batchUpdates: unknown[]
   registryWrites: unknown[]
   failAppends: boolean
@@ -94,6 +96,8 @@ export async function mockGoogleApis(context: BrowserContext): Promise<GoogleMoc
     appendedRows: [],
     appendsBySheet: {},
     failedAppendRows: [],
+    routineWrites: [],
+    routineClears: [],
     batchUpdates: [],
     registryWrites: [],
     failAppends: false,
@@ -178,6 +182,17 @@ export async function mockGoogleApis(context: BrowserContext): Promise<GoogleMoc
         state.logRows.push(...body.values)
         return route.fulfill(json({ updates: { updatedRows: body.values.length } }))
       }
+      if (range.endsWith(':clear')) {
+        state.routineClears.push(range)
+        return route.fulfill(json({}))
+      }
+      if (method === 'PUT' && range.startsWith('Routines')) {
+        // Whole-tab rewrite from the routine editor: body is [header, ...rows]
+        const body = req.postDataJSON() as { values: Row[] }
+        state.routineWrites.push(body.values)
+        state.routineRows = body.values.slice(1)
+        return route.fulfill(json({}))
+      }
       if (range.startsWith('Routines')) {
         return route.fulfill(json({ values: [ROUTINE_HEADER, ...state.routineRows] }))
       }
@@ -188,7 +203,16 @@ export async function mockGoogleApis(context: BrowserContext): Promise<GoogleMoc
     }
 
     if (path.match(/^\/v4\/spreadsheets\/[^/]+\/values:batchUpdate$/)) {
-      state.batchUpdates.push(req.postDataJSON())
+      const body = req.postDataJSON() as { data?: Array<{ range: string; values: Row[] }> }
+      state.batchUpdates.push(body)
+      // Routine-editor tab rewrites arrive as a single atomic batchUpdate at
+      // Routines!A1: [header, ...rows, ...blank padding]
+      const routinesWrite = body.data?.find((d) => d.range.startsWith('Routines'))
+      if (routinesWrite) {
+        const rows = routinesWrite.values.slice(1).filter((r) => r.some((c) => String(c ?? '').trim() !== ''))
+        state.routineWrites.push(routinesWrite.values)
+        state.routineRows = rows
+      }
       return route.fulfill(json({}))
     }
 

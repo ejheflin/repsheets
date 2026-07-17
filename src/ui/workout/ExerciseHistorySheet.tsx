@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react'
+import { measureOf, formatValue } from '../../data/measure'
 import type { LogEntry, WorkoutExercise } from '../../types'
 
 interface Props {
@@ -21,6 +22,7 @@ function formatDate(d: string): string {
 
 function calcE1rm(log: LogEntry): number | null {
   if (log.value == null || log.value <= 0) return null
+  if (measureOf(log.unit) !== 'weight') return null // E1RM is a weight-only concept
   if (log.pct != null && log.pct > 0) return log.value / (log.pct / 100)
   if (log.reps >= 1 && log.reps <= 12) return epley(log.value, log.reps)
   return null
@@ -156,7 +158,7 @@ export function ExerciseHistorySheet({ exercise, logs, program, e1rm, onClose }:
                         <td className={`${td} py-2 text-white font-semibold`}>{sessionE1rm ?? '—'}</td>
                         <td className={`${td} py-2 text-gray-300`}>{tgtPct != null ? `${tgtPct}%` : '—'}</td>
                         <td className={`${td} py-2 text-gray-300`}>{tgt ?? '—'}</td>
-                        <td className={`${td} py-2 text-gray-300`}>{maxWt ?? '—'}</td>
+                        <td className={`${td} py-2 text-gray-300`}>{maxWt != null ? formatValue(maxWt, heaviest?.unit) : '—'}</td>
                       </tr>
 
                       {/* Expanded per-set rows */}
@@ -172,7 +174,7 @@ export function ExerciseHistorySheet({ exercise, logs, program, e1rm, onClose }:
                             <td className={`${td} py-1.5 text-gray-400`}>{setOrmRounded ?? '—'}</td>
                             <td className={`${td} py-1.5 text-gray-400`}>{e.pct != null ? `${e.pct}%` : '—'}</td>
                             <td className={`${td} py-1.5 text-gray-400`}>{setTgt ?? '—'}</td>
-                            <td className={`${td} py-1.5 text-gray-300 font-medium`}>{e.value}</td>
+                            <td className={`${td} py-1.5 text-gray-300 font-medium`}>{e.value != null ? formatValue(e.value, e.unit) : '—'}</td>
                           </tr>
                         )
                       })}

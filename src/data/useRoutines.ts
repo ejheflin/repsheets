@@ -75,5 +75,11 @@ export function useRoutines(selectedProgram: string | null) {
     return { name, exercises, rows }
   })
 
-  return { routineList, programs, allRows, isLoading, refresh }
+  const mutateCache = useCallback(async (rows: RoutineRow[]) => {
+    if (!spreadsheetId) return
+    await saveRoutines(spreadsheetId, rows)
+    setAllRows(rows)
+  }, [spreadsheetId])
+
+  return { routineList, programs, allRows, isLoading, refresh, mutateCache }
 }

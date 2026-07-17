@@ -1,11 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 
 interface UseSwipeActionsOptions {
-  actionWidth: number
+  actionWidth: number       // trailing actions (right side), revealed by swiping left
+  leadingWidth?: number     // leading actions (left side), revealed by swiping right
   threshold?: number
 }
 
-export function useSwipeActions({ actionWidth, threshold = 0.4 }: UseSwipeActionsOptions) {
+export function useSwipeActions({ actionWidth, leadingWidth = 0, threshold = 0.4 }: UseSwipeActionsOptions) {
   const [offset, setOffset] = useState(0)
   const [transitioning, setTransitioning] = useState(false)
 
@@ -15,10 +16,10 @@ export function useSwipeActions({ actionWidth, threshold = 0.4 }: UseSwipeAction
   const baseOffset = useRef(0)
   const liveOffset = useRef(0)
   const gestureOwned = useRef<boolean | null>(null)
-  const openRef = useRef(false)
+  const openRef = useRef(0) // current resting offset: 0, -actionWidth, or +leadingWidth
 
   const snapTo = useCallback((target: number) => {
-    openRef.current = target < 0
+    openRef.current = target
     liveOffset.current = target
     setTransitioning(true)
     setOffset(target)
@@ -33,7 +34,7 @@ export function useSwipeActions({ actionWidth, threshold = 0.4 }: UseSwipeAction
     const onTouchStart = (e: TouchEvent) => {
       startX.current = e.touches[0].clientX
       startY.current = e.touches[0].clientY
-      baseOffset.current = openRef.current ? -actionWidth : 0
+      baseOffset.current = openRef.current
       liveOffset.current = baseOffset.current
       gestureOwned.current = null
       setTransitioning(false)
@@ -50,8 +51,9 @@ export function useSwipeActions({ actionWidth, threshold = 0.4 }: UseSwipeAction
 
       if (!gestureOwned.current) return
       e.preventDefault()
+      e.stopPropagation() // don't let a nested row's swipe bubble to an ancestor SwipeableRow
 
-      const clamped = Math.max(-actionWidth, Math.min(0, baseOffset.current + dx))
+      const clamped = Math.max(-actionWidth, Math.min(leadingWidth, baseOffset.current + dx))
       liveOffset.current = clamped
       setOffset(clamped)
     }
@@ -59,7 +61,10 @@ export function useSwipeActions({ actionWidth, threshold = 0.4 }: UseSwipeAction
     const onTouchEnd = () => {
       if (gestureOwned.current !== true) return
       gestureOwned.current = null
-      snapTo(Math.abs(liveOffset.current) >= actionWidth * threshold ? -actionWidth : 0)
+      const lo = liveOffset.current
+      if (lo <= -actionWidth * threshold) snapTo(-actionWidth)
+      else if (leadingWidth > 0 && lo >= leadingWidth * threshold) snapTo(leadingWidth)
+      else snapTo(0)
     }
 
     el.addEventListener('touchstart', onTouchStart, { passive: true })
@@ -71,7 +76,7 @@ export function useSwipeActions({ actionWidth, threshold = 0.4 }: UseSwipeAction
       el.removeEventListener('touchmove', onTouchMove)
       el.removeEventListener('touchend', onTouchEnd)
     }
-  }, [actionWidth, threshold, snapTo])
+  }, [actionWidth, leadingWidth, threshold, snapTo])
 
-  return { offset, transitioning, isOpen: offset === -actionWidth, contentRef, close }
+  return { offset, transitioning, isOpen: offset !== 0, contentRef, close }
 }

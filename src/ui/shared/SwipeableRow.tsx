@@ -10,15 +10,17 @@ export interface SwipeAction {
 
 interface SwipeableRowProps {
   actions: SwipeAction[]
+  leadingActions?: SwipeAction[]
   children: ReactNode
   className?: string
 }
 
 const BUTTON_WIDTH = 72
 
-export function SwipeableRow({ actions, children, className }: SwipeableRowProps) {
+export function SwipeableRow({ actions, leadingActions = [], children, className }: SwipeableRowProps) {
   const actionWidth = actions.length * BUTTON_WIDTH
-  const { offset, transitioning, isOpen, contentRef, close } = useSwipeActions({ actionWidth })
+  const leadingWidth = leadingActions.length * BUTTON_WIDTH
+  const { offset, transitioning, isOpen, contentRef, close } = useSwipeActions({ actionWidth, leadingWidth })
   const outerRef = useRef<HTMLDivElement>(null)
 
   // Close when a touch starts outside this row
@@ -35,6 +37,21 @@ export function SwipeableRow({ actions, children, className }: SwipeableRowProps
 
   return (
     <div ref={outerRef} className={`relative overflow-hidden ${className ?? ''}`}>
+      {leadingActions.length > 0 && (
+        <div className="absolute left-0 flex overflow-hidden rounded-l-[10px]" style={{ width: leadingWidth, top: 1, bottom: 1 }}>
+          {leadingActions.map((action, i) => (
+            <button
+              key={i}
+              onClick={() => { close(); action.onClick() }}
+              className="flex-1 flex flex-col items-center justify-center gap-1 active:opacity-80"
+              style={{ background: action.color }}
+            >
+              {action.icon}
+              <span className="text-[11px] text-white font-medium">{action.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="absolute right-0 flex overflow-hidden rounded-r-[10px]" style={{ width: actionWidth, top: 1, bottom: 1 }}>
         {actions.map((action, i) => (
           <button

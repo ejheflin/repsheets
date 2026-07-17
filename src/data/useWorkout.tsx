@@ -17,7 +17,19 @@ export class StaleEditError extends Error {
 import { localDateString } from '../utils'
 import { saveWorkout, getWorkout, clearWorkout, saveLogs, getLogs, getRoutines, queueLogEntries, saveRoutines } from './db'
 import { checkPendingSync } from './syncEngine'
-import type { RoutineRow, WorkoutState, WorkoutExercise, LogEntry, EditModeState } from '../types'
+import { serializeAchieved } from '../workout/achievedRpe'
+import type { RoutineRow, WorkoutState, WorkoutExercise, WorkoutSet, LogEntry, EditModeState } from '../types'
+
+/** Resolve the achieved RPE/RIR to log for a set, defaulting to the prescription. */
+function loggedAchieved(set: WorkoutSet): { rpe: number | null; rir: number | null } {
+  if (set.rpe != null || set.achievedRpe != null) {
+    return { rpe: set.achievedRpe ?? set.rpe ?? null, rir: null }
+  }
+  if (set.rir != null || set.achievedRir != null) {
+    return { rpe: null, rir: set.achievedRir ?? set.rir ?? null }
+  }
+  return { rpe: null, rir: null }
+}
 
 function formatAthleteName(name: string): string {
   const parts = name.trim().split(/\s+/)
@@ -37,8 +49,8 @@ interface WorkoutContextValue {
   saveEditedWorkout: () => Promise<void>
   toggleSet: (exerciseIdx: number, setIdx: number) => void
   toggleExercise: (exerciseIdx: number) => void
-  updateSet: (exerciseIdx: number, setIdx: number, field: 'reps' | 'value', val: number | null) => void
-  updateAllSets: (exerciseIdx: number, field: 'reps' | 'value', val: number | null) => void
+  updateSet: (exerciseIdx: number, setIdx: number, field: 'reps' | 'value' | 'achievedRpe' | 'achievedRir', val: number | null) => void
+  updateAllSets: (exerciseIdx: number, field: 'reps' | 'value' | 'achievedRpe' | 'achievedRir', val: number | null) => void
   updateNotes: (exerciseIdx: number, notes: string) => void
   toggleExpanded: (exerciseIdx: number) => void
   addSet: (exerciseIdx: number) => void
@@ -83,7 +95,13 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
               const match = expanded.find(
                 (s) => s.exercise === ex.exercise && s.setNumber === set.setNumber
               )
-              if (match) set.pct = match.pct ?? null
+              if (match) {
+                // Carry the full current prescription, not just pct, so a set whose
+                // routine is now rpe/rir doesn't get a stale pct resurrected.
+                set.pct = match.pct ?? null
+                set.rpe = match.rpe ?? null
+                set.rir = match.rir ?? null
+              }
             }
           }
           setWorkout(patched)
@@ -156,13 +174,22 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
                 prev.routine,
                 alias ?? formatAthleteName(user.name)
               )
-              if (resolved.reps !== null) set.reps = resolved.reps
-              if (resolved.value !== null) set.value = resolved.value
+              // Only fill empty slots — never overwrite a value that's already shown
+              // (prefilled or just typed), or this async refresh clobbers a set the
+              // user is mid-edit on, collapsing their selection and reverting input.
+              if (resolved.reps !== null && set.reps == null) set.reps = resolved.reps
+              if (resolved.value !== null && set.value == null) set.value = resolved.value
               // Refresh pct from latest routine in case coach changed percentages
               const matchingSet = expanded.find(
                 (s) => s.exercise === ex.exercise && s.setNumber === set.setNumber
               )
-              if (matchingSet) set.pct = matchingSet.pct
+              if (matchingSet) {
+                set.pct = matchingSet.pct
+                set.rpe = matchingSet.rpe ?? null
+                set.rir = matchingSet.rir ?? null
+                set.repsMax = matchingSet.repsMax ?? null
+                set.repsOpen = matchingSet.repsOpen ?? false
+              }
             }
           }
 
@@ -235,8 +262,13 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
           return {
             setNumber: s.setNumber,
             reps: resolved.reps,
+            repsMax: s.repsMax ?? null,
+            repsOpen: s.repsOpen ?? false,
             value: resolved.value,
             pct: s.pct,
+            basis: s.basis,
+            rpe: s.rpe ?? null,
+            rir: s.rir ?? null,
             unit: s.unit,
             completed: false,
             isAdded: false,
@@ -293,7 +325,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
   const updateSet = useCallback((
     exerciseIdx: number,
     setIdx: number,
-    field: 'reps' | 'value',
+    field: 'reps' | 'value' | 'achievedRpe' | 'achievedRir',
     val: number | null
   ) => {
     setWorkout((prev) => {
@@ -309,7 +341,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
 
   const updateAllSets = useCallback((
     exerciseIdx: number,
-    field: 'reps' | 'value',
+    field: 'reps' | 'value' | 'achievedRpe' | 'achievedRir',
     val: number | null
   ) => {
     setWorkout((prev) => {
@@ -351,8 +383,13 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
       ex.sets.push({
         setNumber: lastSet.setNumber + 1,
         reps: lastSet.reps,
+        repsMax: lastSet.repsMax ?? null,
+        repsOpen: lastSet.repsOpen ?? false,
         value: lastSet.value,
         pct: lastSet.pct,
+        basis: lastSet.basis,
+        rpe: lastSet.rpe ?? null,
+        rir: lastSet.rir ?? null,
         unit: lastSet.unit,
         completed: false,
         isAdded: true,
@@ -441,6 +478,8 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
           reps: e.reps,
           value: e.value,
           pct: e.pct ?? null,
+          achievedRpe: e.achievedRpe ?? null,
+          achievedRir: e.achievedRir ?? null,
           unit: e.unit,
           completed: true,
           isAdded: false,
@@ -491,6 +530,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
         const rowIndex = set.origIdentity
           ? resolveRow(set.origIdentity, set.rowIndex)
           : set.rowIndex!
+        const achieved = loggedAchieved(set)
         updates.push({
           rowIndex,
           entry: {
@@ -503,7 +543,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
             reps: set.reps ?? 0,
             value: set.value,
             unit: set.unit,
-            notes: ex.userNotes,
+            notes: serializeAchieved(ex.userNotes, achieved.rpe, achieved.rir),
             pct: set.pct ?? null,
           },
         })
@@ -531,6 +571,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
     for (const ex of workout.exercises) {
       for (const set of ex.sets) {
         if (logOnlyCompleted && !set.completed) continue
+        const achieved = loggedAchieved(set)
         entries.push({
           date: today,
           athlete: alias ?? formatAthleteName(user.name),
@@ -541,7 +582,7 @@ export function WorkoutProvider({ children }: { children: ReactNode }) {
           reps: set.reps ?? 0,
           value: set.value,
           unit: set.unit,
-          notes: ex.userNotes,
+          notes: serializeAchieved(ex.userNotes, achieved.rpe, achieved.rir),
           pct: set.pct ?? null,
         })
       }

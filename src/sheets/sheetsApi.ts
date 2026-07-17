@@ -1,6 +1,8 @@
 import type { RoutineRow, LogEntry } from '../types'
 import { authFetch } from '../auth/authFetch'
 import { GOOGLE_API_KEY } from '../config'
+import { parseRoutineValue, parseReps } from './routineSerialization'
+import { parseAchieved } from '../workout/achievedRpe'
 
 /**
  * Converts a Google Sheets serial date number to YYYY-MM-DD.
@@ -49,23 +51,26 @@ async function fetchPublicRange(spreadsheetId: string, range: string): Promise<s
 }
 
 /**
- * Percentages must be explicit ("75%") — bare decimals are real weights/
- * distances (0.75 kg, 0.5 mi), and values are kept as-is so fractional
- * weights like 62.5 survive.
+ * Percentages must be explicit ("75%", "TM", "1RM") — bare decimals are real
+ * weights/distances, and values keep their decimals so 62.5 survives.
+ * Load parsing (pct/RPE/RIR/basis) and rep ranges live in routineSerialization.
  */
 export function mapRoutineRow(row: string[]): RoutineRow {
-  const rawValue = String(row[5] ?? '').trim()
-  const isPct = rawValue.endsWith('%')
-  const parsedPct = isPct ? Math.round(parseFloat(rawValue)) : NaN
-  const parsedValue = !isPct && rawValue ? Number(rawValue) : NaN
+  const parsed = parseRoutineValue(row[5])
+  const pr = parseReps(row[4])
   return {
     program: row[0] ?? '',
     routine: row[1] ?? '',
     exercise: row[2] ?? '',
     sets: String(row[3] ?? '1'),
-    reps: row[4] ? Number(row[4]) : null,
-    value: Number.isNaN(parsedValue) ? null : parsedValue,
-    pct: Number.isNaN(parsedPct) ? null : parsedPct,
+    reps: pr.reps,
+    ...(pr.repsMax !== undefined ? { repsMax: pr.repsMax } : {}),
+    ...(pr.repsOpen ? { repsOpen: true } : {}),
+    value: parsed.value,
+    pct: parsed.pct,
+    basis: parsed.basis ?? undefined,
+    ...(parsed.rpe !== undefined ? { rpe: parsed.rpe } : {}),
+    ...(parsed.rir !== undefined ? { rir: parsed.rir } : {}),
     unit: row[6] ?? '',
     notes: row[7] ?? '',
   }
@@ -95,6 +100,7 @@ export interface IndexedLogEntry extends LogEntry {
 }
 
 function parseLogRow(row: string[]): LogEntry {
+  const { notes, rpe, rir } = parseAchieved(row[9] ?? '')
   return {
     date: normalizeDate(row[0] ?? ''),
     athlete: row[1] ?? '',
@@ -105,8 +111,10 @@ function parseLogRow(row: string[]): LogEntry {
     reps: row[6] ? Number(row[6]) : 0,
     value: row[7] ? Number(row[7]) : null,
     unit: row[8] ?? '',
-    notes: row[9] ?? '',
+    notes,
     pct: row[10] ? Number(row[10]) : null,
+    achievedRpe: rpe,
+    achievedRir: rir,
   }
 }
 

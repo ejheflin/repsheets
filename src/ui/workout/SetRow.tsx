@@ -1,4 +1,7 @@
 import { useRef, useEffect } from 'react'
+import { rpeToPct, rirToPct } from '../../workout/rpe'
+import { roundWeight, measureOf } from '../../data/measure'
+import { TimeInput } from './TimeInput'
 import { parseNumericInput } from '../../utils'
 import { useDecimalInput } from '../shared/useDecimalInput'
 
@@ -9,76 +12,134 @@ interface SetRowProps {
   unit: string
   completed: boolean
   pct?: number | null
+  rpe?: number | null
+  rir?: number | null
+  achievedRpe?: number | null
+  achievedRir?: number | null
+  gridCols?: string
+  showTargetColumn?: boolean
   oneRepMax?: number | null
+  rawOneRepMax?: number | null
   repsFlag?: boolean
   valueFlag?: boolean
   onToggle: () => void
   onRepsChange: (val: number | null) => void
   onValueChange: (val: number | null) => void
+  onAchievedRpeChange?: (val: number | null) => void
+  onAchievedRirChange?: (val: number | null) => void
   onTargetClick?: () => void
 }
 
 export function SetRow({
-  setNumber, reps, value, unit: _unit, completed,
-  pct, oneRepMax,
+  setNumber, reps, value, unit, completed,
+  pct, rpe, rir, achievedRpe, achievedRir, gridCols, showTargetColumn, oneRepMax, rawOneRepMax,
   repsFlag, valueFlag,
-  onToggle, onRepsChange, onValueChange, onTargetClick,
+  onToggle, onRepsChange, onValueChange, onAchievedRpeChange, onAchievedRirChange, onTargetClick,
 }: SetRowProps) {
+  // Achieved-RPE capture appears only for RPE/RIR-prescribed sets (or past sets that
+  // logged one). The box defaults to the prescription; the athlete nudges it to what
+  // they actually hit. Plain weight/% sets never show it (Layer 1 — no clutter).
+  const rpeMode = rpe != null || achievedRpe != null
+  const rirMode = !rpeMode && (rir != null || achievedRir != null)
+  const showAchieved = rpeMode || rirMode
+  const achievedValue = rpeMode ? (achievedRpe ?? rpe) : (achievedRir ?? rir)
+  const prescribed = rpeMode ? rpe : rir
   const showPctLabel = pct != null
   const targetWeight = showPctLabel && oneRepMax != null
-    ? Math.round(pct * oneRepMax / 100 / 5) * 5
+    ? roundWeight(pct * oneRepMax / 100, unit)
+    : null
+
+  const showRpeLabel = !showPctLabel && rpe != null
+  const showRirLabel = !showPctLabel && rpe == null && rir != null
+  const rpeRirTarget = rawOneRepMax != null
+    ? showRpeLabel
+      ? roundWeight(rpeToPct(reps ?? 1, rpe!) * rawOneRepMax, unit)
+      : showRirLabel
+        ? roundWeight(rirToPct(reps ?? 1, rir!) * rawOneRepMax, unit)
+        : null
     : null
 
   const pctLabel = showPctLabel
     ? targetWeight != null ? `${Math.round(pct!)}%/${targetWeight}` : `${Math.round(pct!)}%`
-    : null
+    : showRpeLabel
+      ? rpeRirTarget != null ? `@${rpe}/${rpeRirTarget}` : `@${rpe}`
+      : showRirLabel
+        ? rpeRirTarget != null ? `${rir}RIR/${rpeRirTarget}` : `${rir}RIR`
+        : null
 
   const valueRef = useRef<HTMLInputElement>(null)
   const prevValue = useRef(value)
-  const valueUserTyped = useRef(false)
+  // True once the user has typed into this field; stays true until they leave and
+  // re-enter (onFocus resets it). Prevents the autofill select-on-appear effect from
+  // re-selecting and clobbering keystrokes as the user types successive digits.
+  const userEditing = useRef(false)
   const valueInput = useDecimalInput(value, onValueChange)
+  // Draft buffer so half-steps (8.5) are typable; clamp to plausible effort range
+  const achievedInput = useDecimalInput(achievedValue ?? null, (v) => {
+    const clamped = v == null ? null : Math.min(10, Math.max(rpeMode ? 1 : 0, v))
+    if (rpeMode) onAchievedRpeChange?.(clamped)
+    else onAchievedRirChange?.(clamped)
+  })
   useEffect(() => {
     const prev = prevValue.current
     prevValue.current = value
-    if (value != null && prev == null && !valueUserTyped.current && document.activeElement === valueRef.current) {
+    if (value != null && prev == null && !userEditing.current && document.activeElement === valueRef.current) {
       valueRef.current?.select()
     }
-    valueUserTyped.current = false
   }, [value])
 
   return (
-    <div className="flex items-center py-1.5 bg-[#2a2a4a]">
-      <div className="w-7 text-xs text-gray-500">{setNumber}</div>
-      <div className="flex-1 flex items-center justify-center gap-1">
+    <div className="grid items-center py-1.5 bg-[#2a2a4a]" style={{ gridTemplateColumns: gridCols }}>
+      <div className="text-xs text-gray-500 text-center">{setNumber}</div>
+      <div className="flex items-center justify-center gap-1 min-w-0">
         <button
           onClick={() => onRepsChange(Math.max(0, (reps ?? 0) - 1))}
-          className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#2a2a4a]"
+          className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center flex-shrink-0 active:bg-[#2a2a4a]"
         >−</button>
         <input type="text" inputMode="numeric" value={reps ?? ''}
           onChange={(e) => { const n = parseNumericInput(e.target.value); if (n !== undefined) onRepsChange(n) }}
           onFocus={(e) => e.target.select()}
-          className={`w-12 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${repsFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
+          className={`w-full min-w-0 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${repsFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
           placeholder="—" />
         <button
           onClick={() => onRepsChange((reps ?? 0) + 1)}
-          className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center active:bg-[#2a2a4a]"
+          className="w-6 h-6 rounded bg-[#1a1a2e] text-gray-400 text-sm flex items-center justify-center flex-shrink-0 active:bg-[#2a2a4a]"
         >+</button>
       </div>
-      {pctLabel != null && (
-        <button onClick={onTargetClick}
-          className="w-16 text-right pr-1 text-[11px] text-gray-500 leading-tight flex-shrink-0 active:opacity-80">
-          {pctLabel}
-        </button>
+      {showTargetColumn && (
+        showPctLabel ? (
+          <button onClick={onTargetClick}
+            className="text-center text-[11px] text-gray-500 leading-tight active:opacity-80 truncate">
+            {pctLabel}
+          </button>
+        ) : showAchieved ? (
+          <div className="px-0.5 min-w-0">
+            <input type="text" inputMode="decimal"
+              value={achievedInput.text}
+              placeholder={prescribed != null ? String(prescribed) : ''}
+              onChange={(e) => achievedInput.handleChange(e.target.value)}
+              onBlur={achievedInput.handleBlur}
+              onFocus={(e) => e.target.select()}
+              className="w-full min-w-0 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] focus:ring-1 focus:ring-[#6c63ff]" />
+          </div>
+        ) : (
+          <div />
+        )
       )}
-      <div className="flex-1 text-center">
-        <input ref={valueRef} type="text" inputMode="decimal" value={valueInput.text}
-          onChange={(e) => { valueUserTyped.current = true; valueInput.handleChange(e.target.value) }}
-          onBlur={valueInput.handleBlur}
-          onFocus={(e) => e.target.select()}
-          className={`w-16 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
-          placeholder="—" />
+      <div className="px-1 min-w-0">
+        {measureOf(unit) === 'time' ? (
+          <TimeInput value={value} onChange={onValueChange}
+            className={`w-full min-w-0 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`} />
+        ) : (
+          <input ref={valueRef} type="text" inputMode="decimal" value={valueInput.text}
+            onChange={(e) => { userEditing.current = true; valueInput.handleChange(e.target.value) }}
+            onBlur={valueInput.handleBlur}
+            onFocus={(e) => { userEditing.current = false; e.target.select() }}
+            className={`w-full min-w-0 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${valueFlag ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`}
+            placeholder="—" />
+        )}
       </div>
-      <div className="w-7 text-center">
+      <div className="flex justify-center">
         <button onClick={onToggle}>
           {completed ? (
             <div className="w-[18px] h-[18px] bg-[#6c63ff] rounded inline-flex items-center justify-center text-[10px]">✓</div>
