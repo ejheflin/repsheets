@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
 interface AthleteFilterProps {
   athletes: string[]
@@ -10,6 +10,8 @@ interface AthleteFilterProps {
 export function AthleteFilter({ athletes, selected, onToggle, onLongPressMe }: AthleteFilterProps) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const didLongPressRef = useRef(false)
+
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
 
   const startLongPress = () => {
     if (!onLongPressMe) return

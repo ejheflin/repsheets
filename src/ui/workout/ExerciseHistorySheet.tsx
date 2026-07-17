@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import type { LogEntry, WorkoutExercise } from '../../types'
 
 interface Props {
@@ -139,10 +139,9 @@ export function ExerciseHistorySheet({ exercise, logs, program, e1rm, onClose }:
                   const repsSummary = entries[0]?.reps ?? null
 
                   return (
-                    <>
+                    <Fragment key={date}>
                       {/* Collapsed date row */}
                       <tr
-                        key={date}
                         className="border-t border-[#3a3a5a] cursor-pointer active:bg-[#1a1a2e]/40"
                         onClick={() => toggleDate(date)}
                       >
@@ -177,7 +176,7 @@ export function ExerciseHistorySheet({ exercise, logs, program, e1rm, onClose }:
                           </tr>
                         )
                       })}
-                    </>
+                    </Fragment>
                   )
                 })}
               </tbody>

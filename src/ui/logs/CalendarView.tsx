@@ -18,8 +18,10 @@ export function CalendarView({ workoutDates, athleteDates, allRoutines, allAthle
     // Default to the month of the latest workout, or current month
     const dates = [...workoutDates.keys()].sort()
     if (dates.length > 0) {
-      const latest = new Date(dates[dates.length - 1])
-      return { year: latest.getFullYear(), month: latest.getMonth() }
+      // Parse components — new Date('YYYY-MM-DD') is UTC midnight, which shifts
+      // to the previous day (and possibly month) in western timezones
+      const [y, m] = dates[dates.length - 1].split('-').map(Number)
+      if (y && m) return { year: y, month: m - 1 }
     }
     const now = new Date()
     return { year: now.getFullYear(), month: now.getMonth() }

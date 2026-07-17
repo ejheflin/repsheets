@@ -423,9 +423,11 @@ export function SheetSwitcherModal({ onClose }: SheetSwitcherModalProps) {
               value={importLink}
               onChange={(e) => setImportLink(e.target.value)}
               onClick={async () => {
+                // Convenience prefill only — never overwrite typed content
+                if (importLink) return
                 try {
                   const text = await navigator.clipboard.readText()
-                  if (text) setImportLink(text)
+                  if (text && text.includes('docs.google.com')) setImportLink(text)
                 } catch {}
               }}
               placeholder="Paste Google Sheets link"
