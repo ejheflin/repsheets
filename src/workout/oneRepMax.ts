@@ -34,8 +34,11 @@ export function estimateOneRepMax(
     if (pct != null && pct > 0) {
       est = log.value / (pct / 100)
     } else if (log.achievedRpe != null) {
+      // Same reps window as Epley — the RPE chart is meaningless past ~12 reps
+      if (log.reps < 1 || log.reps > 12) continue
       est = e1rmFromRpe(log.value, log.reps, log.achievedRpe)
     } else if (log.achievedRir != null) {
+      if (log.reps < 1 || log.reps > 12) continue
       est = e1rmFromRpe(log.value, log.reps, rirToRpe(log.achievedRir))
     } else {
       if (log.reps < 1 || log.reps > 12) continue

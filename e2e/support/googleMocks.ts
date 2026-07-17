@@ -22,6 +22,8 @@ export interface GoogleMockState {
   appendedRows: Row[]
   appendsBySheet: Record<string, Row[]>
   failedAppendRows: Row[]
+  routineWrites: Row[][]
+  routineClears: string[]
   batchUpdates: unknown[]
   registryWrites: unknown[]
   failAppends: boolean
@@ -94,6 +96,8 @@ export async function mockGoogleApis(context: BrowserContext): Promise<GoogleMoc
     appendedRows: [],
     appendsBySheet: {},
     failedAppendRows: [],
+    routineWrites: [],
+    routineClears: [],
     batchUpdates: [],
     registryWrites: [],
     failAppends: false,
@@ -177,6 +181,17 @@ export async function mockGoogleApis(context: BrowserContext): Promise<GoogleMoc
         ;(state.appendsBySheet[sheetId] ??= []).push(...body.values)
         state.logRows.push(...body.values)
         return route.fulfill(json({ updates: { updatedRows: body.values.length } }))
+      }
+      if (range.endsWith(':clear')) {
+        state.routineClears.push(range)
+        return route.fulfill(json({}))
+      }
+      if (method === 'PUT' && range.startsWith('Routines')) {
+        // Whole-tab rewrite from the routine editor: body is [header, ...rows]
+        const body = req.postDataJSON() as { values: Row[] }
+        state.routineWrites.push(body.values)
+        state.routineRows = body.values.slice(1)
+        return route.fulfill(json({}))
       }
       if (range.startsWith('Routines')) {
         return route.fulfill(json({ values: [ROUTINE_HEADER, ...state.routineRows] }))

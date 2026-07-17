@@ -235,6 +235,11 @@ export function ExerciseRow({
     : firstSet?.repsMax != null ? `${firstSet.reps ?? ''}–${firstSet.repsMax}` : null
   const summaryAchievedRpe = firstSet?.achievedRpe ?? firstSet?.rpe ?? null
   const summaryAchievedRir = firstSet?.achievedRir ?? firstSet?.rir ?? null
+  // Draft buffers so half-steps (8.5) are typable and NaN can never be stored
+  const summaryRpeInput = useDecimalInput(summaryAchievedRpe, (v) =>
+    onUpdateAllSets('achievedRpe', v == null ? null : Math.min(10, Math.max(1, v))))
+  const summaryRirInput = useDecimalInput(summaryAchievedRir, (v) =>
+    onUpdateAllSets('achievedRir', v == null ? null : Math.min(10, Math.max(0, v))))
   const rpeHasMismatch = exercise.sets.some((s) => (s.achievedRpe ?? s.rpe ?? null) !== summaryAchievedRpe)
   const rirHasMismatch = exercise.sets.some((s) => (s.achievedRir ?? s.rir ?? null) !== summaryAchievedRir)
 
@@ -357,16 +362,18 @@ export function ExerciseRow({
                   </button>
                 ) : intensityMode === 'rpe' ? (
                   <input type="text" inputMode="decimal"
-                    value={summaryAchievedRpe != null ? summaryAchievedRpe : ''}
+                    value={summaryRpeInput.text}
                     placeholder={firstSet?.rpe != null ? String(firstSet.rpe) : ''}
-                    onChange={(e) => onUpdateAllSets('achievedRpe', e.target.value ? Number(e.target.value) : null)}
+                    onChange={(e) => summaryRpeInput.handleChange(e.target.value)}
+                    onBlur={summaryRpeInput.handleBlur}
                     onFocus={(e) => e.target.select()}
                     className={`w-11 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${rpeHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`} />
                 ) : intensityMode === 'rir' ? (
                   <input type="text" inputMode="decimal"
-                    value={summaryAchievedRir != null ? summaryAchievedRir : ''}
+                    value={summaryRirInput.text}
                     placeholder={firstSet?.rir != null ? String(firstSet.rir) : ''}
-                    onChange={(e) => onUpdateAllSets('achievedRir', e.target.value ? Number(e.target.value) : null)}
+                    onChange={(e) => summaryRirInput.handleChange(e.target.value)}
+                    onBlur={summaryRirInput.handleBlur}
                     onFocus={(e) => e.target.select()}
                     className={`w-11 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] ${rirHasMismatch ? 'ring-1 ring-red-500' : 'focus:ring-1 focus:ring-[#6c63ff]'}`} />
                 ) : null}

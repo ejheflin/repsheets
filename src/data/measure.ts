@@ -49,8 +49,11 @@ export function formatValue(value: number | null, unit: string | null | undefine
   if (value === null) return ''
   const measure = measureOf(unit)
   if (measure === 'time') return formatDuration(value)
-  if (measure === 'weight' || measure === 'distance') return `${Math.round(value)} ${unit}`
-  return `${Math.round(value)}`
+  // One decimal, trailing zeros stripped — 62.5 kg and 0.5 mi must not
+  // display as 63 kg / 1 mi
+  const rounded = Number(value.toFixed(1))
+  if (measure === 'weight' || measure === 'distance') return `${rounded} ${unit}`
+  return `${rounded}`
 }
 
 export interface MeasureConfig {

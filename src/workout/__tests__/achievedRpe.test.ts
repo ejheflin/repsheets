@@ -27,6 +27,14 @@ describe('serializeAchieved', () => {
   it('preserves half-step RPE', () => {
     expect(serializeAchieved('top set', 8.5)).toBe('top set @8.5')
   })
+
+  it('refuses implausible values so garbage never reaches the sheet', () => {
+    expect(serializeAchieved('x', NaN)).toBe('x')
+    expect(serializeAchieved('x', 135)).toBe('x')
+    expect(serializeAchieved('x', -2)).toBe('x')
+    expect(serializeAchieved('x', null, -1)).toBe('x')
+    expect(serializeAchieved('x', null, 20)).toBe('x')
+  })
 })
 
 describe('parseAchieved', () => {
@@ -36,6 +44,12 @@ describe('parseAchieved', () => {
 
   it('extracts a trailing RIR token (case-insensitive)', () => {
     expect(parseAchieved('grindy 2rir')).toEqual({ notes: 'grindy', rpe: null, rir: 2 })
+  })
+
+  it('leaves out-of-range trailing tokens in the notes (weights, not RPE)', () => {
+    expect(parseAchieved('AMRAP @135')).toEqual({ notes: 'AMRAP @135', rpe: null, rir: null })
+    expect(parseAchieved('meet Sam @11')).toEqual({ notes: 'meet Sam @11', rpe: null, rir: null })
+    expect(parseAchieved('rest-pause 15RIR')).toEqual({ notes: 'rest-pause 15RIR', rpe: null, rir: null })
   })
 
   it('handles a token with no surrounding notes', () => {

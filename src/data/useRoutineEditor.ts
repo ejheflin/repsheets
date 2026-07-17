@@ -73,6 +73,16 @@ export function useRoutineEditor(
     return () => clearTimeout(timer.current)
   }, [editing, runSave])
 
+  // Best-effort flush if the app is backgrounded/closed with a pending edit —
+  // the request may not complete on a hard kill, but it beats guaranteed loss
+  useEffect(() => {
+    const onHide = () => {
+      if (dirty.current) saveNow().catch(() => {})
+    }
+    window.addEventListener('pagehide', onHide)
+    return () => window.removeEventListener('pagehide', onHide)
+  }, [saveNow])
+
   const act = useCallback((a: Action) => dispatch(a), [])
   return { state, status, act, flush }
 }

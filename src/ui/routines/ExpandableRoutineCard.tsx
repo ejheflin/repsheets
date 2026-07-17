@@ -35,9 +35,14 @@ function useCardEditing() {
 
   useEffect(() => () => clearTimeout(blurTimer.current), [])
 
-  const onFocusCapture = useCallback(() => {
+  const onFocusCapture = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
     clearTimeout(blurTimer.current)
-    setEditing(true)
+    // Only typing needs the save deferral (a save re-render steals text focus).
+    // Button focus must not defer: on desktop/Android a stepper tap focuses the
+    // button, and treating that as "editing" would postpone the save until the
+    // user happens to tap outside the card — or never, losing the edit.
+    const t = e.target as HTMLElement
+    if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA') setEditing(true)
   }, [])
 
   const onBlurCapture = useCallback((e: React.FocusEvent<HTMLDivElement>) => {

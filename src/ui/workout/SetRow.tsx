@@ -74,6 +74,12 @@ export function SetRow({
   // re-selecting and clobbering keystrokes as the user types successive digits.
   const userEditing = useRef(false)
   const valueInput = useDecimalInput(value, onValueChange)
+  // Draft buffer so half-steps (8.5) are typable; clamp to plausible effort range
+  const achievedInput = useDecimalInput(achievedValue ?? null, (v) => {
+    const clamped = v == null ? null : Math.min(10, Math.max(rpeMode ? 1 : 0, v))
+    if (rpeMode) onAchievedRpeChange?.(clamped)
+    else onAchievedRirChange?.(clamped)
+  })
   useEffect(() => {
     const prev = prevValue.current
     prevValue.current = value
@@ -109,14 +115,10 @@ export function SetRow({
         ) : showAchieved ? (
           <div className="px-0.5 min-w-0">
             <input type="text" inputMode="decimal"
-              value={achievedValue != null ? achievedValue : ''}
+              value={achievedInput.text}
               placeholder={prescribed != null ? String(prescribed) : ''}
-              onChange={(e) => {
-                const v = parseNumericInput(e.target.value)
-                if (v === undefined) return
-                if (rpeMode) onAchievedRpeChange?.(v)
-                else onAchievedRirChange?.(v)
-              }}
+              onChange={(e) => achievedInput.handleChange(e.target.value)}
+              onBlur={achievedInput.handleBlur}
               onFocus={(e) => e.target.select()}
               className="w-full min-w-0 bg-[#1a1a2e] rounded text-center text-base font-semibold py-1 outline-none [appearance:textfield] focus:ring-1 focus:ring-[#6c63ff]" />
           </div>
