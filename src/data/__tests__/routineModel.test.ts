@@ -7,6 +7,78 @@ const base = (o: Partial<RoutineRow>): RoutineRow => ({
   value: 225, pct: null, unit: 'lbs', notes: '', ...o,
 })
 
+describe('duplicate exercise names (round-trip safety)', () => {
+  it('adjacent duplicated exercise keeps all sets across a round-trip', () => {
+    // swipe-Duplicate creates a second card with the same name; serialization
+    // must continue the cumulative count ("3","6"), not restart ("3","3")
+    const ed: EditableRoutine = {
+      program: 'P', routine: 'D',
+      exercises: [
+        { id: 'a', exercise: 'Squat', unit: 'lbs', notes: '', basis: '1rm', loadMode: 'lb', supersetGroup: null,
+          sets: [{ reps: 5, value: 225, pct: null }, { reps: 5, value: 225, pct: null }, { reps: 5, value: 225, pct: null }] },
+        { id: 'b', exercise: 'Squat', unit: 'lbs', notes: '', basis: '1rm', loadMode: 'lb', supersetGroup: null,
+          sets: [{ reps: 5, value: 225, pct: null }, { reps: 5, value: 225, pct: null }, { reps: 5, value: 225, pct: null }] },
+      ],
+    }
+    const rows = toRows(ed)
+    expect(rows.map((r) => r.sets)).toEqual(['3', '6'])
+    const back = toEditable(rows)
+    const totalSets = back.exercises.reduce((n, ex) => n + ex.sets.length, 0)
+    expect(totalSets).toBe(6)
+    // identical sets canonicalize to one "6" row — still 6 sets, stable from here on
+    const again = toEditable(toRows(back))
+    expect(again.exercises.reduce((n, ex) => n + ex.sets.length, 0)).toBe(6)
+  })
+
+  it('duplicated exercise with edited loads round-trips exactly', () => {
+    const ed: EditableRoutine = {
+      program: 'P', routine: 'D',
+      exercises: [
+        { id: 'a', exercise: 'Squat', unit: 'lbs', notes: '', basis: '1rm', loadMode: 'lb', supersetGroup: null,
+          sets: [{ reps: 5, value: 315, pct: null }, { reps: 5, value: 315, pct: null }, { reps: 5, value: 315, pct: null }] },
+        { id: 'b', exercise: 'Squat', unit: 'lbs', notes: '', basis: '1rm', loadMode: 'lb', supersetGroup: null,
+          sets: [{ reps: 8, value: 225, pct: null }, { reps: 8, value: 225, pct: null }, { reps: 8, value: 225, pct: null }] },
+      ],
+    }
+    const rows = toRows(ed)
+    expect(rows.map((r) => r.sets)).toEqual(['3', '6'])
+    const back = toEditable(rows)
+    expect(back.exercises.reduce((n, ex) => n + ex.sets.length, 0)).toBe(6)
+    expect(back.exercises[0].sets.filter((s) => s.value === 315)).toHaveLength(3)
+    expect(back.exercises[0].sets.filter((s) => s.value === 225)).toHaveLength(3)
+    expect(toRows(back)).toEqual(rows)
+  })
+
+  it('non-adjacent same-name blocks are not merged (Squat / Bench / Squat-backoff)', () => {
+    const rows = [
+      base({ exercise: 'Squat', sets: '3', value: 315 }),
+      base({ exercise: 'Bench', sets: '3', value: 225 }),
+      base({ exercise: 'Squat', sets: '3', value: 225 }),
+    ]
+    const ed = toEditable(rows)
+    expect(ed.exercises.map((e) => e.exercise)).toEqual(['Squat', 'Bench', 'Squat'])
+    expect(ed.exercises.reduce((n, ex) => n + ex.sets.length, 0)).toBe(9)
+    // the backoff block's distinct weight survives
+    expect(ed.exercises[2].sets[0].value).toBe(225)
+    expect(toRows(ed)).toEqual(rows)
+  })
+})
+
+describe('RPE/RIR load mode detection', () => {
+  it('an RPE-prescribed exercise loads in rpe mode, not weight mode', () => {
+    const rows = [base({ exercise: 'Squat', sets: '3', value: null, rpe: 8 })]
+    const ed = toEditable(rows)
+    expect(ed.exercises[0].loadMode).toBe('rpe')
+    expect(ed.exercises[0].sets[0].rpe).toBe(8)
+  })
+
+  it('a RIR-prescribed exercise loads in rir mode', () => {
+    const rows = [base({ exercise: 'Squat', sets: '3', value: null, rir: 2 })]
+    const ed = toEditable(rows)
+    expect(ed.exercises[0].loadMode).toBe('rir')
+  })
+})
+
 describe('toEditable / toRows', () => {
   it('uniform exercise round-trips', () => {
     const rows = [base({ exercise: 'Squat', sets: '5', reps: 5, value: 225 })]

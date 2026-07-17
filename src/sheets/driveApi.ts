@@ -2,7 +2,7 @@ import type { RoutineRow, RepSheet, ExerciseSettings } from '../types'
 import { authFetch } from '../auth/authFetch'
 import { getStoredUser } from '../auth/googleAuth'
 import { serializeRoutineValue, serializeReps } from './routineSerialization'
-import { fetchRoutineRows } from './sheetsApi'
+import { mapRoutineRow } from './sheetsApi'
 
 const DRIVE_BASE = 'https://www.googleapis.com/drive/v3'
 const SHEETS_BASE = 'https://sheets.googleapis.com/v4/spreadsheets'
@@ -650,8 +650,6 @@ async function checkMetaType(spreadsheetId: string): Promise<string | null> {
 }
 
 export async function appendRoutineRows(spreadsheetId: string, rows: RoutineRow[]): Promise<void> {
-  // Undo-restore clears the tombstone so the routine can be saved/edited again.
-  for (const r of rows) routineTombstones.delete(tombstoneKey(r.program, r.routine))
   const values = rows.map((r) => [
     r.program, r.routine, r.exercise, r.sets,
     sheetSafe(serializeReps({ reps: r.reps, repsMax: r.repsMax, repsOpen: r.repsOpen })),
@@ -659,6 +657,10 @@ export async function appendRoutineRows(spreadsheetId: string, rows: RoutineRow[
     r.unit, r.notes,
   ])
   await enqueueRoutineWrite(async () => {
+    // Undo-restore clears the tombstone in QUEUE order — clearing it at call
+    // time let an already-queued stale save resurrect the routine first,
+    // ending with duplicate rows after this append ran
+    for (const r of rows) routineTombstones.delete(tombstoneKey(r.program, r.routine))
     const url = `${SHEETS_BASE}/${spreadsheetId}/values/Routines!A:H:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`
     const res = await authFetch(url, {
       method: 'POST',
@@ -670,15 +672,38 @@ export async function appendRoutineRows(spreadsheetId: string, rows: RoutineRow[
 }
 
 // ─── Routine persistence (whole-tab read-modify-write) ─────────────────────
+//
+// The RMW works on RAW cell values: rows that don't belong to the routine
+// being saved pass through byte-identical, so hand-authored cells in other
+// routines ("work up to max", custom headers, 77.5%) are never normalized
+// or destroyed by saving an unrelated routine.
+
+export type RawRow = (string | number)[]
+
+export class RoutineNameCollisionError extends Error {
+  constructor(name: string) { super(`A routine named "${name}" already exists`) }
+}
+
+const BLANK_ROW: RawRow = ['', '', '', '', '', '', '', '']
+
+const padTo8 = (r: RawRow): RawRow => {
+  const out = r.slice(0, 8)
+  while (out.length < 8) out.push('')
+  return out
+}
+
+const isBlankRow = (r: RawRow) => r.every((c) => String(c ?? '').trim() === '')
+
+const rowMatches = (r: RawRow, program: string, routine: string) =>
+  String(r[0] ?? '') === program && String(r[1] ?? '') === routine
 
 export function replaceRoutineInRows(
-  all: RoutineRow[], program: string, routine: string, newRows: RoutineRow[],
-): RoutineRow[] {
-  const out: RoutineRow[] = []
+  all: RawRow[], program: string, routine: string, newRows: RawRow[],
+): RawRow[] {
+  const out: RawRow[] = []
   let inserted = false
   for (const row of all) {
-    const isTarget = row.program === program && row.routine === routine
-    if (isTarget) {
+    if (rowMatches(row, program, routine)) {
       if (!inserted) { out.push(...newRows); inserted = true }
       continue
     }
@@ -688,16 +713,16 @@ export function replaceRoutineInRows(
   return out
 }
 
-export function deleteRoutineInRows(all: RoutineRow[], program: string, routine: string): RoutineRow[] {
-  return all.filter((row) => !(row.program === program && row.routine === routine))
+export function deleteRoutineInRows(all: RawRow[], program: string, routine: string): RawRow[] {
+  return all.filter((row) => !rowMatches(row, program, routine))
 }
 
-export function renameProgramInRows(all: RoutineRow[], from: string, to: string): RoutineRow[] {
-  return all.map((row) => (row.program === from ? { ...row, program: to } : row))
+export function renameProgramInRows(all: RawRow[], from: string, to: string): RawRow[] {
+  return all.map((row) => (String(row[0] ?? '') === from ? [to, ...row.slice(1)] : row))
 }
 
-export function deleteProgramInRows(all: RoutineRow[], program: string): RoutineRow[] {
-  return all.filter((row) => row.program !== program)
+export function deleteProgramInRows(all: RawRow[], program: string): RawRow[] {
+  return all.filter((row) => String(row[0] ?? '') !== program)
 }
 
 // USER_ENTERED coerces cell text: "5-8" becomes a date (May 8 → serial ~46150),
@@ -708,18 +733,50 @@ function sheetSafe(s: string): string {
   return s === '' || /^-?\d+(\.\d+)?$/.test(s) ? s : `'${s}`
 }
 
-function rowsToValues(rows: RoutineRow[]): (string | number)[][] {
-  return rows.map((r) => [
-    r.program, r.routine, r.exercise, r.sets,
-    sheetSafe(serializeReps({ reps: r.reps, repsMax: r.repsMax, repsOpen: r.repsOpen })),
-    sheetSafe(serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis, rpe: r.rpe, rir: r.rir })),
+// For RAW writes there is no coercion to defend against: numeric strings
+// become real numbers (keeping the weight column numeric), everything else
+// is written as literal text with no apostrophe needed.
+const rawCell = (s: string): string | number =>
+  s !== '' && /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : s
+
+function rowsToRawValues(rows: RoutineRow[]): RawRow[] {
+  return rows.map((r) => padTo8([
+    r.program, r.routine, r.exercise, rawCell(r.sets),
+    rawCell(serializeReps({ reps: r.reps, repsMax: r.repsMax, repsOpen: r.repsOpen })),
+    rawCell(serializeRoutineValue({ value: r.value, pct: r.pct ?? null, basis: r.basis, rpe: r.rpe, rir: r.rir })),
     r.unit, r.notes,
-  ])
+  ]))
 }
 
-async function rewriteRoutinesTab(spreadsheetId: string, rows: RoutineRow[]): Promise<void> {
-  await authFetch(`${SHEETS_BASE}/${spreadsheetId}/values/Routines!A2:H:clear`, { method: 'POST' })
-  await writeRange(spreadsheetId, 'Routines!A1', [ROUTINE_HEADERS, ...rowsToValues(rows)])
+// Raw grid of the Routines tab. Throws on failure — a transient error must
+// never be mistaken for an empty tab by a read-modify-write.
+async function fetchRoutinesRaw(spreadsheetId: string): Promise<RawRow[]> {
+  const url = `${SHEETS_BASE}/${spreadsheetId}/values/${encodeURIComponent('Routines!A:H')}?valueRenderOption=UNFORMATTED_VALUE`
+  const res = await authFetch(url)
+  if (!res.ok) throw new Error('Failed to read Routines tab')
+  const data = await res.json()
+  return (data.values ?? []) as RawRow[]
+}
+
+const rawToRoutineRow = (r: RawRow): RoutineRow =>
+  mapRoutineRow(r.map((c) => String(c ?? '')))
+
+// One atomic write covering both the new content and the old extent (blank
+// padding overwrites leftover rows from a previously larger tab). The old
+// clear-then-write left a window where a failed write stranded the tab
+// empty — losing every program's routines.
+async function writeRoutinesTab(
+  spreadsheetId: string, header: RawRow, body: RawRow[], previousBodyCount: number,
+): Promise<void> {
+  const values: RawRow[] = [padTo8(header), ...body.map(padTo8)]
+  const pad = previousBodyCount + 1 - values.length
+  for (let i = 0; i < pad; i++) values.push(BLANK_ROW)
+  const res = await authFetch(`${SHEETS_BASE}/${spreadsheetId}/values:batchUpdate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ valueInputOption: 'RAW', data: [{ range: 'Routines!A1', values }] }),
+  })
+  if (!res.ok) throw new Error('Failed to write Routines tab')
 }
 
 // All Routines-tab read-modify-writes run sequentially so no operation can write a
@@ -744,16 +801,38 @@ function addRoutineTombstone(program: string, routine: string) {
   setTimeout(() => routineTombstones.delete(key), TOMBSTONE_TTL_MS)
 }
 
+/**
+ * Persists one routine. `original` is the identity the routine had when it
+ * was loaded — matching on it makes rename atomic (the old rows are replaced
+ * by rows carrying the new name) instead of duplicating the routine.
+ * Throws RoutineNameCollisionError if renaming onto a name that already
+ * exists in the program.
+ */
 export async function saveRoutineRows(
-  spreadsheetId: string, program: string, routine: string, newRows: RoutineRow[],
+  spreadsheetId: string,
+  original: { program: string; routine: string },
+  newRows: RoutineRow[],
 ): Promise<RoutineRow[]> {
   return enqueueRoutineWrite(async () => {
-    const all = await fetchRoutineRows(spreadsheetId)
+    const raw = await fetchRoutinesRaw(spreadsheetId)
+    const header = raw.length > 0 ? raw[0] : ROUTINE_HEADERS
+    const body = raw.slice(1).filter((r) => !isBlankRow(r))
     // The routine was deleted while this save was pending/in flight — don't resurrect it.
-    if (routineTombstones.has(tombstoneKey(program, routine))) return all
-    const next = replaceRoutineInRows(all, program, routine, newRows)
-    await rewriteRoutinesTab(spreadsheetId, next)
-    return next
+    if (routineTombstones.has(tombstoneKey(original.program, original.routine))) {
+      return body.map(rawToRoutineRow)
+    }
+
+    const newName = newRows[0]
+      ? { program: newRows[0].program, routine: newRows[0].routine }
+      : original
+    const isRename = newName.program !== original.program || newName.routine !== original.routine
+    if (isRename && body.some((r) => rowMatches(r, newName.program, newName.routine))) {
+      throw new RoutineNameCollisionError(newName.routine)
+    }
+
+    const next = replaceRoutineInRows(body, original.program, original.routine, rowsToRawValues(newRows))
+    await writeRoutinesTab(spreadsheetId, header, next, raw.length - 1)
+    return next.map(rawToRoutineRow)
   })
 }
 
@@ -762,10 +841,12 @@ export async function deleteRoutineRows(
 ): Promise<RoutineRow[]> {
   addRoutineTombstone(program, routine)
   return enqueueRoutineWrite(async () => {
-    const all = await fetchRoutineRows(spreadsheetId)
-    const next = deleteRoutineInRows(all, program, routine)
-    await rewriteRoutinesTab(spreadsheetId, next)
-    return next
+    const raw = await fetchRoutinesRaw(spreadsheetId)
+    const header = raw.length > 0 ? raw[0] : ROUTINE_HEADERS
+    const body = raw.slice(1).filter((r) => !isBlankRow(r))
+    const next = deleteRoutineInRows(body, program, routine)
+    await writeRoutinesTab(spreadsheetId, header, next, raw.length - 1)
+    return next.map(rawToRoutineRow)
   })
 }
 
@@ -773,10 +854,12 @@ export async function renameProgram(
   spreadsheetId: string, from: string, to: string,
 ): Promise<RoutineRow[]> {
   return enqueueRoutineWrite(async () => {
-    const all = await fetchRoutineRows(spreadsheetId)
-    const next = renameProgramInRows(all, from, to)
-    await rewriteRoutinesTab(spreadsheetId, next)
-    return next
+    const raw = await fetchRoutinesRaw(spreadsheetId)
+    const header = raw.length > 0 ? raw[0] : ROUTINE_HEADERS
+    const body = raw.slice(1).filter((r) => !isBlankRow(r))
+    const next = renameProgramInRows(body, from, to)
+    await writeRoutinesTab(spreadsheetId, header, next, raw.length - 1)
+    return next.map(rawToRoutineRow)
   })
 }
 
@@ -784,9 +867,11 @@ export async function deleteProgram(
   spreadsheetId: string, program: string,
 ): Promise<RoutineRow[]> {
   return enqueueRoutineWrite(async () => {
-    const all = await fetchRoutineRows(spreadsheetId)
-    const next = deleteProgramInRows(all, program)
-    await rewriteRoutinesTab(spreadsheetId, next)
-    return next
+    const raw = await fetchRoutinesRaw(spreadsheetId)
+    const header = raw.length > 0 ? raw[0] : ROUTINE_HEADERS
+    const body = raw.slice(1).filter((r) => !isBlankRow(r))
+    const next = deleteProgramInRows(body, program)
+    await writeRoutinesTab(spreadsheetId, header, next, raw.length - 1)
+    return next.map(rawToRoutineRow)
   })
 }

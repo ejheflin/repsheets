@@ -11,6 +11,10 @@ export function useRoutineEditor(
   initial: EditableRoutine,
   onSaved: (rows: RoutineRow[]) => void,
   editing = false,
+  // Drafts pass false until they're valid (named without collision, ≥1
+  // exercise) — nothing may persist before that, or an empty draft named
+  // like an existing routine would erase it
+  persistEnabled = true,
 ) {
   const [state, dispatch] = useReducer(reduce, initial)
   const [status, setStatus] = useState<SaveStatus>('idle')
@@ -22,13 +26,25 @@ export function useRoutineEditor(
   stateRef.current = state
   const onSavedRef = useRef(onSaved)
   onSavedRef.current = onSaved
+  const enabledRef = useRef(persistEnabled)
+  enabledRef.current = persistEnabled
+
+  // Identity the routine is saved under on the sheet. Saving always targets
+  // this name and only advances it on success — so a rename replaces the old
+  // rows instead of duplicating them under the new name.
+  const savedName = useRef({ program: initial.program, routine: initial.routine })
 
   const saveNow = useCallback(async () => {
+    if (!enabledRef.current) { setStatus('idle'); return }
     const s = stateRef.current
     setStatus('saving')
     try {
-      const saved = await saveRoutineRows(spreadsheetId, s.program, s.routine, toRows(s))
-      dirty.current = false
+      const saved = await saveRoutineRows(spreadsheetId, savedName.current, toRows(s))
+      savedName.current = { program: s.program, routine: s.routine }
+      // Only clear dirty if no newer edits arrived while this save was in
+      // flight — otherwise flush() would cancel their pending save and
+      // report success without persisting them
+      if (stateRef.current === s) dirty.current = false
       onSavedRef.current(saved)
       setStatus('saved')
     } catch (err) {
@@ -82,6 +98,15 @@ export function useRoutineEditor(
     window.addEventListener('pagehide', onHide)
     return () => window.removeEventListener('pagehide', onHide)
   }, [saveNow])
+
+  // Unmounting with a pending edit (switching bottom-nav tabs mid-debounce)
+  // must flush, not discard — the cleanup above this one clears the timer
+  const saveNowRef = useRef(saveNow)
+  saveNowRef.current = saveNow
+  useEffect(() => () => {
+    clearTimeout(timer.current)
+    if (dirty.current) saveNowRef.current().catch(() => {})
+  }, [])
 
   const act = useCallback((a: Action) => dispatch(a), [])
   return { state, status, act, flush }

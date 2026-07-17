@@ -203,7 +203,16 @@ export async function mockGoogleApis(context: BrowserContext): Promise<GoogleMoc
     }
 
     if (path.match(/^\/v4\/spreadsheets\/[^/]+\/values:batchUpdate$/)) {
-      state.batchUpdates.push(req.postDataJSON())
+      const body = req.postDataJSON() as { data?: Array<{ range: string; values: Row[] }> }
+      state.batchUpdates.push(body)
+      // Routine-editor tab rewrites arrive as a single atomic batchUpdate at
+      // Routines!A1: [header, ...rows, ...blank padding]
+      const routinesWrite = body.data?.find((d) => d.range.startsWith('Routines'))
+      if (routinesWrite) {
+        const rows = routinesWrite.values.slice(1).filter((r) => r.some((c) => String(c ?? '').trim() !== ''))
+        state.routineWrites.push(routinesWrite.values)
+        state.routineRows = rows
+      }
       return route.fulfill(json({}))
     }
 

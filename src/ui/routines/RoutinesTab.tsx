@@ -75,6 +75,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
   const [prefLoaded, setPrefLoaded] = useState(false)
   const [hasDraft, setHasDraft] = useState(false)
   const [draftName, setDraftName] = useState('New Routine')
+  const [draftSaved, setDraftSaved] = useState(false)
   const [justCreatedName, setJustCreatedName] = useState<string | null>(null)
   const [draftProgram, setDraftProgram] = useState<string | null>(null)
   const [unitSystem, setUnitSystemState] = useState<'imperial' | 'metric'>('imperial')
@@ -150,18 +151,20 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     if (draftProgram && programs.includes(draftProgram)) setDraftProgram(null)
   }, [draftProgram, programs])
 
-  // Graduate the draft routine once it has real rows in routineList (i.e. it was
-  // saved with ≥1 exercise). A rename-only draft has no rows → never appears here
-  // → stays an editable draft. Force the now-real card expanded for seamless editing.
+  // Graduate the draft routine once ITS OWN save landed in routineList.
+  // Gating on draftSaved matters: matching by name alone graduated the draft
+  // the instant its name collided with a pre-existing routine — silently
+  // discarding the draft mid-typing (and previously wiping that routine).
   useEffect(() => {
-    if (!hasDraft) return
+    if (!hasDraft || !draftSaved) return
     const key = draftName.trim().toLowerCase()
     if (!key) return
     if (routineList.some((r) => r.name.trim().toLowerCase() === key)) {
       setJustCreatedName(draftName)
       setHasDraft(false)
+      setDraftSaved(false)
     }
-  }, [hasDraft, draftName, routineList])
+  }, [hasDraft, draftSaved, draftName, routineList])
 
   // initialExpanded is consumed once on the real card's mount; release the flag on
   // the next tick so it doesn't keep force-expanding that routine on later renders.
@@ -202,6 +205,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
   }
 
   const handleDraftSaved = useCallback(() => {
+    setDraftSaved(true)
     refresh().catch(() => {})
   }, [refresh])
 
@@ -430,7 +434,10 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
         onDragCancel={resetDrag}
       >
         {routineList
-          .filter((r) => !hasDraft || r.name.trim().toLowerCase() !== draftName.trim().toLowerCase())
+          // Hide the just-saved duplicate only once the draft actually saved —
+          // hiding on a mere name match concealed the existing routine the
+          // draft was about to collide with
+          .filter((r) => !hasDraft || !draftSaved || r.name.trim().toLowerCase() !== draftName.trim().toLowerCase())
           .map((r, i) => (
             <SwipeableRow
               key={r.name}
@@ -503,7 +510,7 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
         </div>
       ) : !hasDraft && (
         <button
-          onClick={() => { setDraftName('New Routine'); setHasDraft(true) }}
+          onClick={() => { setDraftName('New Routine'); setDraftSaved(false); setHasDraft(true) }}
           className="w-full mt-2 rounded-[10px] border border-dashed border-[#3a3a5a] bg-transparent flex items-center justify-center py-3 text-[#6c63ff] text-sm font-semibold active:opacity-80"
         >
           + Add routine

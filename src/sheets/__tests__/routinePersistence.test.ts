@@ -1,32 +1,67 @@
 import { describe, it, expect } from 'vitest'
-import { replaceRoutineInRows, deleteRoutineInRows, renameProgramInRows, deleteProgramInRows } from '../driveApi'
-import type { RoutineRow } from '../../types'
-const r = (o: Partial<RoutineRow>): RoutineRow => ({
-  program: 'P', routine: 'A', exercise: 'X', sets: '5', reps: 5, value: 225,
-  pct: null, unit: 'lbs', notes: '', ...o })
+import {
+  replaceRoutineInRows,
+  deleteRoutineInRows,
+  renameProgramInRows,
+  deleteProgramInRows,
+  type RawRow,
+} from '../driveApi'
 
-describe('row transforms', () => {
-  it('replaces only the target routine, keeps others in place', () => {
-    const all = [r({ routine: 'A', exercise: 'X' }), r({ routine: 'B', exercise: 'Y' })]
-    const out = replaceRoutineInRows(all, 'P', 'A', [r({ routine: 'A', exercise: 'Z' })])
-    expect(out.map((x) => x.exercise)).toEqual(['Z', 'Y'])
+// Raw sheet rows: [program, routine, exercise, sets, reps, value, unit, notes]
+const raw = (program: string, routine: string, exercise: string, value: string | number = 100): RawRow =>
+  [program, routine, exercise, '3', 5, value, 'lbs', '']
+
+describe('replaceRoutineInRows (raw)', () => {
+  it('replaces the target routine in place and keeps order', () => {
+    const all = [raw('P', 'A', 'X'), raw('P', 'B', 'Y'), raw('P', 'A', 'X2')]
+    const out = replaceRoutineInRows(all, 'P', 'A', [raw('P', 'A', 'Z')])
+    expect(out.map((r) => r[2])).toEqual(['Z', 'Y'])
   })
-  it('appends when routine does not exist yet', () => {
-    const all = [r({ routine: 'B', exercise: 'Y' })]
-    const out = replaceRoutineInRows(all, 'P', 'A', [r({ routine: 'A', exercise: 'Z' })])
-    expect(out.map((x) => x.routine)).toEqual(['B', 'A'])
+
+  it('appends when the routine is new', () => {
+    const all = [raw('P', 'B', 'Y')]
+    const out = replaceRoutineInRows(all, 'P', 'A', [raw('P', 'A', 'Z')])
+    expect(out.map((r) => String(r[1]))).toEqual(['B', 'A'])
   })
-  it('deletes only matching rows', () => {
-    const all = [r({ routine: 'A' }), r({ routine: 'B' })]
-    expect(deleteRoutineInRows(all, 'P', 'A').map((x) => x.routine)).toEqual(['B'])
+
+  it('passes foreign rows through byte-identical — no normalization', () => {
+    // hand-authored content the parser cannot represent
+    const foreign: RawRow = ['Q', 'Heavy Day', 'Yoke Carry', '3', '8-12 each leg', 'work up to max', 'lbs', 'note']
+    const fractional: RawRow = ['Q', 'Waves', 'Bench', '3', 5, '77.5%', 'lbs', '']
+    const all = [foreign, fractional, raw('P', 'A', 'X')]
+    const out = replaceRoutineInRows(all, 'P', 'A', [raw('P', 'A', 'Z')])
+    expect(out[0]).toBe(foreign)
+    expect(out[1]).toBe(fractional)
   })
-  it('renames program on matching rows only', () => {
-    const all = [r({ program: 'P' }), r({ program: 'Q' })]
-    expect(renameProgramInRows(all, 'P', 'P2').map((x) => x.program)).toEqual(['P2', 'Q'])
+
+  it('supports renaming: matches the original name, inserts rows carrying the new name', () => {
+    const all = [raw('P', 'Push A', 'Bench'), raw('P', 'Pull', 'Row')]
+    const out = replaceRoutineInRows(all, 'P', 'Push A', [raw('P', 'Push B', 'Bench')])
+    expect(out.map((r) => String(r[1]))).toEqual(['Push B', 'Pull'])
   })
-  it('deletes all rows of a program, keeps other programs', () => {
-    const all = [r({ program: 'P', routine: 'A' }), r({ program: 'P', routine: 'B' }), r({ program: 'Q', routine: 'A' })]
+})
+
+describe('deleteRoutineInRows (raw)', () => {
+  it('removes only the target routine', () => {
+    const all = [raw('P', 'A', 'X'), raw('P', 'B', 'Y')]
+    expect(deleteRoutineInRows(all, 'P', 'A').map((r) => String(r[1]))).toEqual(['B'])
+  })
+})
+
+describe('renameProgramInRows (raw)', () => {
+  it('renames only column A of matching rows, preserving the rest untouched', () => {
+    const all = [raw('P', 'A', 'X', '77.5%'), raw('Q', 'B', 'Y')]
+    const out = renameProgramInRows(all, 'P', 'P2')
+    expect(out.map((r) => String(r[0]))).toEqual(['P2', 'Q'])
+    expect(out[0][5]).toBe('77.5%')
+    expect(out[1]).toBe(all[1])
+  })
+})
+
+describe('deleteProgramInRows (raw)', () => {
+  it('removes all rows of the program', () => {
+    const all = [raw('P', 'A', 'X'), raw('P', 'B', 'Y'), raw('Q', 'C', 'Z')]
     const out = deleteProgramInRows(all, 'P')
-    expect(out.map((x) => x.program)).toEqual(['Q'])
+    expect(out.map((r) => String(r[0]))).toEqual(['Q'])
   })
 })

@@ -135,6 +135,38 @@ test.describe('routine editor (mocked Google APIs)', () => {
     expect(rows.some((r) => r[1] === 'Day A' && r[2] === 'Bench Press')).toBe(true)
   })
 
+  test('renaming a routine replaces its rows instead of duplicating', async ({ page }) => {
+    await enterApp(page)
+    await page.getByText('Day A', { exact: true }).click()
+
+    const nameInput = page.getByRole('textbox', { name: 'Routine name' }).first()
+    await nameInput.fill('Day A Prime')
+    // leave the card so the deferred save flushes
+    await page.getByRole('heading', { name: 'Routines' }).click()
+
+    await expect.poll(() => state.routineWrites.length, { timeout: 10_000 }).toBeGreaterThan(0)
+    const rows = state.routineWrites[state.routineWrites.length - 1].slice(1).map((r) => r.map(String))
+    expect(rows.some((r) => r[1] === 'Day A Prime' && r[2] === 'Squat')).toBe(true)
+    // the old name is gone — no duplicate routine
+    expect(rows.some((r) => r[1] === 'Day A')).toBe(false)
+    expect(rows.some((r) => r[1] === 'Day B' && r[2] === 'Deadlift')).toBe(true)
+  })
+
+  test('an empty draft named like an existing routine never persists (no data wipe)', async ({ page }) => {
+    await enterApp(page)
+
+    await page.getByRole('button', { name: '+ Add routine' }).click()
+    const nameInput = page.getByRole('textbox', { name: 'Routine name' }).first()
+    await nameInput.fill('Day B')
+    await page.getByRole('heading', { name: 'Routines' }).click()
+    await expect(page.getByText('A routine with this name already exists')).toBeVisible()
+
+    // no write may have occurred — persisting an empty draft under an
+    // existing name used to erase that routine's rows
+    await page.waitForTimeout(1500)
+    expect(state.routineWrites.length).toBe(0)
+  })
+
   test('deleting a routine removes only its rows', async ({ page }) => {
     await enterApp(page)
 

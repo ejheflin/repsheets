@@ -1237,7 +1237,7 @@ export function DraftRoutineCard({
   allRows,
   loggedExercises,
   mutateCache,
-  onSavedToList: _onSavedToList,
+  onSavedToList,
   onNameChange,
   onDiscard,
   weightUnit,
@@ -1259,15 +1259,32 @@ export function DraftRoutineCard({
   const mutateCacheRef = useRef(mutateCache)
   mutateCacheRef.current = mutateCache
 
+  const onSavedToListRef = useRef(onSavedToList)
+  onSavedToListRef.current = onSavedToList
+
   const stableOnSaved = useCallback((savedRows: RoutineRow[]) => {
     // saveRoutineRows returns the full updated tab already in order; set it directly.
     // (The old filter+re-append mis-treated this whole-tab array as one routine's rows,
     // which re-sorted the list — e.g. pushing a new routine to the top.)
     mutateCacheRef.current(savedRows)
+    // Graduation is gated on the draft's OWN save landing — a mere name
+    // match must not dismiss the draft (it may be a collision)
+    onSavedToListRef.current()
   }, [])
 
   const initial: EditableRoutine = { program, routine: 'New Routine', exercises: [] }
-  const { state, status, act } = useRoutineEditor(spreadsheetId, initial, stableOnSaved, editing)
+  const [draftName, setDraftName] = useState(initial.routine)
+  // A draft may not persist until it's a real routine: named without
+  // colliding with an existing routine, and holding at least one exercise.
+  // Persisting an empty draft under an existing name would ERASE that
+  // routine's rows (replaceRoutineInRows matches by name).
+  const nameCollides = allRows.some(
+    (r) => r.program === program && r.routine === draftName.trim()
+  )
+  const [hasExercises, setHasExercises] = useState(false)
+  const persistValid = hasExercises && draftName.trim() !== '' && !nameCollides
+  const { state, status, act } = useRoutineEditor(spreadsheetId, initial, stableOnSaved, editing, persistValid)
+  useEffect(() => { setHasExercises(state.exercises.length > 0); setDraftName(state.routine) }, [state])
 
   const stateRef = useRef(state)
   stateRef.current = state
@@ -1298,13 +1315,15 @@ export function DraftRoutineCard({
   )
 
   const statusText =
+    nameCollides ? 'A routine with this name already exists' :
+    !persistValid ? '' :
     status === 'saving' ? 'Saving…' :
     status === 'saved' ? 'Saved' :
     status === 'error' ? "Could not save - retry" :
     ''
 
   const statusColor =
-    status === 'error' ? 'text-red-400' :
+    nameCollides || status === 'error' ? 'text-red-400' :
     status === 'saving' ? 'text-gray-400' :
     'text-[#6c63ff]'
 
@@ -1326,7 +1345,7 @@ export function DraftRoutineCard({
             value={state.routine}
             onChange={(e) => { act({ type: 'setRoutine', name: e.target.value }); onNameChange(e.target.value) }}
             onFocus={(e) => e.target.select()}
-            className="w-full bg-transparent font-semibold text-white outline-none border-b border-transparent focus:border-[#6c63ff] transition-colors"
+            className={`w-full bg-transparent font-semibold text-white outline-none border-b transition-colors ${nameCollides ? 'border-red-500 ring-1 ring-red-500 rounded px-1' : 'border-transparent focus:border-[#6c63ff]'}`}
             style={{ fontSize: 15 }}
             placeholder="Routine name"
             autoFocus
