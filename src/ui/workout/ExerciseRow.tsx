@@ -581,6 +581,16 @@ export function ExerciseRow({
               + Add Set
             </button>
           )}
+          {onShowHistory && (
+            <button onClick={onShowHistory} className="flex items-center justify-center py-2 px-1.5 active:opacity-60">
+              <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M 2.5 8 A 5.5 5.5 0 1 0 4.1 4.1" />
+                <polyline points="6.3 3.2 4.1 4.1 4.4 1.8" />
+                <line x1="8" y1="5" x2="8" y2="8" />
+                <line x1="8" y1="8" x2="10" y2="10" />
+              </svg>
+            </button>
+          )}
           <button onClick={() => setShowNotes(!showNotes)} className="w-7 flex items-center justify-center py-2">
             <NotesIcon hasNotes={hasUserNotes} />
           </button>
