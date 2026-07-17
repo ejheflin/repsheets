@@ -1,6 +1,9 @@
 import { getUnsyncedLogs, markLogsSynced } from './db'
-import { appendLogEntries } from '../sheets/sheetsApi'
+import { appendLogEntries, fetchLogEntries } from '../sheets/sheetsApi'
 import type { LogEntry } from '../types'
+
+const entryKey = (e: LogEntry) =>
+  [e.date, e.athlete, e.routine, e.exercise, e.set, e.reps, e.value ?? ''].join('|')
 
 export type SyncState = 'synced' | 'pending' | 'offline'
 
@@ -30,7 +33,18 @@ export async function checkPendingSync(spreadsheetId: string) {
   setState(unsynced.length > 0 ? 'pending' : 'synced')
 }
 
-export async function flushSync(spreadsheetId: string): Promise<boolean> {
+// Single-flight: concurrent flushes would each read the same unsynced rows
+// and append them twice before either marks them synced.
+let flushInFlight: Promise<boolean> | null = null
+
+export function flushSync(spreadsheetId: string): Promise<boolean> {
+  if (!flushInFlight) {
+    flushInFlight = doFlush(spreadsheetId).finally(() => { flushInFlight = null })
+  }
+  return flushInFlight
+}
+
+async function doFlush(spreadsheetId: string): Promise<boolean> {
   if (!navigator.onLine) {
     setState('offline')
     return false
@@ -45,9 +59,21 @@ export async function flushSync(spreadsheetId: string): Promise<boolean> {
   setState('pending')
 
   try {
-    const entries: LogEntry[] = unsynced.map(({ id: _id, spreadsheetId: _sid, synced: _s, ...entry }) => entry as LogEntry)
-    await appendLogEntries(spreadsheetId, entries)
-    const ids = unsynced.map((l) => l.id).filter((id): id is number => id !== undefined)
+    // Read back the sheet first: a previous append may have committed even
+    // though its response was lost — blindly re-appending would duplicate
+    // the user's sets. If the read fails, stay pending rather than risk it.
+    const existingKeys = new Set((await fetchLogEntries(spreadsheetId)).map(entryKey))
+
+    const pending = unsynced.map((row) => {
+      const { id, spreadsheetId: _sid, synced: _s, ...entry } = row
+      return { id, entry: entry as LogEntry }
+    })
+    const toAppend = pending.filter((p) => !existingKeys.has(entryKey(p.entry)))
+
+    if (toAppend.length > 0) {
+      await appendLogEntries(spreadsheetId, toAppend.map((p) => p.entry))
+    }
+    const ids = pending.map((p) => p.id).filter((id): id is number => id !== undefined)
     await markLogsSynced(ids)
     setState('synced')
     return true
@@ -57,16 +83,25 @@ export async function flushSync(spreadsheetId: string): Promise<boolean> {
   }
 }
 
-// Auto-flush when coming back online
-export function initSyncListeners(getSpreadsheetId: () => string | null) {
-  window.addEventListener('online', () => {
-    const id = getSpreadsheetId()
-    if (id) flushSync(id)
-  })
+// Auto-flush when coming back online. Callers may invoke this repeatedly
+// (e.g. on every sheet change) — window listeners are only registered once.
+let getSpreadsheetIdRef: (() => string | null) | null = null
+let windowListenersRegistered = false
 
-  window.addEventListener('offline', () => {
-    setState('offline')
-  })
+export function initSyncListeners(getSpreadsheetId: () => string | null) {
+  getSpreadsheetIdRef = getSpreadsheetId
+
+  if (!windowListenersRegistered) {
+    windowListenersRegistered = true
+    window.addEventListener('online', () => {
+      const id = getSpreadsheetIdRef?.()
+      if (id) flushSync(id)
+    })
+
+    window.addEventListener('offline', () => {
+      setState('offline')
+    })
+  }
 
   // Check on init
   const id = getSpreadsheetId()

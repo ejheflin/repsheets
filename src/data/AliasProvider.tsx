@@ -25,24 +25,28 @@ export function AliasProvider({ children }: { children: ReactNode }) {
   }, [user])
 
   const saveAlias = useCallback(async (newAlias: string, currentName: string) => {
+    // Rewrite history rows BEFORE committing the alias: if this throws, the
+    // alias is unchanged and identity stays consistent. Retrying converges —
+    // already-renamed rows simply no longer match currentName.
+    if (spreadsheetId) {
+      const entries = await fetchLogEntriesWithRows(spreadsheetId)
+      const toUpdate = entries.filter((e) => e.athlete === currentName)
+      if (toUpdate.length > 0) {
+        await updateLogRows(spreadsheetId, toUpdate.map((e) => ({
+          rowIndex: e.rowIndex,
+          entry: { ...e, athlete: newAlias },
+        })))
+
+        // Keep local IndexedDB cache in sync so autofill works even when offline
+        const updatedCache = entries.map(({ rowIndex: _r, ...e }) =>
+          e.athlete === currentName ? { ...e, athlete: newAlias } : e
+        )
+        await saveLogs(spreadsheetId, updatedCache)
+      }
+    }
+
     await writeAlias(newAlias)
     setAlias(newAlias)
-
-    if (!spreadsheetId) return
-    const entries = await fetchLogEntriesWithRows(spreadsheetId)
-    const toUpdate = entries.filter((e) => e.athlete === currentName)
-    if (toUpdate.length === 0) return
-
-    await updateLogRows(spreadsheetId, toUpdate.map((e) => ({
-      rowIndex: e.rowIndex,
-      entry: { ...e, athlete: newAlias },
-    })))
-
-    // Keep local IndexedDB cache in sync so autofill works even when offline
-    const updatedCache = entries.map(({ rowIndex: _r, ...e }) =>
-      e.athlete === currentName ? { ...e, athlete: newAlias } : e
-    )
-    await saveLogs(spreadsheetId, updatedCache)
   }, [spreadsheetId])
 
   return (
