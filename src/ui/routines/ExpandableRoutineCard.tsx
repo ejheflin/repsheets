@@ -1174,44 +1174,47 @@ export function ExpandableRoutineCard({
           {expanded ? <ChevronDown /> : <ChevronRight />}
         </button>
 
-        <button
+        <div
           onClick={() => setExpanded((v) => !v)}
-          className="flex-1 min-w-0 text-left active:opacity-80"
+          className="flex-1 min-w-0 text-left active:opacity-80 cursor-pointer"
         >
-          {expanded && renaming ? (
-            <input
-              type="text"
-              value={state.routine}
-              autoFocus
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => act({ type: 'setRoutine', name: e.target.value })}
-              onFocus={(e) => e.target.select()}
-              onBlur={() => setRenaming(false)}
-              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
-              className="w-full bg-transparent font-semibold text-white outline-none border-b border-[#6c63ff] transition-colors"
-              style={{ fontSize: 16 }}
-              placeholder="Routine name"
-            />
-          ) : (
-            <div className="font-semibold text-[15px] truncate">{state.routine}</div>
-          )}
+          <div className="flex items-center gap-1.5 min-w-0">
+            {expanded && renaming ? (
+              <input
+                type="text"
+                value={state.routine}
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => act({ type: 'setRoutine', name: e.target.value })}
+                onFocus={(e) => e.target.select()}
+                onBlur={() => setRenaming(false)}
+                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                className="w-full bg-transparent font-semibold text-white outline-none border-b border-[#6c63ff] transition-colors"
+                style={{ fontSize: 16 }}
+                placeholder="Routine name"
+              />
+            ) : (
+              <>
+                <span className="font-semibold text-[15px] truncate min-w-0">{state.routine}</span>
+                {expanded && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setRenaming(true) }}
+                    className="flex-shrink-0 w-6 h-6 flex items-center justify-center active:opacity-80"
+                    aria-label="Rename routine"
+                  >
+                    <PencilIcon />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
           {!expanded && (
             <div className="text-[12px] text-gray-500 mt-0.5 truncate">{summaryLine || 'No exercises'}</div>
           )}
           {expanded && (
             <div className={`text-[11px] mt-0.5 ${statusColor}`}>{statusText}</div>
           )}
-        </button>
-
-        {expanded && !renaming && (
-          <button
-            onClick={(e) => { e.stopPropagation(); setRenaming(true) }}
-            className="flex-shrink-0 w-6 h-6 flex items-center justify-center active:opacity-80"
-            aria-label="Rename routine"
-          >
-            <PencilIcon />
-          </button>
-        )}
+        </div>
 
         <button
           onClick={(e) => { e.stopPropagation(); handleStart() }}
@@ -1290,6 +1293,9 @@ export function DraftRoutineCard({
   const cardId = useId()
   const isDropTarget = !!activeOverCardId && activeOverCardId === cardId && activeSourceCardId !== cardId
   const [focusIdx, setFocusIdx] = useState<number | null>(null)
+  // Same rename grammar as the real card (pencil → edit), but a fresh draft
+  // starts in rename mode: naming it is the first job
+  const [renaming, setRenaming] = useState(true)
   const undoToast = useUndoToast()
   const { editing, onFocusCapture, onBlurCapture } = useCardEditing()
 
@@ -1380,16 +1386,33 @@ export function DraftRoutineCard({
           <ChevronDown />
         </div>
         <div className="flex-1 min-w-0">
-          <input
-            type="text"
-            value={state.routine}
-            onChange={(e) => { act({ type: 'setRoutine', name: e.target.value }); onNameChange(e.target.value) }}
-            onFocus={(e) => e.target.select()}
-            className={`w-full bg-transparent font-semibold text-white outline-none border-b transition-colors ${nameCollides ? 'border-red-500 ring-1 ring-red-500 rounded px-1' : 'border-transparent focus:border-[#6c63ff]'}`}
-            style={{ fontSize: 16 }}
-            placeholder="Routine name"
-            autoFocus
-          />
+          <div className="flex items-center gap-1.5 min-w-0">
+            {renaming ? (
+              <input
+                type="text"
+                value={state.routine}
+                onChange={(e) => { act({ type: 'setRoutine', name: e.target.value }); onNameChange(e.target.value) }}
+                onFocus={(e) => e.target.select()}
+                onBlur={() => setRenaming(false)}
+                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+                className={`w-full bg-transparent font-semibold text-white outline-none border-b transition-colors ${nameCollides ? 'border-red-500 ring-1 ring-red-500 rounded px-1' : 'border-[#6c63ff]'}`}
+                style={{ fontSize: 16 }}
+                placeholder="Routine name"
+                autoFocus
+              />
+            ) : (
+              <>
+                <span className={`font-semibold text-[15px] truncate min-w-0 ${nameCollides ? 'text-red-400' : ''}`}>{state.routine}</span>
+                <button
+                  onClick={() => setRenaming(true)}
+                  className="flex-shrink-0 w-6 h-6 flex items-center justify-center active:opacity-80"
+                  aria-label="Rename routine"
+                >
+                  <PencilIcon />
+                </button>
+              </>
+            )}
+          </div>
           <div className={`text-[11px] mt-0.5 ${statusColor}`}>{statusText}</div>
         </div>
         <button
