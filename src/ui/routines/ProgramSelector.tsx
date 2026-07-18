@@ -12,6 +12,9 @@ export function ProgramSelector({ programs, selected, onSelect }: ProgramSelecto
         onChange={(e) => onSelect(e.target.value)}
         className="w-full bg-[#2a2a4a] text-white text-sm font-semibold pl-4 pr-10 py-3 rounded-[10px] border border-[#3a3a5a] outline-none appearance-none cursor-pointer focus:border-[#6c63ff]"
       >
+        {/* Without this, value='' silently DISPLAYS the first program while
+            nothing is actually selected — state and UI must never diverge */}
+        {selected === '' && <option value="" disabled className="bg-[#1a1a2e]">…</option>}
         {programs.map((p) => (
           <option key={p} value={p} className="bg-[#1a1a2e]">{p}</option>
         ))}

@@ -135,6 +135,27 @@ test.describe('routine editor (mocked Google APIs)', () => {
     expect(rows.some((r) => r[1] === 'Day A' && r[2] === 'Bench Press')).toBe(true)
   })
 
+  test('editing a routine never touches a same-named routine in another program', async ({ page }) => {
+    // 'Day A' exists in BOTH programs — the duplication bug merged them into
+    // one editor card and saved both programs' exercises under Strength
+    state.routineRows.push(['Hypertrophy', 'Day A', 'Lunge', 3, 12, 40, 'lbs', ''])
+
+    await enterApp(page)
+    await page.getByText('Day A', { exact: true }).click()
+    await page.getByRole('button', { name: '+', exact: true }).first().click()
+
+    await expect.poll(() => state.routineWrites.length, { timeout: 10_000 }).toBeGreaterThan(0)
+    const rows = state.routineWrites[state.routineWrites.length - 1]
+      .slice(1).map((r) => r.map(String))
+
+    // Strength's Day A got the edit
+    expect(rows.find((r) => r[0] === 'Strength' && r[2] === 'Squat')?.[3]).toBe('4')
+    // Hypertrophy's Day A survives exactly once, and its exercise did not
+    // leak into Strength
+    expect(rows.filter((r) => r[0] === 'Hypertrophy' && r[1] === 'Day A' && r[2] === 'Lunge')).toHaveLength(1)
+    expect(rows.some((r) => r[0] === 'Strength' && r[2] === 'Lunge')).toBe(false)
+  })
+
   test('renaming a routine replaces its rows instead of duplicating', async ({ page }) => {
     await enterApp(page)
     await page.getByText('Day A', { exact: true }).click()

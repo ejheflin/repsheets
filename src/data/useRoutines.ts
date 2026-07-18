@@ -67,12 +67,21 @@ export function useRoutines(selectedProgram: string | null) {
     ? allRows.filter((r) => r.program === selectedProgram)
     : allRows
 
-  const routineNames = [...new Set(routines.map((r) => r.routine))]
-
-  const routineList = routineNames.map((name) => {
-    const rows = routines.filter((r) => r.routine === name)
+  // Group by (program, routine) — never by name alone. With no program filter
+  // active, same-named routines in different programs must NOT merge into one
+  // entry: an editor card built from such a merge saves all of it under one
+  // program, duplicating the other program's rows in the sheet.
+  const routineKeys: string[] = []
+  const byKey = new Map<string, RoutineRow[]>()
+  for (const r of routines) {
+    const key = `${r.program}||${r.routine}`
+    if (!byKey.has(key)) { byKey.set(key, []); routineKeys.push(key) }
+    byKey.get(key)!.push(r)
+  }
+  const routineList = routineKeys.map((key) => {
+    const rows = byKey.get(key)!
     const exercises = [...new Set(rows.map((r) => r.exercise))]
-    return { name, exercises, rows }
+    return { name: rows[0].routine, program: rows[0].program, exercises, rows }
   })
 
   const mutateCache = useCallback(async (rows: RoutineRow[]) => {

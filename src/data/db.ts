@@ -37,8 +37,13 @@ class RepSheetsDB extends Dexie {
 const db = new RepSheetsDB()
 
 export async function saveRoutines(spreadsheetId: string, rows: RoutineRow[]) {
-  await db.routines.where({ spreadsheetId }).delete()
-  await db.routines.bulkAdd(rows.map((r) => ({ ...r, spreadsheetId })))
+  // Atomic: concurrent callers (mutateCache racing refresh) interleaving
+  // delete/add doubled every cached row — and the editor then persisted the
+  // doubled cache back to the sheet
+  await db.transaction('rw', db.routines, async () => {
+    await db.routines.where({ spreadsheetId }).delete()
+    await db.routines.bulkAdd(rows.map((r) => ({ ...r, spreadsheetId })))
+  })
 }
 
 export async function getRoutines(spreadsheetId: string): Promise<RoutineRow[]> {
@@ -46,10 +51,14 @@ export async function getRoutines(spreadsheetId: string): Promise<RoutineRow[]> 
 }
 
 export async function saveLogs(spreadsheetId: string, entries: LogEntry[]) {
-  await db.logs.where({ spreadsheetId }).filter((l) => l.synced).delete()
-  await db.logs.bulkAdd(
-    entries.map((e) => ({ ...e, spreadsheetId, synced: true }))
-  )
+  // Atomic for the same reason as saveRoutines — concurrent refreshes were
+  // able to double the cached history
+  await db.transaction('rw', db.logs, async () => {
+    await db.logs.where({ spreadsheetId }).filter((l) => l.synced).delete()
+    await db.logs.bulkAdd(
+      entries.map((e) => ({ ...e, spreadsheetId, synced: true }))
+    )
+  })
 }
 
 export async function getLogs(spreadsheetId: string): Promise<LogEntry[]> {

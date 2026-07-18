@@ -453,13 +453,20 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
         onDragCancel={resetDrag}
       >
         {routineList
+          // Never render editable cards while no program is actively selected
+          // (the pre-reconcile window) — an unfiltered list once let a card
+          // capture rows spanning programs and autosave the merge
+          .filter(() => selectedProgram !== '' || programs.length === 0)
           // Hide the just-saved duplicate only once the draft actually saved —
           // hiding on a mere name match concealed the existing routine the
           // draft was about to collide with
           .filter((r) => !hasDraft || !draftSaved || r.name.trim().toLowerCase() !== draftName.trim().toLowerCase())
           .map((r, i) => (
             <SwipeableRow
-              key={r.name}
+              // Program-scoped key: when the program filter engages after the
+              // initial render, a card must remount rather than keep editor
+              // state captured from the unfiltered list
+              key={`${r.program}||${r.name}`}
               className="mb-2 rounded-[10px]"
               actions={[{ label: 'Delete', icon: <RoutineTrashIcon />, color: '#c0392b', onClick: () => handleDeleteRoutine(r.name, r.rows) }]}
               leadingActions={[{ label: 'Duplicate', icon: <DuplicateIcon />, color: '#2f855a', onClick: () => handleDuplicateRoutine(r.name, r.rows) }]}
