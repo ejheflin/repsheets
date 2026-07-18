@@ -190,6 +190,28 @@ test.describe('routine editor (mocked Google APIs)', () => {
     expect(state.routineWrites.length).toBe(0)
   })
 
+  test('swapping an exercise in the builder keeps its sets and autosaves', async ({ page }) => {
+    await enterApp(page)
+    await page.getByText('Day A', { exact: true }).click()
+
+    // swipe the first exercise row (Squat) to reveal actions, tap Swap —
+    // target a child INSIDE the SwipeableRow so the touch events bubble to it
+    await swipeLeft(page.locator('[data-exercise-row]').first().getByText('Sets', { exact: true }))
+    await page.locator('button:visible', { hasText: 'Swap' }).first().click()
+
+    await expect(page.getByText('Swap Exercise')).toBeVisible()
+    await page.getByRole('textbox', { name: 'Exercise name' }).fill('Front Squat')
+    await page.getByRole('button', { name: 'Confirm' }).click()
+
+    await expect.poll(() => state.routineWrites.length, { timeout: 10_000 }).toBeGreaterThan(0)
+    const rows = state.routineWrites[state.routineWrites.length - 1]
+      .slice(1).map((r) => r.map(String))
+    const swapped = rows.find((r) => r[1] === 'Day A' && r[2] === 'Front Squat')
+    expect(swapped?.[3]).toBe('3') // sets preserved
+    expect(rows.some((r) => r[1] === 'Day A' && r[2] === 'Squat')).toBe(false)
+    expect(rows.some((r) => r[1] === 'Day A' && r[2] === 'Bench Press')).toBe(true)
+  })
+
   test('long-press dragging a routine card reorders and persists', async ({ page }) => {
     await enterApp(page)
     await expect(page.getByText('Day B', { exact: true })).toBeVisible()

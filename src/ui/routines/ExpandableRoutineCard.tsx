@@ -10,6 +10,7 @@ import { toEditable, toRows } from '../../data/routineModel'
 import { formatValue, formatDuration, measureOf, MEASURES, roundWeight } from '../../data/measure'
 import { rpeToPct, rirToPct } from '../../workout/rpe'
 import { SwipeableRow } from '../shared/SwipeableRow'
+import { SwapExerciseModal } from '../shared/SwapExerciseModal'
 import { useUndoToast, UndoToast } from '../shared/UndoToast'
 import type { Action } from '../../data/routineEditorReducer'
 import type { EditableRoutine, RoutineRow, EditableExercise } from '../../types'
@@ -79,6 +80,17 @@ function suggestedWeight(
   }
   if (raw == null) return null
   return roundWeight(raw, unit)
+}
+
+function SwapIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="17 1 21 5 17 9" />
+      <path d="M3 11V9a4 4 0 014-4h14" />
+      <polyline points="7 23 3 19 7 15" />
+      <path d="M21 13v2a4 4 0 01-4 4H3" />
+    </svg>
+  )
 }
 
 function SetTrashIcon() {
@@ -840,6 +852,7 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, onDelete, act, kn
   const inputRef = useRef<HTMLInputElement>(null)
   const [inputFocused, setInputFocused] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  const [showSwap, setShowSwap] = useState(false)
 
   useEffect(() => {
     if (focusIdx === idx && inputRef.current) {
@@ -863,7 +876,10 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, onDelete, act, kn
   return (
     <SwipeableRow
       className="mb-2 rounded-[10px]"
-      actions={[{ label: 'Delete', icon: <SetTrashIcon />, color: '#c0392b', onClick: onDelete }]}
+      actions={[
+        { label: 'Swap', icon: <SwapIcon />, color: '#5c5ccc', onClick: () => setShowSwap(true) },
+        { label: 'Delete', icon: <SetTrashIcon />, color: '#c0392b', onClick: onDelete },
+      ]}
       leadingActions={[{ label: 'Duplicate', icon: <DuplicateIcon />, color: '#2f855a', onClick: () => act({ type: 'duplicateExercise', ex: idx }) }]}
     >
     <div
@@ -923,6 +939,15 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, onDelete, act, kn
         )}
       </div>
     </div>
+    {showSwap && (
+      <SwapExerciseModal
+        currentName={ex.exercise}
+        subtitle="Updates this routine for future workouts. Sets and loads are kept."
+        suggestions={knownExercises.slice(0, 24)}
+        onConfirm={onRename}
+        onClose={() => setShowSwap(false)}
+      />
+    )}
     </SwipeableRow>
   )
 }
