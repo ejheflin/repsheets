@@ -4,6 +4,7 @@ import {
   deleteRoutineInRows,
   renameProgramInRows,
   deleteProgramInRows,
+  reorderProgramRoutines,
   type RawRow,
 } from '../driveApi'
 
@@ -45,6 +46,30 @@ describe('deleteRoutineInRows (raw)', () => {
   it('removes only the target routine', () => {
     const all = [raw('P', 'A', 'X'), raw('P', 'B', 'Y')]
     expect(deleteRoutineInRows(all, 'P', 'A').map((r) => String(r[1]))).toEqual(['B'])
+  })
+})
+
+describe('reorderProgramRoutines', () => {
+  const getP = (r: RawRow) => String(r[0])
+  const getR = (r: RawRow) => String(r[1])
+
+  it('reorders routine blocks within the program, other programs untouched', () => {
+    const all = [
+      raw('Q', 'Z', 'Zed'),
+      raw('P', 'A', 'X1'), raw('P', 'A', 'X2'),
+      raw('P', 'B', 'Y'),
+      raw('Q', 'W', 'Wye'),
+    ]
+    const out = reorderProgramRoutines(all, 'P', ['B', 'A'], getP, getR)
+    expect(out.map((r) => `${r[0]}:${r[1]}:${r[2]}`)).toEqual([
+      'Q:Z:Zed', 'P:B:Y', 'P:A:X1', 'P:A:X2', 'Q:W:Wye',
+    ])
+  })
+
+  it('keeps routines the order list omits, after the ordered ones', () => {
+    const all = [raw('P', 'A', 'X'), raw('P', 'B', 'Y'), raw('P', 'C', 'Z')]
+    const out = reorderProgramRoutines(all, 'P', ['C', 'A'], getP, getR)
+    expect(out.map((r) => String(r[1]))).toEqual(['C', 'A', 'B'])
   })
 })
 

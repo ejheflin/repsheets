@@ -190,6 +190,34 @@ test.describe('routine editor (mocked Google APIs)', () => {
     expect(state.routineWrites.length).toBe(0)
   })
 
+  test('long-press dragging a routine card reorders and persists', async ({ page }) => {
+    await enterApp(page)
+    await expect(page.getByText('Day B', { exact: true })).toBeVisible()
+
+    // MouseSensor activates on 8px movement — drag Day A below Day B
+    const dayA = await page.getByText('Day A', { exact: true }).boundingBox()
+    const dayB = await page.getByText('Day B', { exact: true }).boundingBox()
+    if (!dayA || !dayB) throw new Error('cards not found')
+    await page.mouse.move(dayA.x + dayA.width / 2, dayA.y + dayA.height / 2)
+    await page.mouse.down()
+    for (let i = 1; i <= 10; i++) {
+      await page.mouse.move(
+        dayA.x + dayA.width / 2,
+        dayA.y + dayA.height / 2 + ((dayB.y + dayB.height - dayA.y) * i) / 10
+      )
+    }
+    await page.mouse.up()
+
+    await expect.poll(() => state.routineWrites.length, { timeout: 10_000 }).toBeGreaterThan(0)
+    const rows = state.routineWrites[state.routineWrites.length - 1]
+      .slice(1).map((r) => r.map(String))
+    const strengthRoutines = rows.filter((r) => r[0] === 'Strength').map((r) => r[1])
+    // Day B's block now precedes Day A's
+    expect(strengthRoutines.indexOf('Day B')).toBeLessThan(strengthRoutines.indexOf('Day A'))
+    // other program untouched
+    expect(rows.some((r) => r[0] === 'Hypertrophy' && r[2] === 'Curl')).toBe(true)
+  })
+
   test('deleting a routine removes only its rows', async ({ page }) => {
     await enterApp(page)
 

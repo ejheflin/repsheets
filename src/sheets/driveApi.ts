@@ -863,6 +863,62 @@ export async function renameProgram(
   })
 }
 
+/**
+ * Reorders a program's routine blocks to match orderedNames, keeping every
+ * row of other programs untouched and in place. Routines the order list
+ * doesn't mention keep their rows, after the ordered ones. Generic so the
+ * UI can apply the identical transform optimistically to parsed rows.
+ */
+export function reorderProgramRoutines<T>(
+  all: T[],
+  program: string,
+  orderedNames: string[],
+  getProgram: (r: T) => string,
+  getRoutine: (r: T) => string,
+): T[] {
+  const isProgramRow = (r: T) => getProgram(r) === program
+  const byName = new Map<string, T[]>()
+  for (const r of all) {
+    if (!isProgramRow(r)) continue
+    const name = getRoutine(r)
+    if (!byName.has(name)) byName.set(name, [])
+    byName.get(name)!.push(r)
+  }
+  const ordered: T[] = []
+  for (const name of orderedNames) {
+    const rows = byName.get(name)
+    if (rows) { ordered.push(...rows); byName.delete(name) }
+  }
+  for (const rows of byName.values()) ordered.push(...rows)
+
+  const out: T[] = []
+  let inserted = false
+  for (const r of all) {
+    if (isProgramRow(r)) {
+      if (!inserted) { out.push(...ordered); inserted = true }
+      continue
+    }
+    out.push(r)
+  }
+  return out
+}
+
+export async function reorderRoutines(
+  spreadsheetId: string, program: string, orderedNames: string[],
+): Promise<RoutineRow[]> {
+  return enqueueRoutineWrite(async () => {
+    const raw = await fetchRoutinesRaw(spreadsheetId)
+    const header = raw.length > 0 ? raw[0] : ROUTINE_HEADERS
+    const body = raw.slice(1).filter((r) => !isBlankRow(r))
+    const next = reorderProgramRoutines(
+      body, program, orderedNames,
+      (r) => String(r[0] ?? ''), (r) => String(r[1] ?? ''),
+    )
+    await writeRoutinesTab(spreadsheetId, header, next, raw.length - 1)
+    return next.map(rawToRoutineRow)
+  })
+}
+
 export async function deleteProgram(
   spreadsheetId: string, program: string,
 ): Promise<RoutineRow[]> {

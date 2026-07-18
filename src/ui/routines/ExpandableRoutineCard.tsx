@@ -21,6 +21,7 @@ export type GetMax = (name: string) => { e1rm: number | null; tm: number | null 
 export interface CardRegistration {
   getExercises: () => EditableExercise[]
   act: (a: Action) => void
+  getIdentity: () => { program: string; routine: string }
 }
 export type RegisterCard = (id: string, api: CardRegistration) => void
 export type UnregisterCard = (id: string) => void
@@ -968,6 +969,9 @@ function SortableExerciseRow({ ex, idx, focusIdx, setFocusIdx, act, onDeleteExer
   return (
     <div
       ref={setNodeRef}
+      // Marks the exercise-drag surface so a long-press here activates the
+      // exercise sortable, never the routine-card sortable wrapping it
+      data-exercise-row=""
       style={{
         transform: CSS.Transform.toString(transform),
         transition: isDragging ? 'none' : transition ?? undefined,
@@ -1109,7 +1113,7 @@ export function ExpandableRoutineCard({
   const stateRef = useRef(state)
   stateRef.current = state
   useEffect(() => {
-    onRegister?.(cardId, { getExercises: () => stateRef.current.exercises, act })
+    onRegister?.(cardId, { getExercises: () => stateRef.current.exercises, act, getIdentity: () => ({ program: stateRef.current.program, routine: stateRef.current.routine }) })
     return () => onUnregister?.(cardId)
   }, [cardId, onRegister, onUnregister, act])
 
@@ -1195,7 +1199,7 @@ export function ExpandableRoutineCard({
               />
             ) : (
               <>
-                <span className="font-semibold text-[15px] truncate min-w-0">{state.routine}</span>
+                <span className="font-semibold text-[15px] truncate min-w-0 select-none">{state.routine}</span>
                 {expanded && (
                   <button
                     onClick={(e) => { e.stopPropagation(); setRenaming(true) }}
@@ -1209,10 +1213,10 @@ export function ExpandableRoutineCard({
             )}
           </div>
           {!expanded && (
-            <div className="text-[12px] text-gray-500 mt-0.5 truncate">{summaryLine || 'No exercises'}</div>
+            <div className="text-[12px] text-gray-500 mt-0.5 truncate select-none">{summaryLine || 'No exercises'}</div>
           )}
           {expanded && (
-            <div className={`text-[11px] mt-0.5 ${statusColor}`}>{statusText}</div>
+            <div className={`text-[11px] mt-0.5 ${statusColor} select-none`}>{statusText}</div>
           )}
         </div>
 
@@ -1335,7 +1339,7 @@ export function DraftRoutineCard({
   const stateRef = useRef(state)
   stateRef.current = state
   useEffect(() => {
-    onRegister?.(cardId, { getExercises: () => stateRef.current.exercises, act })
+    onRegister?.(cardId, { getExercises: () => stateRef.current.exercises, act, getIdentity: () => ({ program: stateRef.current.program, routine: stateRef.current.routine }) })
     return () => onUnregister?.(cardId)
   }, [cardId, onRegister, onUnregister, act])
 

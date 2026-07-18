@@ -3,13 +3,16 @@ import {
   DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors, closestCorners,
   type DragStartEvent, type DragOverEvent, type DragEndEvent,
 } from '@dnd-kit/core'
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities'
 import { ProgramSelector } from './ProgramSelector'
 import { ProgramActions } from './ProgramActions'
 import { NamePromptModal } from './NamePromptModal'
 import { ExpandableRoutineCard, DraftRoutineCard, type CardRegistration } from './ExpandableRoutineCard'
 import { SwipeableRow } from '../shared/SwipeableRow'
 import { useUndoToast, UndoToast } from '../shared/UndoToast'
-import { renameProgram, deleteProgram, deleteRoutineRows, appendRoutineRows } from '../../sheets/driveApi'
+import { renameProgram, deleteProgram, deleteRoutineRows, appendRoutineRows, reorderRoutines, reorderProgramRoutines } from '../../sheets/driveApi'
 import { useRoutines } from '../../data/useRoutines'
 import { useLogs } from '../../data/useLogs'
 import { useExerciseSettings } from '../../data/useExerciseSettings'
@@ -67,6 +70,50 @@ function SheetIcon() {
 
 interface RoutinesTabProps {
   onStartWorkout: () => void
+}
+
+const CARD_SORT_PREFIX = 'card:'
+const cardSortId = (r: { program: string; name: string }) => `${CARD_SORT_PREFIX}${r.program}||${r.name}`
+
+// The whole card is a long-press drag handle for reordering routines —
+// except interactive elements (Start, pencil, chevron, inputs) and the
+// exercise rows, whose long-press drags the exercise instead.
+function guardCardListeners(listeners: SyntheticListenerMap | undefined): SyntheticListenerMap {
+  if (!listeners) return {}
+  const guarded: SyntheticListenerMap = {}
+  for (const [name, handler] of Object.entries(listeners)) {
+    guarded[name] = (e: React.SyntheticEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target?.closest('input, textarea, select, button, [data-no-dnd], [data-exercise-row]')) return
+      ;(handler as (e: React.SyntheticEvent) => void)(e)
+    }
+  }
+  return guarded
+}
+
+function SortableCardShell({ id, children }: { id: string; children: React.ReactNode }) {
+  const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  // Deliberately NOT spreading dnd `attributes`: role="button" on the shell
+  // turns the whole card into one giant accessible button, swallowing every
+  // inner control's name. Only touch/mouse sensors are wired, so the
+  // keyboard-dnd attributes buy nothing here.
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition: isDragging ? 'none' : transition ?? undefined,
+        zIndex: isDragging ? 10 : undefined,
+        position: 'relative',
+        opacity: isDragging ? 0.4 : undefined,
+        // keeps scrolling from the card surface; stops double-tap zoom quirks
+        touchAction: 'manipulation',
+      }}
+      {...guardCardListeners(listeners)}
+    >
+      {children}
+    </div>
+  )
 }
 
 export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
@@ -313,7 +360,11 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     // taps-and-thinks; tolerance lets a deliberate hold wobble a little
     useSensor(TouchSensor, { activationConstraint: { delay: 600, tolerance: 8 } }),
   )
-  const [activeDrag, setActiveDrag] = useState<{ exercise: EditableExercise; width: number | null } | null>(null)
+  const [activeDrag, setActiveDrag] = useState<
+    | { kind: 'exercise'; exercise: EditableExercise; width: number | null }
+    | { kind: 'card'; name: string; width: number | null }
+    | null
+  >(null)
   const [overCardId, setOverCardId] = useState<string | null>(null)
   const [sourceCardId, setSourceCardId] = useState<string | null>(null)
 
@@ -332,13 +383,20 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
 
   const handleDragStart = useCallback((e: DragStartEvent) => {
     const id = String(e.active.id)
+    const width = e.active.rect.current.initial?.width ?? null
+    if (id.startsWith(CARD_SORT_PREFIX)) {
+      const entry = displayedRef.current.find((r) => cardSortId(r) === id)
+      setActiveDrag(entry ? { kind: 'card', name: entry.name, width } : null)
+      return
+    }
     const entry = findCardEntry(id)
     setSourceCardId(entry?.[0] ?? null)
     const exercise = entry?.[1].getExercises().find((x) => x.id === id) ?? null
-    setActiveDrag(exercise ? { exercise, width: e.active.rect.current.initial?.width ?? null } : null)
+    setActiveDrag(exercise ? { kind: 'exercise', exercise, width } : null)
   }, [findCardEntry])
 
   const handleDragOver = useCallback((e: DragOverEvent) => {
+    if (String(e.active.id).startsWith(CARD_SORT_PREFIX)) return
     setOverCardId(resolveOverCard(e.over ? String(e.over.id) : null))
   }, [resolveOverCard])
 
@@ -365,12 +423,39 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     }
   }, [activeDrag])
 
+  // Routine-card reorder: resolve the drop target to a card, move the block,
+  // apply optimistically, persist through the serialized write queue
+  const handleCardDragEnd = useCallback((activeId: string, overId: string) => {
+    if (!spreadsheetId || !selectedProgram) return
+    const displayed = displayedRef.current
+    const ids = displayed.map(cardSortId)
+    const from = ids.indexOf(activeId)
+    let to = ids.indexOf(overId)
+    if (to < 0) {
+      // dropped over an exercise or a card's droppable container
+      const regId = resolveOverCard(overId)
+      const ident = regId ? cardRegistry.current.get(regId)?.getIdentity() : null
+      if (ident) to = displayed.findIndex((r) => r.program === ident.program && r.name === ident.routine)
+    }
+    if (from < 0 || to < 0 || from === to) return
+
+    const orderedNames = arrayMove(displayed.map((r) => r.name), from, to)
+    mutateCache(reorderProgramRoutines(allRows, selectedProgram, orderedNames, (r) => r.program, (r) => r.routine))
+    reorderRoutines(spreadsheetId, selectedProgram, orderedNames)
+      .then((saved) => mutateCache(saved))
+      .catch((err) => { if (err instanceof AuthExpiredError) login() })
+  }, [spreadsheetId, selectedProgram, allRows, mutateCache, resolveOverCard, login])
+
   const handleExerciseDragEnd = useCallback((e: DragEndEvent) => {
     resetDrag()
     const { active, over } = e
     if (!over) return
     const activeId = String(active.id)
     const overId = String(over.id)
+    if (activeId.startsWith(CARD_SORT_PREFIX)) {
+      handleCardDragEnd(activeId, overId)
+      return
+    }
     const srcEntry = findCardEntry(activeId)
     if (!srcEntry) return
     const src = srcEntry[1]
@@ -395,7 +480,21 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     const exercise: EditableExercise = { ...src.getExercises()[fromIdx], supersetGroup: null }
     src.act({ type: 'removeExercise', ex: fromIdx })
     dest.act({ type: 'insertExercise', index: toIdx, exercise })
-  }, [findCardEntry, resetDrag])
+  }, [findCardEntry, resetDrag, handleCardDragEnd])
+
+  // The list actually rendered (and the card-reorder universe)
+  const displayedRoutines = useMemo(() => routineList
+    // Never render editable cards while no program is actively selected
+    // (the pre-reconcile window) — an unfiltered list once let a card
+    // capture rows spanning programs and autosave the merge
+    .filter(() => selectedProgram !== '' || programs.length === 0)
+    // Hide the just-saved duplicate only once the draft actually saved —
+    // hiding on a mere name match concealed the existing routine the
+    // draft was about to collide with
+    .filter((r) => !hasDraft || !draftSaved || r.name.trim().toLowerCase() !== draftName.trim().toLowerCase()),
+  [routineList, selectedProgram, programs.length, hasDraft, draftSaved, draftName])
+  const displayedRef = useRef(displayedRoutines)
+  displayedRef.current = displayedRoutines
 
   if (isLoading) {
     return <div className="text-gray-400 text-center mt-10">Loading routines...</div>
@@ -452,43 +551,40 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
         onDragEnd={handleExerciseDragEnd}
         onDragCancel={resetDrag}
       >
-        {routineList
-          // Never render editable cards while no program is actively selected
-          // (the pre-reconcile window) — an unfiltered list once let a card
-          // capture rows spanning programs and autosave the merge
-          .filter(() => selectedProgram !== '' || programs.length === 0)
-          // Hide the just-saved duplicate only once the draft actually saved —
-          // hiding on a mere name match concealed the existing routine the
-          // draft was about to collide with
-          .filter((r) => !hasDraft || !draftSaved || r.name.trim().toLowerCase() !== draftName.trim().toLowerCase())
-          .map((r, i) => (
-            <SwipeableRow
+        <SortableContext items={displayedRoutines.map(cardSortId)} strategy={verticalListSortingStrategy}>
+          {displayedRoutines.map((r, i) => (
+            <SortableCardShell
               // Program-scoped key: when the program filter engages after the
               // initial render, a card must remount rather than keep editor
               // state captured from the unfiltered list
               key={`${r.program}||${r.name}`}
-              className="mb-2 rounded-[10px]"
-              actions={[{ label: 'Delete', icon: <RoutineTrashIcon />, color: '#c0392b', onClick: () => handleDeleteRoutine(r.name, r.rows) }]}
-              leadingActions={[{ label: 'Duplicate', icon: <DuplicateIcon />, color: '#2f855a', onClick: () => handleDuplicateRoutine(r.name, r.rows) }]}
+              id={cardSortId(r)}
             >
-              <ExpandableRoutineCard
-                routine={r}
-                spreadsheetId={spreadsheetId ?? ''}
-                allRows={allRows}
-                loggedExercises={loggedExercises}
-                mutateCache={mutateCache}
-                onStartWorkout={handleStartWorkout}
-                initialExpanded={!!justCreatedName && r.name.trim().toLowerCase() === justCreatedName.trim().toLowerCase()}
-                tourId={i === 0 ? 'routine-card' : undefined}
-                weightUnit={weightUnit}
-                getMax={getMax}
-                onRegister={registerCard}
-                onUnregister={unregisterCard}
-                activeOverCardId={overCardId}
-                activeSourceCardId={sourceCardId}
-              />
-            </SwipeableRow>
+              <SwipeableRow
+                className="mb-2 rounded-[10px]"
+                actions={[{ label: 'Delete', icon: <RoutineTrashIcon />, color: '#c0392b', onClick: () => handleDeleteRoutine(r.name, r.rows) }]}
+                leadingActions={[{ label: 'Duplicate', icon: <DuplicateIcon />, color: '#2f855a', onClick: () => handleDuplicateRoutine(r.name, r.rows) }]}
+              >
+                <ExpandableRoutineCard
+                  routine={r}
+                  spreadsheetId={spreadsheetId ?? ''}
+                  allRows={allRows}
+                  loggedExercises={loggedExercises}
+                  mutateCache={mutateCache}
+                  onStartWorkout={handleStartWorkout}
+                  initialExpanded={!!justCreatedName && r.name.trim().toLowerCase() === justCreatedName.trim().toLowerCase()}
+                  tourId={i === 0 ? 'routine-card' : undefined}
+                  weightUnit={weightUnit}
+                  getMax={getMax}
+                  onRegister={registerCard}
+                  onUnregister={unregisterCard}
+                  activeOverCardId={overCardId}
+                  activeSourceCardId={sourceCardId}
+                />
+              </SwipeableRow>
+            </SortableCardShell>
           ))}
+        </SortableContext>
         {hasDraft && spreadsheetId && (
           <DraftRoutineCard
             program={selectedProgram || programs[0] || ''}
@@ -513,10 +609,16 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
               style={{ width: activeDrag.width ?? undefined }}
               className="bg-[#2a2a4a] border border-[#6c63ff] rounded-[10px] px-3 py-2.5 shadow-xl shadow-black/50"
             >
-              <div className="text-sm font-semibold text-white truncate">{activeDrag.exercise.exercise || 'Exercise'}</div>
-              <div className="text-[11px] text-gray-400 mt-0.5">
-                {activeDrag.exercise.sets.length} set{activeDrag.exercise.sets.length === 1 ? '' : 's'}
-              </div>
+              {activeDrag.kind === 'exercise' ? (
+                <>
+                  <div className="text-sm font-semibold text-white truncate">{activeDrag.exercise.exercise || 'Exercise'}</div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">
+                    {activeDrag.exercise.sets.length} set{activeDrag.exercise.sets.length === 1 ? '' : 's'}
+                  </div>
+                </>
+              ) : (
+                <div className="text-[15px] font-semibold text-white truncate">{activeDrag.name}</div>
+              )}
             </div>
           )}
         </DragOverlay>
