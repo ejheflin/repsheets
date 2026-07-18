@@ -1175,7 +1175,7 @@ export function ExpandableRoutineCard({
               onChange={(e) => act({ type: 'setRoutine', name: e.target.value })}
               onFocus={(e) => e.target.select()}
               className="w-full bg-transparent font-semibold text-white outline-none border-b border-transparent focus:border-[#6c63ff] transition-colors"
-              style={{ fontSize: 15 }}
+              style={{ fontSize: 16 }}
               placeholder="Routine name"
             />
           ) : (
@@ -1362,7 +1362,7 @@ export function DraftRoutineCard({
             onChange={(e) => { act({ type: 'setRoutine', name: e.target.value }); onNameChange(e.target.value) }}
             onFocus={(e) => e.target.select()}
             className={`w-full bg-transparent font-semibold text-white outline-none border-b transition-colors ${nameCollides ? 'border-red-500 ring-1 ring-red-500 rounded px-1' : 'border-transparent focus:border-[#6c63ff]'}`}
-            style={{ fontSize: 15 }}
+            style={{ fontSize: 16 }}
             placeholder="Routine name"
             autoFocus
           />
