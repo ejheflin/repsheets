@@ -309,7 +309,9 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
 
   const dndSensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 400, tolerance: 5 } }),
+    // 600ms press before a reorder starts — 400 fired during ordinary
+    // taps-and-thinks; tolerance lets a deliberate hold wobble a little
+    useSensor(TouchSensor, { activationConstraint: { delay: 600, tolerance: 8 } }),
   )
   const [activeDrag, setActiveDrag] = useState<{ exercise: EditableExercise; width: number | null } | null>(null)
   const [overCardId, setOverCardId] = useState<string | null>(null)
@@ -345,6 +347,23 @@ export function RoutinesTab({ onStartWorkout }: RoutinesTabProps) {
     setOverCardId(null)
     setSourceCardId(null)
   }, [])
+
+  // While dragging, the original pointer would otherwise keep interacting
+  // with content under the overlay — selecting text and sweeping across
+  // inputs. Suppress selection globally and drop focus for the duration.
+  useEffect(() => {
+    if (!activeDrag) return
+    const body = document.body as HTMLElement & { style: CSSStyleDeclaration & { webkitUserSelect?: string } }
+    const prevSelect = body.style.userSelect
+    const prevWebkit = body.style.webkitUserSelect
+    body.style.userSelect = 'none'
+    body.style.webkitUserSelect = 'none'
+    ;(document.activeElement as HTMLElement | null)?.blur?.()
+    return () => {
+      body.style.userSelect = prevSelect
+      body.style.webkitUserSelect = prevWebkit ?? ''
+    }
+  }, [activeDrag])
 
   const handleExerciseDragEnd = useCallback((e: DragEndEvent) => {
     resetDrag()

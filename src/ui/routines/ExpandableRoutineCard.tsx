@@ -811,6 +811,22 @@ interface ExerciseRowProps {
   isDragging?: boolean
 }
 
+// A press that begins on an interactive element (typing, tapping a stepper,
+// picking a chip) must never turn into a reorder — only the card surface may
+// start a drag.
+function guardListeners(listeners: SyntheticListenerMap | undefined): SyntheticListenerMap {
+  if (!listeners) return {}
+  const guarded: SyntheticListenerMap = {}
+  for (const [name, handler] of Object.entries(listeners)) {
+    guarded[name] = (e: React.SyntheticEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target?.closest('input, textarea, select, button, [data-no-dnd]')) return
+      ;(handler as (e: React.SyntheticEvent) => void)(e)
+    }
+  }
+  return guarded
+}
+
 function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, onDelete, act, knownExercises, weightUnit, getMax, hasNext, dragListeners, dragAttributes, isDragging }: ExerciseRowProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [inputFocused, setInputFocused] = useState(false)
@@ -845,7 +861,7 @@ function ExerciseRow({ ex, idx, focusIdx, onFocused, onRename, onDelete, act, kn
       className="bg-[#2a2a4a] rounded-[10px] p-3 border border-[#3a3a5a]"
       style={isDragging ? { boxShadow: '0 8px 24px rgba(0,0,0,0.6)', border: '1.5px solid #6c63ff', transform: 'scale(1.03)' } : undefined}
       {...(dragAttributes ?? {})}
-      {...(dragListeners ?? {})}
+      {...guardListeners(dragListeners)}
     >
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
