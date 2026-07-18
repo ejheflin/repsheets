@@ -160,6 +160,8 @@ test.describe('routine editor (mocked Google APIs)', () => {
     await enterApp(page)
     await page.getByText('Day A', { exact: true }).click()
 
+    // rename is behind the pencil — tapping the name toggles the card
+    await page.getByRole('button', { name: 'Rename routine' }).click()
     const nameInput = page.getByRole('textbox', { name: 'Routine name' }).first()
     await nameInput.fill('Day A Prime')
     // leave the card so the deferred save flushes

@@ -125,6 +125,14 @@ function buildChipSource(
   return out
 }
 
+function PencilIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+    </svg>
+  )
+}
+
 function ChevronRight() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1075,6 +1083,9 @@ export function ExpandableRoutineCard({
   const cardId = useId()
   const isDropTarget = !!activeOverCardId && activeOverCardId === cardId && activeSourceCardId !== cardId
   const [expanded, setExpanded] = useState(initialExpanded)
+  // Rename is explicit via the pencil — tapping the name toggles the card,
+  // so a look-tap can't pop the keyboard or arm the autosave
+  const [renaming, setRenaming] = useState(false)
   const [focusIdx, setFocusIdx] = useState<number | null>(null)
   const undoToast = useUndoToast()
   const { editing, onFocusCapture, onBlurCapture } = useCardEditing()
@@ -1167,14 +1178,17 @@ export function ExpandableRoutineCard({
           onClick={() => setExpanded((v) => !v)}
           className="flex-1 min-w-0 text-left active:opacity-80"
         >
-          {expanded ? (
+          {expanded && renaming ? (
             <input
               type="text"
               value={state.routine}
+              autoFocus
               onClick={(e) => e.stopPropagation()}
               onChange={(e) => act({ type: 'setRoutine', name: e.target.value })}
               onFocus={(e) => e.target.select()}
-              className="w-full bg-transparent font-semibold text-white outline-none border-b border-transparent focus:border-[#6c63ff] transition-colors"
+              onBlur={() => setRenaming(false)}
+              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+              className="w-full bg-transparent font-semibold text-white outline-none border-b border-[#6c63ff] transition-colors"
               style={{ fontSize: 16 }}
               placeholder="Routine name"
             />
@@ -1188,6 +1202,16 @@ export function ExpandableRoutineCard({
             <div className={`text-[11px] mt-0.5 ${statusColor}`}>{statusText}</div>
           )}
         </button>
+
+        {expanded && !renaming && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setRenaming(true) }}
+            className="flex-shrink-0 w-6 h-6 flex items-center justify-center active:opacity-80"
+            aria-label="Rename routine"
+          >
+            <PencilIcon />
+          </button>
+        )}
 
         <button
           onClick={(e) => { e.stopPropagation(); handleStart() }}
