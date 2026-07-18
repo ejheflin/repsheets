@@ -416,9 +416,6 @@ function RepsControl({ ex, idx, act, mismatch = false }: { ex: EditableExercise;
 
   const label = mode === 'single' ? 'Reps' : mode === 'range' ? 'Range' : 'AMRAP'
 
-  // AMRAP: single box, min then "+"
-  const amrapDisplay = reps != null ? `${reps}+` : 'AMRAP'
-
   let control: React.ReactNode
   if (mode === 'single') {
     control = <Stepper value={reps ?? 0} min={0} mismatch={mismatch} onChange={(v) => act({ type: 'setReps', ex: idx, reps: v })} />
@@ -429,16 +426,22 @@ function RepsControl({ ex, idx, act, mismatch = false }: { ex: EditableExercise;
         <input
           type="text" inputMode="numeric"
           value={reps ?? ''}
-          onChange={(e) => act({ type: 'setReps', ex: idx, reps: e.target.value ? Number(e.target.value) : null, repsMax })}
+          onChange={(e) => {
+            if (!/^\d*$/.test(e.target.value)) return
+            act({ type: 'setReps', ex: idx, reps: e.target.value ? Number(e.target.value) : null, repsMax })
+          }}
           onFocus={(e) => e.target.select()}
           className="w-6 bg-transparent text-center outline-none [appearance:textfield]"
           placeholder="8"
         />
-        <span className="text-gray-500">–</span>
+        <span className="text-gray-500 select-none">–</span>
         <input
           type="text" inputMode="numeric"
           value={repsMax ?? ''}
-          onChange={(e) => act({ type: 'setReps', ex: idx, reps, repsMax: e.target.value ? Number(e.target.value) : null })}
+          onChange={(e) => {
+            if (!/^\d*$/.test(e.target.value)) return
+            act({ type: 'setReps', ex: idx, reps, repsMax: e.target.value ? Number(e.target.value) : null })
+          }}
           onFocus={(e) => e.target.select()}
           className="w-6 bg-transparent text-center outline-none [appearance:textfield]"
           placeholder="12"
@@ -446,20 +449,26 @@ function RepsControl({ ex, idx, act, mismatch = false }: { ex: EditableExercise;
       </div>
     )
   } else {
+    // Digits in the field, "+" as a fixed suffix OUTSIDE the editable text
+    // (same shape as range mode's fixed hyphen). Rendering "5+" as the input
+    // value re-formatted on every keystroke: the "+" trapped the cursor, so
+    // multi-digit reps couldn't be typed and backspace appeared dead.
     control = (
-      <input
-        type="text"
-        inputMode="numeric"
-        value={amrapDisplay}
-        onChange={(e) => {
-          const n = e.target.value.match(/\d+/)
-          act({ type: 'setReps', ex: idx, reps: n ? Number(n[0]) : null, repsOpen: true })
-        }}
-        onFocus={(e) => e.target.select()}
-        className={`w-[72px] ${boxBase}${mismatch ? ` ${mismatchRing}` : ''}`}
-        style={{ fontSize: 16 }}
-        placeholder="AMRAP"
-      />
+      <div className={`w-[72px] inline-flex items-center justify-center ${boxBase} focus-within:ring-1 focus-within:ring-[#6c63ff]${mismatch ? ` ${mismatchRing}` : ''}`} style={{ fontSize: 16 }}>
+        <input
+          type="text" inputMode="numeric"
+          aria-label="Minimum reps"
+          value={reps ?? ''}
+          onChange={(e) => {
+            if (!/^\d*$/.test(e.target.value)) return
+            act({ type: 'setReps', ex: idx, reps: e.target.value ? Number(e.target.value) : null, repsOpen: true })
+          }}
+          onFocus={(e) => e.target.select()}
+          className="w-8 bg-transparent text-center outline-none [appearance:textfield]"
+          placeholder="5"
+        />
+        <span className="text-gray-500 select-none">+</span>
+      </div>
     )
   }
 

@@ -190,6 +190,29 @@ test.describe('routine editor (mocked Google APIs)', () => {
     expect(state.routineWrites.length).toBe(0)
   })
 
+  test('AMRAP reps accept multi-digit input and autosave as N+', async ({ page }) => {
+    await enterApp(page)
+    await page.getByText('Day A', { exact: true }).click()
+
+    // switch Squat's reps mode to AMRAP via the Reps dropdown
+    await page.getByRole('button', { name: 'Reps' }).first().click()
+    await page.getByText('AMRAP', { exact: true }).click()
+
+    // typing a two-digit value must work (the old "5+" formatting trapped
+    // the cursor behind the plus sign after one keystroke)
+    const minReps = page.getByRole('textbox', { name: 'Minimum reps' }).first()
+    await minReps.fill('')
+    await minReps.pressSequentially('10')
+    await expect(minReps).toHaveValue('10')
+    await page.getByRole('heading', { name: 'Routines' }).click()
+
+    await expect.poll(() => state.routineWrites.length, { timeout: 10_000 }).toBeGreaterThan(0)
+    const rows = state.routineWrites[state.routineWrites.length - 1]
+      .slice(1).map((r) => r.map(String))
+    const squat = rows.find((r) => r[1] === 'Day A' && r[2] === 'Squat')
+    expect(squat?.[4]).toBe('10+')
+  })
+
   test('swapping an exercise in the builder keeps its sets and autosaves', async ({ page }) => {
     await enterApp(page)
     await page.getByText('Day A', { exact: true }).click()
